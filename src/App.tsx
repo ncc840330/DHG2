@@ -176,7 +176,7 @@ const T = {
   },
 };
 
-function trStatus(key, l) {
+function trStatus(key: string, l: any) {
   const map = {
     "rakodásra vár": l.s_rakodasravar,
     "rakodás alatt": l.s_rakodas,
@@ -195,7 +195,7 @@ function trStatus(key, l) {
   };
   return map[key] || key;
 }
-function trStopStatus(key, l) {
+function trStopStatus(key: string, l: any) {
   if (key === "rakodás alatt") return l.ss_rakodas;
   return trStatus(key, l);
 }
@@ -205,7 +205,7 @@ function getDateKey(offset = 0) {
   d.setDate(d.getDate() + offset);
   return d.toISOString().slice(0, 10);
 }
-function formatDateLabel(k) {
+function formatDateLabel(k: string) {
   if (!k || !k.includes("-")) return "—";
   const [y, m, d] = k.split("-");
   return `${y.slice(2)}.${m}.${d}`;
@@ -274,7 +274,7 @@ async function fbSet(path, data) {
   } catch {}
 }
 
-function formatTime(iso) {
+function formatTime(iso: string) {
   if (!iso) return "—";
   return new Date(iso).toLocaleString("hu-HU", {
     month: "2-digit",
@@ -283,14 +283,14 @@ function formatTime(iso) {
     minute: "2-digit",
   });
 }
-function formatDuration(ms) {
+function formatDuration(ms: number) {
   if (!ms || ms < 0) return "—";
   const mins = Math.floor(ms / 60000),
     h = Math.floor(mins / 60),
     m = mins % 60;
   return h > 0 ? `${h}h ${m}m` : `${m}m`;
 }
-function formatSince(iso) {
+function formatSince(iso: string) {
   if (!iso) return null;
   const ms = Date.now() - new Date(iso).getTime();
   if (ms < 0) return null;
@@ -302,7 +302,7 @@ function formatSince(iso) {
   return `${mins}m`;
 }
 
-function TimeDisplay({ iso, label }) {
+function TimeDisplay({ iso, label }: { iso: string, label: string }) {
   if (!iso) return null;
   const d = new Date(iso);
   const time = d.toLocaleString("hu-HU", {
@@ -344,7 +344,7 @@ function TimeDisplay({ iso, label }) {
   );
 }
 
-function StatusBadge({ statusKey, l }) {
+function StatusBadge({ statusKey, l }: { statusKey: string, l: any }) {
   const colors = {
     teli: { bg: "#f59e0b", color: "#0f1117" },
     üres: { bg: "#2a2d3a", color: "#94a3b8" },
@@ -389,7 +389,7 @@ const LABEL = {
   display: "block",
 };
 
-function CargoModal({ name, cargoData, onSave, onClear, onClose, l }) {
+function CargoModal({ name, cargoData, onSave, onClear, onClose, l }: { name: string, cargoData: any, onSave: any, onClear: any, onClose: any, l: any }) {
   const [items, setItems] = useState(
     cargoData?.items ? [...cargoData.items] : []
   );
@@ -651,7 +651,7 @@ function CargoModal({ name, cargoData, onSave, onClear, onClose, l }) {
   );
 }
 
-function FuvarModal({ onClose, onAdd, l }) {
+function FuvarModal({ onClose, onAdd, l }: { onClose: any, onAdd: any, l: any }) {
   const emptyForm = {
     from: "",
     to: "",
@@ -1096,7 +1096,7 @@ export default function App() {
       midnightRef.current = setTimeout(() => {
         setSelectedDay(getTodayKey());
         go();
-      }, tom - now);
+      }, tom.getTime() - now.getTime());
     };
     go();
     return () => clearTimeout(midnightRef.current);
