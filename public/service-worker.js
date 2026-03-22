@@ -1,53 +1,32 @@
-const CACHE_NAME = "tatai-tracker-v1";
-const STATIC_ASSETS = [
-  "/",
-  "/index.html",
-  "/static/js/main.chunk.js",
-  "/static/js/bundle.js",
-  "/static/js/vendors~main.chunk.js",
-];
+const CACHE_NAME = 'tatai-tracker-v2';
+const VAPID_PUBLIC_KEY = 'BK3xvCCzNJbkYNDvMkRVF9z5N2rK9vr31tJkGmzSwXJ9zpzs4Q1K_0WBYCp5qDqfsVHvk0Xy0U5xVacWlwQxePx_PLy6R_FSWVix7Vjwl-A';
 
-// Install - cache static assets
-self.addEventListener("install", (event) => {
-  event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(STATIC_ASSETS).catch(() => {});
-    })
-  );
+self.addEventListener('install', event => {
   self.skipWaiting();
 });
 
-// Activate - clean old caches
-self.addEventListener("activate", (event) => {
-  event.waitUntil(
-    caches
-      .keys()
-      .then((keys) =>
-        Promise.all(
-          keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k))
-        )
-      )
-  );
-  self.clients.claim();
+self.addEventListener('activate', event => {
+  event.waitUntil(clients.claim());
 });
 
-// Fetch - network first, fallback to cache
-self.addEventListener("fetch", (event) => {
-  // Firebase requests always go to network
-  if (event.request.url.includes("firebaseio.com")) return;
+self.addEventListener('fetch', event => {
+  event.respondWith(fetch(event.request).catch(() => caches.match(event.request)));
+});
 
-  event.respondWith(
-    fetch(event.request)
-      .then((response) => {
-        // Cache successful GET responses
-        if (event.request.method === "GET" && response.status === 200) {
-          const clone = response.clone();
-          caches
-            .open(CACHE_NAME)
-            .then((cache) => cache.put(event.request, clone));
-        }
-        return response;
-      })
-      .catch(() => caches.match(event.request))
+self.addEventListener('push', event => {
+  const data = event.data ? event.data.json() : {};
+  event.waitUntil(
+    self.registration.showNotification(data.title || 'Tatai Tracker', {
+      body: data.body || '',
+      icon: '/icons/icon-192.png',
+      badge: '/icons/icon-32.png',
+      vibrate: [200, 100, 200],
+      data: data
+    })
   );
+});
+
+self.addEventListener('notificationclick', event => {
+  event.notification.close();
+  event.waitUntil(clients.openWindow('/'));
 });
