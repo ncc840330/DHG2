@@ -1058,6 +1058,46 @@ function FuvarModal({ onClose, onAdd, l }: { onClose: any, onAdd: any, l: any })
 }
 
 export default function App() {
+  const PIN = "12345";
+  const [authed, setAuthed] = useState(() => localStorage.getItem("tt_auth") === PIN);
+  const [pinInput, setPinInput] = useState("");
+  const [pinError, setPinError] = useState(false);
+
+  if (!authed) {
+    return (
+      <div style={{ minHeight: "100vh", background: "#0f1117", display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
+        <div style={{ background: "#1a1d2e", border: "1px solid #f59e0b", borderRadius: 16, padding: 32, width: "100%", maxWidth: 340, textAlign: "center" }}>
+          <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 32, color: "#f59e0b", letterSpacing: 4, marginBottom: 4 }}>TATAI TRACKER</div>
+          <div style={{ color: "#4a5568", fontSize: 11, letterSpacing: 2, marginBottom: 32 }}>RAKTÁRI LOGISZTIKA</div>
+          <div style={{ color: "#e2e8f0", fontSize: 13, marginBottom: 12 }}>Add meg a belépési kódot</div>
+          <input
+            type="password"
+            value={pinInput}
+            onChange={e => { setPinInput(e.target.value); setPinError(false); }}
+            onKeyDown={e => {
+              if (e.key === "Enter") {
+                if (pinInput === PIN) { localStorage.setItem("tt_auth", PIN); setAuthed(true); }
+                else { setPinError(true); setPinInput(""); }
+              }
+            }}
+            placeholder="••••••"
+            autoFocus
+            style={{ width: "100%", background: "#0f1117", border: `1px solid ${pinError ? "#ef4444" : "#f59e0b"}`, borderRadius: 8, padding: "12px", color: "#e2e8f0", fontSize: 20, textAlign: "center", fontFamily: "inherit", boxSizing: "border-box" as any, outline: "none", letterSpacing: 6, marginBottom: 8 }}
+          />
+          {pinError && <div style={{ color: "#ef4444", fontSize: 12, marginBottom: 8 }}>Helytelen kód</div>}
+          <button
+            onClick={() => {
+              if (pinInput === PIN) { localStorage.setItem("tt_auth", PIN); setAuthed(true); }
+              else { setPinError(true); setPinInput(""); }
+            }}
+            style={{ width: "100%", background: "#f59e0b", border: "none", color: "#0f1117", borderRadius: 8, padding: "12px", fontSize: 14, fontWeight: 700, cursor: "pointer", marginTop: 4 }}>
+            Belépés
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   const [lang, setLang] = useState("hu");
   const [showLangMenu, setShowLangMenu] = useState(false);
   const [trailers, setTrailers] = useState(initialTrailerState());
@@ -1076,8 +1116,46 @@ export default function App() {
   const [tick, setTick] = useState(0);
   const [editingPlan, setEditingPlan] = useState(null);
   const [replacingStop, setReplacingStop] = useState(null);
-  const [insertingStop, setInsertingStop] = useState(null); // {dateKey, index, direction:"before"|"after", pending:null}
-  const [cargoModal, setCargoModal] = useState(null); // trailerName | null
+  const [insertingStop, setInsertingStop] = useState(null);
+  const [cargoModal, setCargoModal] = useState(null);
+  const pushSubRef = useRef<any>(null);
+
+  const VAPID_PUBLIC_KEY = 'BK3xvCCzNJbkYNDvMkRVF9z5N2rK9vr31tJkGmzSwXJ9zpzs4Q1K_0WBYCp5qDqfsVHvk0Xy0U5xVacWlwQxePx_PLy6R_FSWVix7Vjwl-A';
+
+  const urlBase64ToUint8Array = (base64String: string) => {
+    const padding = '='.repeat((4 - base64String.length % 4) % 4);
+    const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+    const rawData = window.atob(base64);
+    return Uint8Array.from([...rawData].map(char => char.charCodeAt(0)));
+  };
+
+  const sendPush = async (title: string, body: string) => {
+    const sub = pushSubRef.current;
+    if (!sub) return;
+    try {
+      await fetch('/.netlify/functions/send-push', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ subscription: sub, title, body })
+      });
+    } catch (e) {}
+  };
+
+  useEffect(() => {
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+    navigator.serviceWorker.ready.then(async reg => {
+      try {
+        let sub = await reg.pushManager.getSubscription();
+        if (!sub) {
+          sub = await reg.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
+          });
+        }
+        pushSubRef.current = sub;
+      } catch (e) {}
+    });
+  }, []);
   const [cargoInputs, setCargoInputs] = useState({}); // {trailerName: [{text, scannedAt}]}
   const scanInputRef = useRef(null);
   const midnightRef = useRef(null);
@@ -1195,6 +1273,10 @@ export default function App() {
       [name]: { ...old, ...pending, lastUpdated: now },
     });
     if (pending.status && pending.status !== old.status) {
+      const pushStatuses = ["rakodásra vár", "indulásra kész - rakodva", "indulásra kész - üres"];
+      if (pushStatuses.includes(pending.status)) {
+        sendPush(`🚛 ${name}`, `Státusz: ${pending.status}`);
+      }
     }
     setDirtyTrailers((prev) => ({ ...prev, [name]: false }));
     setSavedTrailers((prev) => ({ ...prev, [name]: true }));
@@ -1360,6 +1442,8 @@ export default function App() {
       })),
       status: "beállításra vár",
     });
+    const label = formatDateLabel(dk);
+    sendPush(`📋 Napi terv feltöltve`, `${label} – ${plan.plannedRoute.length} helyszín`);
   };
   const updateStopStatus = async (dk, index, newSS) => {
     const plan = days[dk] || initialDayPlan(),
@@ -1381,6 +1465,8 @@ export default function App() {
     const status = newSS === "indult" ? "úton" : "állomásozik";
     const location = newSS === "indult" ? plan.location : warehouse;
     await saveDayPlan(dk, { ...plan, route: newRoute, status, location });
+    if (newSS === "érkezett") sendPush(`📍 Megérkezett`, warehouse);
+    if (newSS === "indult") sendPush(`🚛 Elindult`, `${warehouse} → következő helyszín`);
   };
   const revertStopStatus = async (dk, index) => {
     const plan = days[dk] || initialDayPlan();
