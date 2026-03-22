@@ -2290,7 +2290,7 @@ export default function App() {
                       <span style={LABEL}>
                         📋 {formatDateLabel(selectedDay)} – {l.dailyPlan}
                       </span>
-                      {!isToday && (
+                      {(
                         <button
                           className="btn-sm"
                           onClick={() => startEditing(selectedDay)}
