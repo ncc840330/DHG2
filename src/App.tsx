@@ -30,7 +30,7 @@ const T = {
     loading: "Betöltés...",
     overview: "📊 Áttekintés",
     route: "🗺️ Útvonal terv",
-    fuvarTab: "🚚 Fuvar igény (beta)",
+    fuvarTab: "🚚 Fuvar igény",
     noData: "Még nincs adat",
     standbyTrailers: "Standby Trailerek",
     status: "Állapot",
@@ -60,12 +60,10 @@ const T = {
     today: "MA",
     tomorrow: "HOLNAP",
     stops: "stop",
-    noData: "Még nincs adat",
     replaceLocation: "Csere helyszín:",
     insertBefore: "Elé szúr:",
     insertAfter: "Alá szúr:",
     insertConfirm: "✓",
-    fuvarTab: "🚚 Fuvar igény",
     fuvarTitle: "Fuvar igények",
     fuvarCreate: "Fuvar létrehozása",
     fuvarDraftTitle: "📋 Vázlat – még nem mentve",
@@ -107,8 +105,7 @@ const T = {
     loading: "Loading...",
     overview: "📊 Overview",
     route: "🗺️ Route Plan",
-    fuvarTab: "🚚 Transport Request (beta)",
-    truckStatus: "Truck status – today",
+    fuvarTab: "🚚 Transport Request",
     standbyTrailers: "Standby Trailers",
     status: "Status",
     location: "Location",
@@ -142,7 +139,6 @@ const T = {
     insertBefore: "Insert before:",
     insertAfter: "Insert after:",
     insertConfirm: "✓",
-    fuvarTab: "🚚 Transport Request",
     fuvarTitle: "Transport Requests",
     fuvarCreate: "New request",
     fuvarDraftTitle: "📋 Draft – not saved yet",
@@ -449,6 +445,7 @@ function CargoModal({ name, cargoData, onSave, onClear, onClose, l }) {
           borderRadius: 12,
           width: "100%",
           maxWidth: 460,
+          maxHeight: "85vh",
           display: "flex",
           flexDirection: "column",
         }}
@@ -529,14 +526,7 @@ function CargoModal({ name, cargoData, onSave, onClear, onClose, l }) {
         </div>
 
         {/* Item list */}
-        <div
-          style={{
-            height: 185,
-            overflowY: "auto",
-            padding: "8px 16px",
-            borderTop: "1px solid #2a2d3a",
-          }}
-        >
+        <div style={{ flex: 1, overflowY: "auto", padding: "8px 16px" }}>
           {items.length === 0 ? (
             <div
               style={{
@@ -1519,7 +1509,6 @@ export default function App() {
         .checkbox-urgent { width: 16px; height: 16px; cursor: pointer; accent-color: #ef4444; }
         .fuvar-row { display: grid; grid-template-columns: 1fr 60px 80px 1fr; gap: 8px; align-items: center; padding: 10px 0; border-bottom: 1px solid #1e2130; }
         .fuvar-row:last-child { border-bottom: none; }
-        #csb-link, [data-csb-link], .csb-icon, iframe ~ div[style*="position: fixed"][style*="bottom"] { display: none !important; }
       `}</style>
 
       {/* Header */}
