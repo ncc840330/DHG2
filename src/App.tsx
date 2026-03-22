@@ -1367,7 +1367,7 @@ export default function App() {
     if (!plan.route || !plan.route[index]) return;
     const newRoute = plan.route.map((stop, i) => {
       if (i !== index) return stop;
-      const u = { stopStatus: newSS };
+      const u: any = { stopStatus: newSS };
       if (newSS === "érkezett" && !stop.arrived) u.arrived = now;
       if (newSS === "rakodás alatt" && !stop.loading) u.loading = now;
       if (newSS === "indult" && !stop.departed) u.departed = now;
@@ -1395,7 +1395,7 @@ export default function App() {
         : "rakodás alatt";
     const newRoute = plan.route.map((s, i) => {
       if (i !== index) return s;
-      const u = { stopStatus: prev };
+      const u: any = { stopStatus: prev };
       if (prev === "érkezett") {
         u.loading = null;
         u.departed = null;
