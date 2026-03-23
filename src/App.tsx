@@ -55,6 +55,7 @@ const T = {
     departed: "Indult",
     revert: "↩ Visszavon",
     truckLoad: "Kamion rakodottsága",
+    truckStatus: "Kamion állapota",
     empty: "Üres",
     full: "Teli",
     today: "MA",
@@ -129,6 +130,7 @@ const T = {
     departed: "Departed",
     revert: "↩ Undo",
     truckLoad: "Truck load",
+    truckStatus: "Truck status",
     empty: "Empty",
     full: "Loaded",
     today: "TODAY",
@@ -1102,7 +1104,7 @@ export default function App() {
   const [showLangMenu, setShowLangMenu] = useState(false);
   const [trailers, setTrailers] = useState(initialTrailerState());
   const [days, setDays] = useState({});
-  const [fuvarDraft, setFuvarDraft] = useState([]); // [{from,to,urgent,timeFrom,timeTo}]
+  const [fuvarDraft, setFuvarDraft] = useState([]);
   const [fuvarSaved, setFuvarSaved] = useState([]);
   const [fuvarSavedAt, setFuvarSavedAt] = useState(null);
   const [fuvarModal, setFuvarModal] = useState(false);
@@ -1147,6 +1149,8 @@ export default function App() {
       try {
         let sub = await reg.pushManager.getSubscription();
         if (!sub) {
+          const permission = await Notification.requestPermission();
+          if (permission !== 'granted') return;
           sub = await reg.pushManager.subscribe({
             userVisibleOnly: true,
             applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
@@ -1156,7 +1160,8 @@ export default function App() {
       } catch (e) {}
     });
   }, []);
-  const [cargoInputs, setCargoInputs] = useState({}); // {trailerName: [{text, scannedAt}]}
+
+  const [cargoInputs, setCargoInputs] = useState({});
   const scanInputRef = useRef(null);
   const midnightRef = useRef(null);
   const l = T[lang];
@@ -1217,7 +1222,6 @@ export default function App() {
     await fbSet("trailers", ns);
   };
 
-  // Fuvar handlers
   const saveFuvarDraft = async () => {
     const now = new Date().toISOString();
     const merged = [...fuvarSaved, ...fuvarDraft];
@@ -1377,7 +1381,7 @@ export default function App() {
     const insertAt = direction === "before" ? index : index + 1;
     const newRouteStop = {
       warehouse: newW,
-      stopStatus: "v\u00e1rja",
+      stopStatus: "várja",
       arrived: null,
       loading: null,
       departed: null,
@@ -1458,10 +1462,6 @@ export default function App() {
       return { ...stop, ...u };
     });
     const warehouse = plan.route[index].warehouse;
-    const isFirstStop = index === 0;
-    const allPrevDeparted = plan.route
-      .slice(0, index)
-      .every((s) => s.stopStatus === "indult");
     const status = newSS === "indult" ? "úton" : "állomásozik";
     const location = newSS === "indult" ? plan.location : warehouse;
     await saveDayPlan(dk, { ...plan, route: newRoute, status, location });
@@ -1895,24 +1895,11 @@ export default function App() {
                 pending?.status !== undefined ? pending.status : t.status;
               const currentLocation =
                 pending?.location !== undefined ? pending.location : t.location;
-              const icon =
-                currentStatus === "rakodás alatt"
-                  ? "⏳"
-                  : currentStatus === "szedés alatt"
-                  ? "🔄"
-                  : currentStatus === "indulásra kész - rakodva"
-                  ? "📦"
-                  : currentStatus === "indulásra kész - üres"
-                  ? "✅"
-                  : currentStatus === "szedésre vár"
-                  ? "⏸"
-                  : "🔲";
               const cargo = cargoInputs[name];
               const cargoItems = cargo?.items || [];
               return (
                 <div key={name} className="card">
                   <div style={{ marginBottom: 12 }}>
-                    {/* Sor 1: név + státusz badge */}
                     <div
                       style={{
                         display: "flex",
@@ -1932,7 +1919,6 @@ export default function App() {
                       </div>
                       <StatusBadge statusKey={t.status} l={l} />
                     </div>
-                    {/* Sor 2: rakomány gomb + kuka */}
                     <div
                       style={{
                         display: "flex",
@@ -1998,7 +1984,6 @@ export default function App() {
                         </button>
                       )}
                     </div>
-                    {/* Helyszín + időbélyeg */}
                     <div style={{ color: "#06b6d4", fontSize: 12 }}>
                       📍 {t.location}
                     </div>
@@ -2290,15 +2275,13 @@ export default function App() {
                       <span style={LABEL}>
                         📋 {formatDateLabel(selectedDay)} – {l.dailyPlan}
                       </span>
-                      {(
-                        <button
-                          className="btn-sm"
-                          onClick={() => startEditing(selectedDay)}
-                          style={{ borderColor: "#f59e0b", color: "#f59e0b" }}
-                        >
-                          {l.editPlan}
-                        </button>
-                      )}
+                      <button
+                        className="btn-sm"
+                        onClick={() => startEditing(selectedDay)}
+                        style={{ borderColor: "#f59e0b", color: "#f59e0b" }}
+                      >
+                        {l.editPlan}
+                      </button>
                     </div>
                     {plan.plannedRoute && plan.plannedRoute.length > 0 ? (
                       <>
@@ -3344,7 +3327,6 @@ export default function App() {
               />
             )}
 
-            {/* Header + Létrehozás gomb */}
             <div
               style={{
                 display: "flex",
@@ -3380,7 +3362,6 @@ export default function App() {
               </button>
             </div>
 
-            {/* Draft lista (még nem mentett) */}
             {fuvarDraft.length > 0 && (
               <div className="card" style={{ marginBottom: 12 }}>
                 <div
@@ -3487,7 +3468,6 @@ export default function App() {
               </div>
             )}
 
-            {/* Mentett fuvarok */}
             {fuvarSaved.length === 0 && fuvarDraft.length === 0 ? (
               <div
                 className="card"
