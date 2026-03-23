@@ -16,185 +16,78 @@ const TRAILER_STATUSES = [
   "indulásra kész - üres",
 ];
 const TRUCK_LOAD_KEYS = ["üres", "teli"];
-
-const HOURS = Array.from(
-  { length: 19 },
-  (_, i) => `${String(i + 5).padStart(2, "0")}:00`
-);
-
+const HOURS = Array.from({ length: 19 }, (_, i) => `${String(i + 5).padStart(2, "0")}:00`);
 const VAPID_PUBLIC_KEY = 'BK3xvCCzNJbkYNDvMkRVF9z5N2rK9vr31tJkGmzSwXJ9zpzs4Q1K_0WBYCp5qDqfsVHvk0Xy0U5xVacWlwQxePx_PLy6R_FSWVix7Vjwl-A';
 
 const T = {
   hu: {
-    appSub: "LOGISZTIKAI NYOMKÖVETŐ",
-    live: "ÉLŐ",
-    loading: "Betöltés...",
-    overview: "📊 Áttekintés",
-    route: "🗺️ Útvonal terv",
-    fuvarTab: "🚚 Fuvar igény",
-    noData: "Még nincs adat",
-    standbyTrailers: "Standby Trailerek",
-    status: "Állapot",
-    location: "Helyszín",
-    save: "Mentés",
-    saved: "✓ Mentve",
-    since: "óta",
-    updatedAt: "Frissítve",
-    dailyPlan: "Napi terv",
-    editPlan: "✏️ Szerkesztés",
-    savePlan: "💾 Mentés",
-    cancel: "Mégse",
-    lockStart: "🔒 Terv zárolása",
-    reset: "🔄 Reset",
-    todayRoute: "Mai útvonal",
-    planningTitle: "Szerkesztés",
-    clickWarehouses: "Kattints a raktárakra a sorrendhez:",
+    appSub: "LOGISZTIKAI NYOMKÖVETŐ", live: "ÉLŐ", loading: "Betöltés...",
+    overview: "📊 Áttekintés", route: "🗺️ Útvonal terv", fuvarTab: "🚚 Fuvar igény",
+    noData: "Még nincs adat", standbyTrailers: "Standby Trailerek",
+    status: "Állapot", location: "Helyszín", save: "Mentés", saved: "✓ Mentve",
+    since: "óta", updatedAt: "Frissítve", dailyPlan: "Napi terv",
+    editPlan: "✏️ Szerkesztés", savePlan: "💾 Mentés", cancel: "Mégse",
+    lockStart: "🔒 Terv zárolása", reset: "🔄 Reset", todayRoute: "Mai útvonal",
+    planningTitle: "Szerkesztés", clickWarehouses: "Kattints a raktárakra a sorrendhez:",
     futurePlan: "Ez a terv a jövő napra van előkészítve.",
     noPlan: "Még nincs útvonal tervezve erre a napra.",
-    arrived: "Érkezett",
-    loadingBtn: "Rakodás",
-    departed: "Indult",
-    revert: "↩ Visszavon",
-    truckLoad: "Kamion rakodottsága",
-    truckStatus: "Kamion állapota",
-    empty: "Üres",
-    full: "Teli",
-    today: "MA",
-    tomorrow: "HOLNAP",
-    stops: "stop",
-    replaceLocation: "Csere helyszín:",
-    insertBefore: "Elé szúr:",
-    insertAfter: "Alá szúr:",
-    insertConfirm: "✓",
-    fuvarTitle: "Fuvar igények",
-    fuvarCreate: "Fuvar létrehozása",
-    fuvarDraftTitle: "📋 Vázlat – még nem mentve",
-    fuvarSavedTitle: "Mentett fuvarok",
-    fuvarSave: "💾 Véglegesítés",
-    fuvarSaved: "✓ Mentve",
-    fuvarUpdated: "Frissítve",
-    fuvarFrom: "Honnan",
-    fuvarTo: "Hova",
-    fuvarUrgent: "⚡ Sürgős",
-    fuvarTimeFrom: "Időablak ettől",
-    fuvarTimeTo: "Időablak eddig",
-    fuvarAdd: "➕ Hozzáadás",
-    fuvarNoData: "Még nincs fuvar igény leadva.",
-    addCargo: "📦 Rakomány",
-    cargoModalTitle: "Rakomány hozzáadása",
-    cargoScan: "Szkennelj vagy írj be egy tételt...",
-    cargoSave: "💾 Mentés",
-    cargoClear: "🗑️ Lista ürítés",
-    cargoUpdated: "Frissítve",
-    cargoEmpty: "Nincs rakomány rögzítve.",
-    s_rakodasravar: "rakodásra vár",
-    s_rakodas: "rakodás alatt",
-    s_szedes: "szedés alatt",
-    s_szedesvar: "szedésre vár",
-    s_indulas_rakodva: "indulásra kész - rakodva",
-    s_indulas_ures: "indulásra kész - üres",
-    ss_varja: "várja",
-    ss_erkezett: "érkezett",
-    ss_rakodas: "rakodás alatt",
-    ss_indult: "indult",
-    ts_uton: "úton",
-    ts_allomásozik: "állomásozik",
-    ts_vár: "beállításra vár",
+    arrived: "Érkezett", loadingBtn: "Rakodás", departed: "Indult",
+    truckLoad: "Kamion rakodottsága", truckStatus: "Kamion állapota",
+    empty: "Üres", full: "Teli", today: "MA", tomorrow: "HOLNAP", stops: "stop",
+    replaceLocation: "Csere helyszín:", insertBefore: "Elé szúr:", insertAfter: "Alá szúr:",
+    fuvarTitle: "Fuvar igények", fuvarCreate: "Fuvar létrehozása",
+    fuvarDraftTitle: "📋 Vázlat – még nem mentve", fuvarSavedTitle: "Mentett fuvarok",
+    fuvarSave: "💾 Véglegesítés", fuvarSaved: "✓ Mentve", fuvarUpdated: "Frissítve",
+    fuvarFrom: "Honnan", fuvarTo: "Hova", fuvarUrgent: "⚡ Sürgős",
+    fuvarTimeFrom: "Időablak ettől", fuvarTimeTo: "Időablak eddig", fuvarAdd: "➕ Hozzáadás",
+    addCargo: "📦 Rakomány", cargoModalTitle: "Rakomány hozzáadása",
+    cargoScan: "Szkennelj vagy írj be egy tételt...", cargoSave: "💾 Mentés",
+    cargoClear: "🗑️ Lista ürítés", cargoUpdated: "Frissítve", cargoEmpty: "Nincs rakomány rögzítve.",
+    s_rakodasravar: "rakodásra vár", s_rakodas: "rakodás alatt", s_szedes: "szedés alatt",
+    s_szedesvar: "szedésre vár", s_indulas_rakodva: "indulásra kész - rakodva",
+    s_indulas_ures: "indulásra kész - üres", ss_varja: "várja", ss_erkezett: "érkezett",
+    ss_rakodas: "rakodás alatt", ss_indult: "indult", ts_uton: "úton",
+    ts_allomásozik: "állomásozik", ts_vár: "beállításra vár",
   },
   en: {
-    appSub: "LOGISTICS TRACKER",
-    live: "LIVE",
-    loading: "Loading...",
-    overview: "📊 Overview",
-    route: "🗺️ Route Plan",
-    fuvarTab: "🚚 Transport Request",
-    standbyTrailers: "Standby Trailers",
-    status: "Status",
-    location: "Location",
-    save: "Save",
-    saved: "✓ Saved",
-    since: "ago",
-    updatedAt: "Updated",
-    dailyPlan: "Daily plan",
-    editPlan: "✏️ Edit",
-    savePlan: "💾 Save",
-    cancel: "Cancel",
-    lockStart: "🔒 Lock plan",
-    reset: "🔄 Reset",
-    todayRoute: "Today's route",
-    planningTitle: "Edit",
-    clickWarehouses: "Click warehouses to build route:",
+    appSub: "LOGISTICS TRACKER", live: "LIVE", loading: "Loading...",
+    overview: "📊 Overview", route: "🗺️ Route Plan", fuvarTab: "🚚 Transport Request",
+    noData: "No data yet", standbyTrailers: "Standby Trailers",
+    status: "Status", location: "Location", save: "Save", saved: "✓ Saved",
+    since: "ago", updatedAt: "Updated", dailyPlan: "Daily plan",
+    editPlan: "✏️ Edit", savePlan: "💾 Save", cancel: "Cancel",
+    lockStart: "🔒 Lock plan", reset: "🔄 Reset", todayRoute: "Today's route",
+    planningTitle: "Edit", clickWarehouses: "Click warehouses to build route:",
     futurePlan: "This plan is prepared for a future day.",
     noPlan: "No route planned for this day yet.",
-    arrived: "Arrived",
-    loadingBtn: "Loading",
-    departed: "Departed",
-    revert: "↩ Undo",
-    truckLoad: "Truck load",
-    truckStatus: "Truck status",
-    empty: "Empty",
-    full: "Loaded",
-    today: "TODAY",
-    tomorrow: "TOMORROW",
-    stops: "stops",
-    noData: "No data yet",
-    replaceLocation: "Replace location:",
-    insertBefore: "Insert before:",
-    insertAfter: "Insert after:",
-    insertConfirm: "✓",
-    fuvarTitle: "Transport Requests",
-    fuvarCreate: "New request",
-    fuvarDraftTitle: "📋 Draft – not saved yet",
-    fuvarSavedTitle: "Saved requests",
-    fuvarSave: "💾 Save all",
-    fuvarSaved: "✓ Saved",
-    fuvarUpdated: "Updated",
-    fuvarFrom: "From",
-    fuvarTo: "To",
-    fuvarUrgent: "⚡ Urgent",
-    fuvarTimeFrom: "Time from",
-    fuvarTimeTo: "Time to",
-    fuvarAdd: "➕ Add",
-    fuvarNoData: "No transport requests yet.",
-    addCargo: "📦 Cargo",
-    cargoModalTitle: "Add cargo",
-    cargoScan: "Scan or type an item...",
-    cargoSave: "💾 Save",
-    cargoClear: "🗑️ Clear list",
-    cargoUpdated: "Updated",
-    cargoEmpty: "No cargo recorded.",
-    s_rakodasravar: "waiting load",
-    s_rakodas: "loading",
-    s_szedes: "picking",
-    s_szedesvar: "waiting pick",
-    s_indulas_rakodva: "ready to go - loaded",
-    s_indulas_ures: "ready to go - empty",
-    ss_varja: "waiting",
-    ss_erkezett: "arrived",
-    ss_rakodas: "loading",
-    ss_indult: "departed",
-    ts_uton: "on the way",
-    ts_allomásozik: "stationed",
-    ts_vár: "pending setup",
+    arrived: "Arrived", loadingBtn: "Loading", departed: "Departed",
+    truckLoad: "Truck load", truckStatus: "Truck status",
+    empty: "Empty", full: "Loaded", today: "TODAY", tomorrow: "TOMORROW", stops: "stops",
+    replaceLocation: "Replace location:", insertBefore: "Insert before:", insertAfter: "Insert after:",
+    fuvarTitle: "Transport Requests", fuvarCreate: "New request",
+    fuvarDraftTitle: "📋 Draft – not saved yet", fuvarSavedTitle: "Saved requests",
+    fuvarSave: "💾 Save all", fuvarSaved: "✓ Saved", fuvarUpdated: "Updated",
+    fuvarFrom: "From", fuvarTo: "To", fuvarUrgent: "⚡ Urgent",
+    fuvarTimeFrom: "Time from", fuvarTimeTo: "Time to", fuvarAdd: "➕ Add",
+    addCargo: "📦 Cargo", cargoModalTitle: "Add cargo",
+    cargoScan: "Scan or type an item...", cargoSave: "💾 Save",
+    cargoClear: "🗑️ Clear list", cargoUpdated: "Updated", cargoEmpty: "No cargo recorded.",
+    s_rakodasravar: "waiting load", s_rakodas: "loading", s_szedes: "picking",
+    s_szedesvar: "waiting pick", s_indulas_rakodva: "ready to go - loaded",
+    s_indulas_ures: "ready to go - empty", ss_varja: "waiting", ss_erkezett: "arrived",
+    ss_rakodas: "loading", ss_indult: "departed", ts_uton: "on the way",
+    ts_allomásozik: "stationed", ts_vár: "pending setup",
   },
 };
 
 function trStatus(key: string, l: any) {
-  const map = {
-    "rakodásra vár": l.s_rakodasravar,
-    "rakodás alatt": l.s_rakodas,
-    "szedés alatt": l.s_szedes,
-    "szedésre vár": l.s_szedesvar,
-    "indulásra kész - rakodva": l.s_indulas_rakodva,
-    "indulásra kész - üres": l.s_indulas_ures,
-    várja: l.ss_varja,
-    érkezett: l.ss_erkezett,
-    indult: l.ss_indult,
-    úton: l.ts_uton,
-    állomásozik: l.ts_allomásozik,
-    "beállításra vár": l.ts_vár,
-    teli: l.full,
-    üres: l.empty,
+  const map: any = {
+    "rakodásra vár": l.s_rakodasravar, "rakodás alatt": l.s_rakodas,
+    "szedés alatt": l.s_szedes, "szedésre vár": l.s_szedesvar,
+    "indulásra kész - rakodva": l.s_indulas_rakodva, "indulásra kész - üres": l.s_indulas_ures,
+    várja: l.ss_varja, érkezett: l.ss_erkezett, indult: l.ss_indult,
+    úton: l.ts_uton, állomásozik: l.ts_allomásozik, "beállításra vár": l.ts_vár,
+    teli: l.full, üres: l.empty,
   };
   return map[key] || key;
 }
@@ -202,48 +95,26 @@ function trStopStatus(key: string, l: any) {
   if (key === "rakodás alatt") return l.ss_rakodas;
   return trStatus(key, l);
 }
-
 function getDateKey(offset = 0) {
-  const d = new Date();
-  d.setDate(d.getDate() + offset);
-  return d.toISOString().slice(0, 10);
+  const d = new Date(); d.setDate(d.getDate() + offset); return d.toISOString().slice(0, 10);
 }
 function formatDateLabel(k: string) {
   if (!k || !k.includes("-")) return "—";
-  const [y, m, d] = k.split("-");
-  return `${y.slice(2)}.${m}.${d}`;
+  const [y, m, d] = k.split("-"); return `${y.slice(2)}.${m}.${d}`;
 }
-function getTodayKey() {
-  return getDateKey(0);
-}
-
-const initialDayPlan = () => ({
-  plannedRoute: [],
-  route: [],
-  routeLocked: false,
-  status: "beállításra vár",
-  location: "—",
-  departure: null,
-});
-
+function getTodayKey() { return getDateKey(0); }
+const initialDayPlan = () => ({ plannedRoute: [], route: [], routeLocked: false, status: "beállításra vár", location: "—", departure: null });
 const initialTrailerState = () => ({
   "Standby Trailer 1": { status: "rakodásra vár", location: "Győr", lastUpdated: null },
   "Standby Trailer 2": { status: "rakodásra vár", location: "Győr", lastUpdated: null },
   "Standby Trailer 3": { status: "rakodásra vár", location: "Győr", lastUpdated: null },
 });
-
 async function fbGet(path) {
-  try {
-    const r = await fetch(`${FIREBASE_URL}/${path}.json`);
-    return await r.json();
-  } catch { return null; }
+  try { const r = await fetch(`${FIREBASE_URL}/${path}.json`); return await r.json(); } catch { return null; }
 }
 async function fbSet(path, data) {
-  try {
-    await fetch(`${FIREBASE_URL}/${path}.json`, { method: "PUT", body: JSON.stringify(data) });
-  } catch {}
+  try { await fetch(`${FIREBASE_URL}/${path}.json`, { method: "PUT", body: JSON.stringify(data) }); } catch {}
 }
-
 function formatTime(iso: string) {
   if (!iso) return "—";
   return new Date(iso).toLocaleString("hu-HU", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" });
@@ -257,14 +128,12 @@ function formatSince(iso: string) {
   if (hours > 0) return `${hours}h ${mins % 60}m`;
   return `${mins}m`;
 }
-
 function urlBase64ToUint8Array(base64String: string) {
   const padding = '='.repeat((4 - base64String.length % 4) % 4);
   const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
   const rawData = window.atob(base64);
   return Uint8Array.from(rawData.split('').map((char: string) => char.charCodeAt(0)));
 }
-
 async function subscribeToPush() {
   try {
     if (!('serviceWorker' in navigator) || !('PushManager' in window)) return null;
@@ -273,54 +142,35 @@ async function subscribeToPush() {
     if (sub) return sub;
     const permission = await Notification.requestPermission();
     if (permission !== 'granted') return null;
-    sub = await reg.pushManager.subscribe({
-      userVisibleOnly: true,
-      applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
-    });
+    sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY) });
     return sub;
-  } catch (e) {
-    console.error('Push subscription error:', e);
-    return null;
-  }
+  } catch (e) { console.error('Push subscription error:', e); return null; }
 }
 
 function TimeDisplay({ iso, label }: { iso: string, label: string }) {
   if (!iso) return null;
   const d = new Date(iso);
-  const time = d.toLocaleString("hu-HU", { hour: "2-digit", minute: "2-digit" });
-  const date = d.toLocaleString("hu-HU", { month: "2-digit", day: "2-digit" });
   return (
     <div style={{ display: "inline-flex", flexDirection: "column", alignItems: "center", marginRight: 14 }}>
       <span style={{ color: "#6b7280", fontSize: 9, textTransform: "uppercase", letterSpacing: 1 }}>{label}</span>
-      <span style={{ color: "#e2e8f0", fontSize: 17, fontWeight: 700, lineHeight: 1.1 }}>{time}</span>
-      <span style={{ color: "#6b7280", fontSize: 10 }}>{date}</span>
+      <span style={{ color: "#e2e8f0", fontSize: 17, fontWeight: 700, lineHeight: 1.1 }}>{d.toLocaleString("hu-HU", { hour: "2-digit", minute: "2-digit" })}</span>
+      <span style={{ color: "#6b7280", fontSize: 10 }}>{d.toLocaleString("hu-HU", { month: "2-digit", day: "2-digit" })}</span>
     </div>
   );
 }
 
 function StatusBadge({ statusKey, l }: { statusKey: string, l: any }) {
-  const colors = {
-    teli: { bg: "#f59e0b", color: "#0f1117" },
-    üres: { bg: "#2a2d3a", color: "#94a3b8" },
-    "rakodásra vár": { bg: "#eab308", color: "#0f1117" },
-    "rakodás alatt": { bg: "#3b82f6", color: "#fff" },
-    "szedés alatt": { bg: "#8b5cf6", color: "#fff" },
-    "szedésre vár": { bg: "#f97316", color: "#fff" },
-    "indulásra kész - rakodva": { bg: "#10b981", color: "#fff" },
-    "indulásra kész - üres": { bg: "#6b7280", color: "#fff" },
-    érkezett: { bg: "#10b981", color: "#fff" },
-    úton: { bg: "#3b82f6", color: "#fff" },
-    állomásozik: { bg: "#10b981", color: "#fff" },
-    "beállításra vár": { bg: "#374151", color: "#94a3b8" },
-    indult: { bg: "#10b981", color: "#fff" },
-    várja: { bg: "#374151", color: "#94a3b8" },
+  const colors: any = {
+    teli: { bg: "#f59e0b", color: "#0f1117" }, üres: { bg: "#2a2d3a", color: "#94a3b8" },
+    "rakodásra vár": { bg: "#eab308", color: "#0f1117" }, "rakodás alatt": { bg: "#3b82f6", color: "#fff" },
+    "szedés alatt": { bg: "#8b5cf6", color: "#fff" }, "szedésre vár": { bg: "#f97316", color: "#fff" },
+    "indulásra kész - rakodva": { bg: "#10b981", color: "#fff" }, "indulásra kész - üres": { bg: "#6b7280", color: "#fff" },
+    érkezett: { bg: "#10b981", color: "#fff" }, úton: { bg: "#3b82f6", color: "#fff" },
+    állomásozik: { bg: "#10b981", color: "#fff" }, "beállításra vár": { bg: "#374151", color: "#94a3b8" },
+    indult: { bg: "#10b981", color: "#fff" }, várja: { bg: "#374151", color: "#94a3b8" },
   };
   const s = colors[statusKey] || { bg: "#2a2d3a", color: "#94a3b8" };
-  return (
-    <span style={{ background: s.bg, color: s.color, padding: "2px 10px", borderRadius: 20, fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1 }}>
-      {trStatus(statusKey, l)}
-    </span>
-  );
+  return <span style={{ background: s.bg, color: s.color, padding: "2px 10px", borderRadius: 20, fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1 }}>{trStatus(statusKey, l)}</span>;
 }
 
 const LABEL: any = { color: "#f59e0b", fontSize: 11, letterSpacing: 2, textTransform: "uppercase", marginBottom: 8, display: "block" };
@@ -329,34 +179,20 @@ function CargoModal({ name, cargoData, onSave, onClear, onClose, l }: any) {
   const [items, setItems] = useState(cargoData?.items ? [...cargoData.items] : []);
   const [inputVal, setInputVal] = useState("");
   const inputRef = useRef<any>(null);
-
   useEffect(() => { setTimeout(() => inputRef.current?.focus(), 100); }, []);
-
   const addItem = (val) => {
-    const text = val.trim();
-    if (!text) return;
-    if (items.some((i) => i.text === text)) {
-      alert(`⚠️ Már scannelve: ${text}`);
-      setInputVal("");
-      setTimeout(() => inputRef.current?.focus(), 50);
-      return;
-    }
+    const text = val.trim(); if (!text) return;
+    if (items.some((i) => i.text === text)) { alert(`⚠️ Már scannelve: ${text}`); setInputVal(""); setTimeout(() => inputRef.current?.focus(), 50); return; }
     setItems((prev) => [...prev, { text, scannedAt: new Date().toISOString() }]);
-    setInputVal("");
-    setTimeout(() => inputRef.current?.focus(), 50);
+    setInputVal(""); setTimeout(() => inputRef.current?.focus(), 50);
   };
-
   const handleKeyDown = (e) => { if (e.key === "Enter") { e.preventDefault(); addItem(inputVal); } };
   const removeItem = (idx) => setItems((prev) => prev.filter((_, i) => i !== idx));
-
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.75)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
       <div style={{ background: "#1a1d2e", border: "1px solid #f59e0b", borderRadius: 12, width: "100%", maxWidth: 460, maxHeight: "85vh", display: "flex", flexDirection: "column" }}>
         <div style={{ padding: "14px 16px", borderBottom: "1px solid #2a2d3a", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <div>
-            <div style={{ color: "#f59e0b", fontWeight: 700, fontSize: 14, letterSpacing: 1 }}>{l.cargoModalTitle}</div>
-            <div style={{ color: "#4a5568", fontSize: 11, marginTop: 2 }}>{name}</div>
-          </div>
+          <div><div style={{ color: "#f59e0b", fontWeight: 700, fontSize: 14, letterSpacing: 1 }}>{l.cargoModalTitle}</div><div style={{ color: "#4a5568", fontSize: 11, marginTop: 2 }}>{name}</div></div>
           <button onClick={onClose} style={{ background: "transparent", border: "none", color: "#4a5568", fontSize: 20, cursor: "pointer" }}>×</button>
         </div>
         <div style={{ padding: "12px 16px", borderBottom: "1px solid #2a2d3a" }}>
@@ -365,24 +201,18 @@ function CargoModal({ name, cargoData, onSave, onClear, onClose, l }: any) {
           <div style={{ color: "#4a5568", fontSize: 10, marginTop: 6, textAlign: "center" }}>Enter = automatikus hozzáadás</div>
         </div>
         <div style={{ flex: 1, overflowY: "auto", padding: "8px 16px" }}>
-          {items.length === 0 ? (
-            <div style={{ color: "#4a5568", fontSize: 12, textAlign: "center", padding: "20px 0" }}>{l.cargoEmpty}</div>
-          ) : (
+          {items.length === 0 ? <div style={{ color: "#4a5568", fontSize: 12, textAlign: "center", padding: "20px 0" }}>{l.cargoEmpty}</div> :
             [...items].reverse().map((item, idx) => (
               <div key={idx} style={{ display: "flex", alignItems: "center", gap: 8, padding: "7px 0", borderBottom: "1px solid #2a2d3a22" }}>
                 <div style={{ flex: 1 }}><div style={{ color: "#e2e8f0", fontSize: 13 }}>{item.text}</div></div>
                 <button onClick={() => removeItem(items.length - 1 - idx)} style={{ background: "#ef444422", border: "1px solid #ef4444", color: "#ef4444", cursor: "pointer", fontSize: 11, fontWeight: 700, padding: "3px 8px", borderRadius: 6 }}>Törlés</button>
               </div>
-            ))
-          )}
+            ))}
         </div>
         <div style={{ padding: "12px 16px", borderTop: "1px solid #2a2d3a", display: "flex", gap: 8 }}>
-          <button onClick={() => { if (window.confirm("Biztosan törlöd az összes rakományt?")) { onClear(); onClose(); } }}
-            style={{ background: "#1e2130", border: "1px solid #ef4444", color: "#ef4444", borderRadius: 8, padding: "9px 14px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>{l.cargoClear}</button>
-          <button onClick={() => { navigator.clipboard.writeText([...items].reverse().map((i) => i.text).join("\n")); }} disabled={items.length === 0}
-            style={{ background: "#1e2130", border: "1px solid #06b6d4", color: items.length > 0 ? "#06b6d4" : "#2a2d3a", borderRadius: 8, padding: "9px 14px", fontSize: 12, fontWeight: 700, cursor: items.length > 0 ? "pointer" : "not-allowed" }}>📋 Másolás</button>
-          <button onClick={() => { onSave(items); onClose(); }}
-            style={{ flex: 1, background: "#f59e0b", border: "none", color: "#0f1117", borderRadius: 8, padding: "9px 14px", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>{l.cargoSave}</button>
+          <button onClick={() => { if (window.confirm("Biztosan törlöd az összes rakományt?")) { onClear(); onClose(); } }} style={{ background: "#1e2130", border: "1px solid #ef4444", color: "#ef4444", borderRadius: 8, padding: "9px 14px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>{l.cargoClear}</button>
+          <button onClick={() => { navigator.clipboard.writeText([...items].reverse().map((i) => i.text).join("\n")); }} disabled={items.length === 0} style={{ background: "#1e2130", border: "1px solid #06b6d4", color: items.length > 0 ? "#06b6d4" : "#2a2d3a", borderRadius: 8, padding: "9px 14px", fontSize: 12, fontWeight: 700, cursor: items.length > 0 ? "pointer" : "not-allowed" }}>📋 Másolás</button>
+          <button onClick={() => { onSave(items); onClose(); }} style={{ flex: 1, background: "#f59e0b", border: "none", color: "#0f1117", borderRadius: 8, padding: "9px 14px", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>{l.cargoSave}</button>
         </div>
       </div>
     </div>
@@ -401,7 +231,6 @@ function FuvarModal({ onClose, onAdd, l }: any) {
   const removeVia = (i) => setForm((p) => ({ ...p, via: p.via.filter((_, idx) => idx !== i) }));
   const OPTIONAL: any = { color: "#e2e8f0", fontSize: 10, letterSpacing: 1, textTransform: "uppercase", marginBottom: 4 };
   const REQUIRED: any = { color: "#f59e0b", fontSize: 10, letterSpacing: 1, textTransform: "uppercase", marginBottom: 4 };
-
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.75)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
       <div style={{ background: "#1a1d2e", border: "1px solid #f59e0b", borderRadius: 12, width: "100%", maxWidth: 460, maxHeight: "90vh", display: "flex", flexDirection: "column" }}>
@@ -411,20 +240,14 @@ function FuvarModal({ onClose, onAdd, l }: any) {
         </div>
         <div style={{ overflowY: "auto", flex: 1, padding: "14px 16px", display: "flex", flexDirection: "column", gap: 10 }}>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-            <div>
-              <div style={REQUIRED}>{l.fuvarFrom}</div>
+            <div><div style={REQUIRED}>{l.fuvarFrom}</div>
               <select className="select-dark" value={form.from} onChange={(e) => setForm((p) => ({ ...p, from: e.target.value }))}>
-                <option value="">— válassz —</option>
-                {WAREHOUSES.map((w) => <option key={w} value={w}>{w}</option>)}
-              </select>
-            </div>
-            <div>
-              <div style={REQUIRED}>{l.fuvarTo}</div>
+                <option value="">— válassz —</option>{WAREHOUSES.map((w) => <option key={w} value={w}>{w}</option>)}
+              </select></div>
+            <div><div style={REQUIRED}>{l.fuvarTo}</div>
               <select className="select-dark" value={form.to} onChange={(e) => setForm((p) => ({ ...p, to: e.target.value }))}>
-                <option value="">— válassz —</option>
-                {WAREHOUSES.filter((w) => w !== form.from).map((w) => <option key={w} value={w}>{w}</option>)}
-              </select>
-            </div>
+                <option value="">— válassz —</option>{WAREHOUSES.filter((w) => w !== form.from).map((w) => <option key={w} value={w}>{w}</option>)}
+              </select></div>
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
             {form.via.map((v, i) => (
@@ -432,8 +255,7 @@ function FuvarModal({ onClose, onAdd, l }: any) {
                 <div style={{ flex: 1 }}>
                   {i === 0 && <div style={OPTIONAL}>Köztes megálló (opcionális)</div>}
                   <select className="select-dark" value={v} onChange={(e) => setVia(i, e.target.value)}>
-                    <option value="">— válassz —</option>
-                    {WAREHOUSES.filter((w) => w !== form.from && w !== form.to).map((w) => <option key={w} value={w}>{w}</option>)}
+                    <option value="">— válassz —</option>{WAREHOUSES.filter((w) => w !== form.from && w !== form.to).map((w) => <option key={w} value={w}>{w}</option>)}
                   </select>
                 </div>
                 <button onClick={() => removeVia(i)} style={{ background: "#ef444422", border: "1px solid #ef4444", color: "#ef4444", borderRadius: 6, padding: "8px 10px", fontSize: 13, cursor: "pointer", marginBottom: 1 }}>×</button>
@@ -442,20 +264,14 @@ function FuvarModal({ onClose, onAdd, l }: any) {
             <button onClick={addVia} style={{ background: "transparent", border: "1px dashed #06b6d4", color: "#06b6d4", borderRadius: 6, padding: "7px", fontSize: 11, cursor: "pointer", textAlign: "center" }}>+ Köztes megálló hozzáadása</button>
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-            <div>
-              <div style={OPTIONAL}>{l.fuvarTimeFrom} (opcionális)</div>
+            <div><div style={OPTIONAL}>{l.fuvarTimeFrom} (opcionális)</div>
               <select className="select-dark" value={form.timeFrom} onChange={(e) => setForm((p) => ({ ...p, timeFrom: e.target.value }))}>
-                <option value="">—</option>
-                {HOURS.map((h) => <option key={h} value={h}>{h}</option>)}
-              </select>
-            </div>
-            <div>
-              <div style={OPTIONAL}>{l.fuvarTimeTo} (opcionális)</div>
+                <option value="">—</option>{HOURS.map((h) => <option key={h} value={h}>{h}</option>)}
+              </select></div>
+            <div><div style={OPTIONAL}>{l.fuvarTimeTo} (opcionális)</div>
               <select className="select-dark" value={form.timeTo} onChange={(e) => setForm((p) => ({ ...p, timeTo: e.target.value }))}>
-                <option value="">—</option>
-                {HOURS.filter((h) => !form.timeFrom || h > form.timeFrom).map((h) => <option key={h} value={h}>{h}</option>)}
-              </select>
-            </div>
+                <option value="">—</option>{HOURS.filter((h) => !form.timeFrom || h > form.timeFrom).map((h) => <option key={h} value={h}>{h}</option>)}
+              </select></div>
           </div>
           <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer" }}>
             <input type="checkbox" checked={form.urgent} onChange={(e) => setForm((p) => ({ ...p, urgent: e.target.checked }))} style={{ accentColor: "#ef4444", width: 16, height: 16 }} />
@@ -503,8 +319,7 @@ export default function App() {
           <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 32, color: "#f59e0b", letterSpacing: 4, marginBottom: 4 }}>TATAI TRACKER</div>
           <div style={{ color: "#4a5568", fontSize: 11, letterSpacing: 2, marginBottom: 32 }}>RAKTÁRI LOGISZTIKA</div>
           <div style={{ color: "#e2e8f0", fontSize: 13, marginBottom: 12 }}>Add meg a belépési kódot</div>
-          <input type="password" value={pinInput}
-            onChange={e => { setPinInput(e.target.value); setPinError(false); }}
+          <input type="password" value={pinInput} onChange={e => { setPinInput(e.target.value); setPinError(false); }}
             onKeyDown={e => { if (e.key === "Enter") { if (pinInput === PIN) { localStorage.setItem("tt_auth", PIN); setAuthed(true); } else { setPinError(true); setPinInput(""); } } }}
             placeholder="••••••" autoFocus
             style={{ width: "100%", background: "#0f1117", border: `1px solid ${pinError ? "#ef4444" : "#f59e0b"}`, borderRadius: 8, padding: "12px", color: "#e2e8f0", fontSize: 20, textAlign: "center", fontFamily: "inherit", boxSizing: "border-box" as any, outline: "none", letterSpacing: 6, marginBottom: 8 }} />
@@ -531,7 +346,6 @@ export default function App() {
   const [pendingTrailers, setPendingTrailers] = useState({});
   const [dirtyTrailers, setDirtyTrailers] = useState({});
   const [savedTrailers, setSavedTrailers] = useState({});
-  const [tick, setTick] = useState(0);
   const [editingPlan, setEditingPlan] = useState(null);
   const [replacingStop, setReplacingStop] = useState(null);
   const [insertingStop, setInsertingStop] = useState(null);
@@ -541,64 +355,37 @@ export default function App() {
   const midnightRef = useRef<any>(null);
   const l = T[lang];
 
-  // Push feliratkozás — minden betöltéskor megpróbálja
   useEffect(() => {
     subscribeToPush().then(sub => {
-      if (sub) {
-        pushSubRef.current = sub;
-        console.log('✅ Push subscription OK');
-      } else {
-        console.warn('⚠️ Push subscription failed or denied');
-      }
+      if (sub) { pushSubRef.current = sub; console.log('✅ Push subscription OK'); }
+      else { console.warn('⚠️ Push subscription failed or denied'); }
     });
   }, []);
 
   const sendPush = async (title: string, body: string) => {
     let sub = pushSubRef.current;
-    // Ha nincs sub, próbáljuk újra
-    if (!sub) {
-      sub = await subscribeToPush();
-      if (sub) pushSubRef.current = sub;
-    }
-    if (!sub) {
-      console.warn('No push subscription available');
-      return;
-    }
+    if (!sub) { sub = await subscribeToPush(); if (sub) pushSubRef.current = sub; }
+    if (!sub) { console.warn('No push subscription'); return; }
     try {
-      const res = await fetch('/.netlify/functions/send-push', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ subscription: sub, title, body })
-      });
+      const res = await fetch('/.netlify/functions/send-push', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ subscription: sub, title, body }) });
       console.log('Push sent:', res.status);
-    } catch (e) {
-      console.error('Push send error:', e);
-    }
+    } catch (e) { console.error('Push error:', e); }
   };
 
-  useEffect(() => {
-    const t = setInterval(() => setTick((n) => n + 1), 60000);
-    return () => clearInterval(t);
-  }, []);
-
+  useEffect(() => { const t = setInterval(() => {}, 60000); return () => clearInterval(t); }, []);
   useEffect(() => {
     const go = () => {
       const now = new Date(), tom = new Date(now);
-      tom.setDate(tom.getDate() + 1);
-      tom.setHours(0, 0, 0, 0);
+      tom.setDate(tom.getDate() + 1); tom.setHours(0, 0, 0, 0);
       midnightRef.current = setTimeout(() => { setSelectedDay(getTodayKey()); go(); }, tom.getTime() - now.getTime());
     };
-    go();
-    return () => clearTimeout(midnightRef.current);
+    go(); return () => clearTimeout(midnightRef.current);
   }, []);
 
   const syncNow = async () => {
-    const t = await fbGet("trailers");
-    if (t) setTrailers(t);
-    const d = await fbGet("days");
-    if (d) setDays(d);
-    const tc = await fbGet("trailerCargo");
-    if (tc) setCargoInputs(tc);
+    const t = await fbGet("trailers"); if (t) setTrailers(t);
+    const d = await fbGet("days"); if (d) setDays(d);
+    const tc = await fbGet("trailerCargo"); if (tc) setCargoInputs(tc);
     const fs = await fbGet("fuvarRequests");
     if (fs) { setFuvarSaved(fs.items || []); setFuvarSavedAt(fs.savedAt || null); }
     setLastSync(new Date().toISOString());
@@ -615,17 +402,12 @@ export default function App() {
   const dayKeys = [0, 1, 2, 3].map((i) => getDateKey(i));
   const todayPlan = days[today] || initialDayPlan();
 
-  const saveDayPlan = async (dk, plan) => {
-    const nd = { ...days, [dk]: plan };
-    setDays(nd);
-    await fbSet("days", nd);
-  };
+  const saveDayPlan = async (dk, plan) => { const nd = { ...days, [dk]: plan }; setDays(nd); await fbSet("days", nd); };
   const saveTrailers = async (ns) => { setTrailers(ns); await fbSet("trailers", ns); };
 
   const saveFuvarDraft = async () => {
     const now = new Date().toISOString();
-    const merged = [...fuvarSaved, ...fuvarDraft];
-    const sorted = merged.sort((a, b) => WAREHOUSES.indexOf(a.from) - WAREHOUSES.indexOf(b.from));
+    const sorted = [...fuvarSaved, ...fuvarDraft].sort((a, b) => WAREHOUSES.indexOf(a.from) - WAREHOUSES.indexOf(b.from));
     setFuvarSaved(sorted); setFuvarSavedAt(now); setFuvarDraft([]);
     await fbSet("fuvarRequests", { items: sorted, savedAt: now });
   };
@@ -642,43 +424,26 @@ export default function App() {
     setDirtyTrailers((prev) => ({ ...prev, [name]: true }));
     setSavedTrailers((prev) => ({ ...prev, [name]: false }));
   };
-
   const submitTrailer = async (name) => {
-    const pending = pendingTrailers[name];
-    if (!pending) return;
+    const pending = pendingTrailers[name]; if (!pending) return;
     const now = new Date().toISOString();
     const old = trailers[name] || { status: TRAILER_STATUSES[0], location: WAREHOUSES[0], lastUpdated: null };
     await saveTrailers({ ...trailers, [name]: { ...old, ...pending, lastUpdated: now } });
     if (pending.status && pending.status !== old.status) {
       const pushStatuses = ["rakodásra vár", "indulásra kész - rakodva", "indulásra kész - üres"];
-      if (pushStatuses.includes(pending.status)) {
-        await sendPush(`🚛 ${name}`, `Státusz: ${pending.status}`);
-      }
+      if (pushStatuses.includes(pending.status)) await sendPush(`🚛 ${name}`, `Státusz: ${pending.status}`);
     }
     setDirtyTrailers((prev) => ({ ...prev, [name]: false }));
     setSavedTrailers((prev) => ({ ...prev, [name]: true }));
     setPendingTrailers((prev) => { const n = { ...prev }; delete n[name]; return n; });
   };
 
-  const saveCargo = async (name, items) => {
-    const now = new Date().toISOString();
-    const updated = { ...cargoInputs, [name]: { items, savedAt: now } };
-    setCargoInputs(updated);
-    await fbSet("trailerCargo", updated);
-  };
-  const clearCargo = async (name) => {
-    const updated = { ...cargoInputs, [name]: null };
-    setCargoInputs(updated);
-    await fbSet("trailerCargo", updated);
-  };
+  const saveCargo = async (name, items) => { const now = new Date().toISOString(); const updated = { ...cargoInputs, [name]: { items, savedAt: now } }; setCargoInputs(updated); await fbSet("trailerCargo", updated); };
+  const clearCargo = async (name) => { const updated = { ...cargoInputs, [name]: null }; setCargoInputs(updated); await fbSet("trailerCargo", updated); };
 
-  const startEditing = (dk) => {
-    const plan = days[dk] || initialDayPlan();
-    setEditingPlan({ dateKey: dk, plannedRoute: [...(plan.plannedRoute || [])] });
-  };
+  const startEditing = (dk) => { const plan = days[dk] || initialDayPlan(); setEditingPlan({ dateKey: dk, plannedRoute: [...(plan.plannedRoute || [])] }); };
   const addToEditingRoute = (w) => { if (!editingPlan) return; setEditingPlan((prev) => ({ ...prev, plannedRoute: [...prev.plannedRoute, w] })); };
   const removeFromEditingRoute = (i) => { if (!editingPlan) return; setEditingPlan((prev) => ({ ...prev, plannedRoute: prev.plannedRoute.filter((_, idx) => idx !== i) })); };
-
   const saveEditingPlan = async () => {
     if (!editingPlan) return;
     const existing = days[editingPlan.dateKey] || initialDayPlan();
@@ -709,29 +474,20 @@ export default function App() {
     await saveDayPlan(dk, { ...plan, route: [...plan.route.slice(0, insertAt), newRouteStop, ...plan.route.slice(insertAt)], plannedRoute: [...plan.plannedRoute.slice(0, insertAt), newW, ...plan.plannedRoute.slice(insertAt)] });
     setInsertingStop(null);
   };
-  const removePlannedStop = async (dk, index) => {
-    const plan = days[dk] || initialDayPlan();
-    await saveDayPlan(dk, { ...plan, plannedRoute: plan.plannedRoute.filter((_, i) => i !== index) });
-  };
-  const replacePlannedStop = async (dk, index, newW) => {
-    const plan = days[dk] || initialDayPlan();
-    await saveDayPlan(dk, { ...plan, plannedRoute: plan.plannedRoute.map((w, i) => i === index ? newW : w) });
-    setReplacingStop(null);
-  };
+  const removePlannedStop = async (dk, index) => { const plan = days[dk] || initialDayPlan(); await saveDayPlan(dk, { ...plan, plannedRoute: plan.plannedRoute.filter((_, i) => i !== index) }); };
+  const replacePlannedStop = async (dk, index, newW) => { const plan = days[dk] || initialDayPlan(); await saveDayPlan(dk, { ...plan, plannedRoute: plan.plannedRoute.map((w, i) => i === index ? newW : w) }); setReplacingStop(null); };
   const insertPlannedStop = async (dk, index, direction, newW) => {
     const plan = days[dk] || initialDayPlan();
     const insertAt = direction === "before" ? index : index + 1;
     await saveDayPlan(dk, { ...plan, plannedRoute: [...plan.plannedRoute.slice(0, insertAt), newW, ...plan.plannedRoute.slice(insertAt)] });
     setInsertingStop(null);
   };
-
   const lockAndStart = async (dk) => {
     const plan = days[dk] || initialDayPlan();
     if (!plan.plannedRoute || plan.plannedRoute.length === 0) return;
     await saveDayPlan(dk, { ...plan, routeLocked: true, route: plan.plannedRoute.map((w) => ({ warehouse: w, stopStatus: "várja", arrived: null, loading: null, departed: null, truckLoad: null })), status: "beállításra vár" });
     await sendPush(`📋 Napi terv feltöltve`, `${formatDateLabel(dk)} – ${plan.plannedRoute.length} helyszín`);
   };
-
   const updateStopStatus = async (dk, index, newSS) => {
     const plan = days[dk] || initialDayPlan(), now = new Date().toISOString();
     if (!plan.route || !plan.route[index]) return;
@@ -744,13 +500,10 @@ export default function App() {
       return { ...stop, ...u };
     });
     const warehouse = plan.route[index].warehouse;
-    const status = newSS === "indult" ? "úton" : "állomásozik";
-    const location = newSS === "indult" ? plan.location : warehouse;
-    await saveDayPlan(dk, { ...plan, route: newRoute, status, location });
+    await saveDayPlan(dk, { ...plan, route: newRoute, status: newSS === "indult" ? "úton" : "állomásozik", location: newSS === "indult" ? plan.location : warehouse });
     if (newSS === "érkezett") await sendPush(`📍 Megérkezett`, warehouse);
     if (newSS === "indult") await sendPush(`🚛 Elindult`, `${warehouse} → következő helyszín`);
   };
-
   const revertStopStatus = async (dk, index) => {
     const plan = days[dk] || initialDayPlan();
     if (!plan.route || !plan.route[index]) return;
@@ -769,7 +522,6 @@ export default function App() {
     const location = prev === "várja" ? (index > 0 ? plan.route[index - 1].warehouse : "—") : stop.warehouse;
     await saveDayPlan(dk, { ...plan, route: newRoute, status, location });
   };
-
   const resetDay = async (dk) => { await saveDayPlan(dk, initialDayPlan()); };
 
   if (!loaded) return (
@@ -778,49 +530,33 @@ export default function App() {
     </div>
   );
 
-  const stopColors = { várja: "#374151", érkezett: "#3b82f6", "rakodás alatt": "#f59e0b", indult: "#10b981" };
-  const stopIcons = { várja: "⏸", érkezett: "🏭", "rakodás alatt": "⏳", indult: "✅" };
+  const stopColors: any = { várja: "#374151", érkezett: "#3b82f6", "rakodás alatt": "#f59e0b", indult: "#10b981" };
+  const stopIcons: any = { várja: "⏸", érkezett: "🏭", "rakodás alatt": "⏳", indult: "✅" };
 
-  // Stop szerkesztő gombok komponens — minden stopnál megjelenik ha "várja" státuszban van
-  const StopEditButtons = ({ dk, i, stop, plan, isReplacing, isInsertingBefore, isInsertingAfter }) => (
-    <div style={{ display: "flex", gap: 4 }}>
-      <button title={l.insertBefore} onClick={() => { setReplacingStop(null); setInsertingStop(isInsertingBefore ? null : { dateKey: dk, index: i, direction: "before", pending: null }); }}
-        style={{ background: isInsertingBefore ? "#a78bfa" : "#1e2130", border: "1px solid #a78bfa", color: isInsertingBefore ? "#0f1117" : "#a78bfa", borderRadius: 6, width: 24, height: 24, cursor: "pointer", fontSize: 10, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700 }}>+⬆</button>
-      <button title={l.insertAfter} onClick={() => { setReplacingStop(null); setInsertingStop(isInsertingAfter ? null : { dateKey: dk, index: i, direction: "after", pending: null }); }}
-        style={{ background: isInsertingAfter ? "#a78bfa" : "#1e2130", border: "1px solid #a78bfa", color: isInsertingAfter ? "#0f1117" : "#a78bfa", borderRadius: 6, width: 24, height: 24, cursor: "pointer", fontSize: 10, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700 }}>+⬇</button>
-      <button onClick={() => { setInsertingStop(null); setReplacingStop(isReplacing ? null : { dateKey: dk, index: i, pending: null }); }}
-        style={{ background: isReplacing ? "#06b6d4" : "#1e2130", border: "1px solid #06b6d4", color: isReplacing ? "#0f1117" : "#06b6d4", borderRadius: 6, width: 24, height: 24, cursor: "pointer", fontSize: 13, display: "flex", alignItems: "center", justifyContent: "center" }}>🔄</button>
-      <button onClick={() => removeActiveStop(dk, i)}
-        style={{ background: "#1e2130", border: "1px solid #ef4444", color: "#ef4444", borderRadius: 6, width: 24, height: 24, cursor: "pointer", fontSize: 14, display: "flex", alignItems: "center", justifyContent: "center" }}>−</button>
-      {isReplacing && replacingStop.pending && (
-        <button onClick={() => replaceStop(dk, i, replacingStop.pending)}
-          style={{ background: "#10b981", border: "1px solid #10b981", color: "#0f1117", borderRadius: 6, width: 24, height: 24, cursor: "pointer", fontSize: 13, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700 }}>✓</button>
-      )}
-      {(isInsertingBefore || isInsertingAfter) && insertingStop.pending && (
-        <button onClick={() => insertStop(dk, i, insertingStop.direction, insertingStop.pending)}
-          style={{ background: "#10b981", border: "1px solid #10b981", color: "#0f1117", borderRadius: 6, width: 24, height: 24, cursor: "pointer", fontSize: 13, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700 }}>✓</button>
-      )}
-    </div>
-  );
+  // Gomb stílus segédfüggvény
+  const bs = (color: string, active = false, fs = 11) => ({
+    background: active ? color : "#1e2130",
+    border: `1px solid ${color}`,
+    color: active ? "#0f1117" : color,
+    borderRadius: 6, width: 24, height: 24, cursor: "pointer",
+    fontSize: fs, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700,
+  });
 
   return (
     <div style={{ minHeight: "100vh", background: "#0f1117", fontFamily: "'DM Mono', monospace" }} onClick={() => setShowLangMenu(false)}>
-      {cargoModal && (
-        <CargoModal name={cargoModal} cargoData={cargoInputs[cargoModal]} onSave={(items) => saveCargo(cargoModal, items)} onClear={() => clearCargo(cargoModal)} onClose={() => setCargoModal(null)} l={l} />
-      )}
+      {cargoModal && <CargoModal name={cargoModal} cargoData={cargoInputs[cargoModal]} onSave={(items) => saveCargo(cargoModal, items)} onClear={() => clearCargo(cargoModal)} onClose={() => setCargoModal(null)} l={l} />}
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Bebas+Neue&display=swap');
         * { box-sizing: border-box; margin: 0; padding: 0; }
         .card { background: #1a1d27; border: 1px solid #2a2d3a; border-radius: 12px; padding: 16px; margin-bottom: 12px; }
         .btn-primary { background: #f59e0b; color: #0f1117; border: none; border-radius: 8px; padding: 10px 18px; font-weight: 700; cursor: pointer; font-family: inherit; font-size: 13px; width: 100%; }
-        .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
-        .btn-sm { background: transparent; border: 1px solid; border-radius: 6px; padding: 4px 10px; font-family: inherit; font-size: 11px; font-weight: 600; cursor: pointer; transition: all 0.15s; }
+        .btn-sm { background: transparent; border: 1px solid; border-radius: 6px; padding: 4px 10px; font-family: inherit; font-size: 11px; font-weight: 600; cursor: pointer; }
         .select-dark { background: #0f1117; border: 1px solid #2a2d3a; color: #e2e8f0; border-radius: 8px; padding: 8px 10px; font-family: inherit; font-size: 13px; width: 100%; }
-        .tab-btn { background: transparent; border: 1px solid #2a2d3a; border-radius: 20px; padding: 5px 14px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; cursor: pointer; font-family: inherit; color: #4a5568; transition: all 0.2s; white-space: nowrap; }
+        .tab-btn { background: transparent; border: 1px solid #2a2d3a; border-radius: 20px; padding: 5px 14px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; cursor: pointer; font-family: inherit; color: #4a5568; white-space: nowrap; }
         .tab-btn.active { background: #f59e0b; color: #0f1117; border-color: #f59e0b; }
         .route-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
         .route-line { width: 2px; background: #2a2d3a; flex: 1; min-height: 16px; margin: 2px 0; }
-        .day-btn { border-radius: 8px; padding: 7px 12px; font-family: inherit; font-size: 12px; font-weight: 700; cursor: pointer; border: 1px solid #2a2d3a; background: #1a1d27; color: #4a5568; transition: all 0.2s; text-align: center; }
+        .day-btn { border-radius: 8px; padding: 7px 12px; font-family: inherit; font-size: 12px; font-weight: 700; cursor: pointer; border: 1px solid #2a2d3a; background: #1a1d27; color: #4a5568; text-align: center; }
         .day-btn.selected { border-color: #f59e0b; background: #f59e0b; color: #0f1117; }
         .day-btn.tomorrow-style { border-color: #f59e0b; background: #f59e0b22; color: #f59e0b; }
         .lang-menu { position: absolute; top: 36px; right: 0; background: #1a1d27; border: 1px solid #2a2d3a; border-radius: 8px; overflow: hidden; z-index: 100; min-width: 110px; }
@@ -829,7 +565,6 @@ export default function App() {
         .lang-option.active-lang { color: #f59e0b; }
       `}</style>
 
-      {/* Header */}
       <div style={{ borderBottom: "1px solid #2a2d3a", background: "#0f1117", position: "sticky", top: 0, zIndex: 10 }}>
         <div style={{ maxWidth: 680, margin: "0 auto", padding: "12px 16px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div>
@@ -838,8 +573,8 @@ export default function App() {
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
             <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2 }}>
-              <button onClick={syncNow} style={{ background: "transparent", border: "1px solid #2a2d3a", borderRadius: 8, padding: "4px 8px", cursor: "pointer", fontSize: 13, color: "#4a5568" }} title="Azonnali frissítés">🔄</button>
-              {lastSync && <div style={{ color: "#06b6d4", fontSize: 9, letterSpacing: 0.5, whiteSpace: "nowrap" }}>{new Date(lastSync).toLocaleTimeString("hu-HU", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}</div>}
+              <button onClick={syncNow} style={{ background: "transparent", border: "1px solid #2a2d3a", borderRadius: 8, padding: "4px 8px", cursor: "pointer", fontSize: 13, color: "#4a5568" }}>🔄</button>
+              {lastSync && <div style={{ color: "#06b6d4", fontSize: 9, whiteSpace: "nowrap" }}>{new Date(lastSync).toLocaleTimeString("hu-HU", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}</div>}
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
               <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#10b981" }}></div>
@@ -849,11 +584,7 @@ export default function App() {
               <button onClick={() => setShowLangMenu((p) => !p)} style={{ background: "transparent", border: "1px solid #2a2d3a", borderRadius: 8, padding: "4px 8px", cursor: "pointer", fontSize: 16, color: "#e2e8f0" }}>🌐</button>
               {showLangMenu && (
                 <div className="lang-menu">
-                  {["hu", "en"].map((ln) => (
-                    <div key={ln} className={`lang-option ${lang === ln ? "active-lang" : ""}`} onClick={() => { setLang(ln); setShowLangMenu(false); }}>
-                      {ln === "hu" ? "🇭🇺 Magyar" : "🇬🇧 English"}
-                    </div>
-                  ))}
+                  {["hu", "en"].map((ln) => <div key={ln} className={`lang-option ${lang === ln ? "active-lang" : ""}`} onClick={() => { setLang(ln); setShowLangMenu(false); }}>{ln === "hu" ? "🇭🇺 Magyar" : "🇬🇧 English"}</div>)}
                 </div>
               )}
             </div>
@@ -870,7 +601,6 @@ export default function App() {
 
       <div style={{ maxWidth: 680, margin: "0 auto", padding: "16px" }}>
 
-        {/* DASHBOARD */}
         {activeTab === "dashboard" && (
           <>
             <div className="card">
@@ -884,34 +614,18 @@ export default function App() {
                     const nextStop = plan.route && plan.route.find((s) => s.stopStatus === "várja");
                     const prevStop = plan.route && [...plan.route].reverse().find((s) => s.stopStatus === "indult");
                     if (plan.status === "úton" && prevStop && nextStop) return (
-                      <>
-                        <div style={{ color: "#e2e8f0", fontSize: 15, fontWeight: 700 }}>{prevStop.warehouse} <span style={{ color: "#f59e0b" }}>→</span> {nextStop.warehouse}</div>
-                        <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 4, flexWrap: "wrap" }}>
-                          <StatusBadge statusKey="úton" l={l} />
-                          {prevStop.truckLoad && <span style={{ fontSize: 12, color: "#06b6d4", fontWeight: 700 }}>📦 {trStatus(prevStop.truckLoad, l)}</span>}
-                        </div>
-                      </>
+                      <><div style={{ color: "#e2e8f0", fontSize: 15, fontWeight: 700 }}>{prevStop.warehouse} <span style={{ color: "#f59e0b" }}>→</span> {nextStop.warehouse}</div>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 4, flexWrap: "wrap" }}><StatusBadge statusKey="úton" l={l} />{prevStop.truckLoad && <span style={{ fontSize: 12, color: "#06b6d4", fontWeight: 700 }}>📦 {trStatus(prevStop.truckLoad, l)}</span>}</div></>
                     );
                     if (plan.status === "állomásozik" && currentStop) return (
-                      <>
-                        <div style={{ color: "#e2e8f0", fontSize: 15, fontWeight: 700 }}>{currentStop.warehouse}</div>
-                        <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 4, flexWrap: "wrap" }}>
-                          <StatusBadge statusKey={currentStop.stopStatus === "rakodás alatt" ? "rakodás alatt" : "érkezett"} l={l} />
-                          {currentStop.truckLoad && <span style={{ fontSize: 12, color: "#06b6d4", fontWeight: 700 }}>📦 {trStatus(currentStop.truckLoad, l)}</span>}
-                        </div>
-                      </>
+                      <><div style={{ color: "#e2e8f0", fontSize: 15, fontWeight: 700 }}>{currentStop.warehouse}</div>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 4, flexWrap: "wrap" }}><StatusBadge statusKey={currentStop.stopStatus === "rakodás alatt" ? "rakodás alatt" : "érkezett"} l={l} />{currentStop.truckLoad && <span style={{ fontSize: 12, color: "#06b6d4", fontWeight: 700 }}>📦 {trStatus(currentStop.truckLoad, l)}</span>}</div></>
                     );
-                    return (
-                      <>
-                        <div style={{ color: "#e2e8f0", fontSize: 15, fontWeight: 700 }}>{plan.location}</div>
-                        <StatusBadge statusKey={plan.status} l={l} />
-                      </>
-                    );
+                    return (<><div style={{ color: "#e2e8f0", fontSize: 15, fontWeight: 700 }}>{plan.location}</div><StatusBadge statusKey={plan.status} l={l} /></>);
                   })()}
                 </div>
               </div>
             </div>
-
             <span style={LABEL}>{l.standbyTrailers}</span>
             {TRAILER_NAMES.map((name) => {
               const t = trailers[name] || { status: "rakodásra vár", location: "Győr" };
@@ -919,8 +633,7 @@ export default function App() {
               const isDirty = dirtyTrailers[name], isSaved = savedTrailers[name];
               const currentStatus = pending?.status !== undefined ? pending.status : t.status;
               const currentLocation = pending?.location !== undefined ? pending.location : t.location;
-              const cargo = cargoInputs[name];
-              const cargoItems = cargo?.items || [];
+              const cargo = cargoInputs[name]; const cargoItems = cargo?.items || [];
               return (
                 <div key={name} className="card">
                   <div style={{ marginBottom: 12 }}>
@@ -935,34 +648,26 @@ export default function App() {
                         </button>
                         {cargo?.savedAt && <div style={{ color: "#f59e0b", fontSize: 10 }}>{l.cargoUpdated}: {formatTime(cargo.savedAt)}</div>}
                       </div>
-                      {cargoItems.length > 0 && (
-                        <button onClick={() => { if (window.confirm("Törlöd a rakománylistát?")) clearCargo(name); }} style={{ background: "#ef444422", border: "1px solid #ef4444", color: "#ef4444", cursor: "pointer", fontSize: 13, padding: "3px 8px", borderRadius: 6, fontWeight: 700 }}>🗑️</button>
-                      )}
+                      {cargoItems.length > 0 && <button onClick={() => { if (window.confirm("Törlöd a rakománylistát?")) clearCargo(name); }} style={{ background: "#ef444422", border: "1px solid #ef4444", color: "#ef4444", cursor: "pointer", fontSize: 13, padding: "3px 8px", borderRadius: 6, fontWeight: 700 }}>🗑️</button>}
                     </div>
                     <div style={{ color: "#06b6d4", fontSize: 12 }}>📍 {t.location}</div>
-                    {t.lastUpdated && (
-                      <div style={{ borderTop: "1px solid #2a2d3a", marginTop: 6, paddingTop: 6 }}>
-                        <div style={{ color: "#67e8f9", fontSize: 10 }}>{l.updatedAt}: {formatTime(t.lastUpdated)}</div>
-                        <div style={{ color: "#06b6d4", fontSize: 11, marginTop: 2 }}>⏱ {formatSince(t.lastUpdated)} {l.since}</div>
-                      </div>
-                    )}
+                    {t.lastUpdated && <div style={{ borderTop: "1px solid #2a2d3a", marginTop: 6, paddingTop: 6 }}>
+                      <div style={{ color: "#67e8f9", fontSize: 10 }}>{l.updatedAt}: {formatTime(t.lastUpdated)}</div>
+                      <div style={{ color: "#06b6d4", fontSize: 11, marginTop: 2 }}>⏱ {formatSince(t.lastUpdated)} {l.since}</div>
+                    </div>}
                   </div>
                   <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
-                    <div style={{ flex: 1 }}>
-                      <span style={LABEL}>{l.status}</span>
+                    <div style={{ flex: 1 }}><span style={LABEL}>{l.status}</span>
                       <select className="select-dark" value={currentStatus} onChange={(e) => handleTrailerChange(name, "status", e.target.value)}>
                         {TRAILER_STATUSES.map((s) => <option key={s} value={s}>{trStatus(s, l)}</option>)}
-                      </select>
-                    </div>
-                    <div style={{ flex: 1 }}>
-                      <span style={LABEL}>{l.location}</span>
+                      </select></div>
+                    <div style={{ flex: 1 }}><span style={LABEL}>{l.location}</span>
                       <select className="select-dark" value={currentLocation} onChange={(e) => handleTrailerChange(name, "location", e.target.value)}>
                         {WAREHOUSES.map((w) => <option key={w} value={w}>{w}</option>)}
-                      </select>
-                    </div>
+                      </select></div>
                   </div>
                   <button onClick={() => submitTrailer(name)} disabled={!isDirty}
-                    style={{ width: "100%", padding: "10px", borderRadius: 8, fontFamily: "inherit", fontSize: 13, fontWeight: 700, cursor: isDirty ? "pointer" : "not-allowed", border: `2px solid ${isDirty ? "#f59e0b" : isSaved ? "#10b981" : "#374151"}`, background: isSaved && !isDirty ? "#10b981" : "#1e2130", color: isSaved && !isDirty ? "#fff" : isDirty ? "#f59e0b" : "#4a5568", transition: "all 0.2s" }}>
+                    style={{ width: "100%", padding: "10px", borderRadius: 8, fontFamily: "inherit", fontSize: 13, fontWeight: 700, cursor: isDirty ? "pointer" : "not-allowed", border: `2px solid ${isDirty ? "#f59e0b" : isSaved ? "#10b981" : "#374151"}`, background: isSaved && !isDirty ? "#10b981" : "#1e2130", color: isSaved && !isDirty ? "#fff" : isDirty ? "#f59e0b" : "#4a5568" }}>
                     {isSaved && !isDirty ? l.saved : l.save}
                   </button>
                 </div>
@@ -971,7 +676,6 @@ export default function App() {
           </>
         )}
 
-        {/* ÚTVONAL TERV */}
         {activeTab === "utvonal" && (
           <>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8, marginBottom: 16 }}>
@@ -979,8 +683,7 @@ export default function App() {
                 const isToday = dk === today, isSelected = dk === selectedDay;
                 const plan = days[dk], hasRoute = plan?.plannedRoute?.length > 0;
                 return (
-                  <div key={dk} className={`day-btn ${isSelected ? "selected" : isToday ? "tomorrow-style" : ""}`}
-                    onClick={() => { setSelectedDay(dk); setEditingPlan(null); setReplacingStop(null); }}>
+                  <div key={dk} className={`day-btn ${isSelected ? "selected" : isToday ? "tomorrow-style" : ""}`} onClick={() => { setSelectedDay(dk); setEditingPlan(null); setReplacingStop(null); }}>
                     <div style={{ fontSize: 13, fontWeight: 700 }}>{formatDateLabel(dk)}</div>
                     <div style={{ fontSize: 10, marginTop: 2, opacity: 0.7 }}>{isToday ? l.today : dk === getDateKey(1) ? l.tomorrow : ""}</div>
                     {hasRoute && <div style={{ fontSize: 9, color: isSelected ? "#0f1117" : "#10b981", marginTop: 2 }}>● {plan.plannedRoute.length} {l.stops}</div>}
@@ -999,9 +702,7 @@ export default function App() {
                     <span style={LABEL}>✏️ {l.planningTitle} – {formatDateLabel(selectedDay)}</span>
                     <div style={{ color: "#4a5568", fontSize: 11, marginBottom: 10 }}>{l.clickWarehouses}</div>
                     <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 14 }}>
-                      {WAREHOUSES.map((w) => (
-                        <button key={w} className="btn-sm" onClick={() => addToEditingRoute(w)} style={{ borderColor: "#06b6d4", color: "#06b6d4" }}>+ {w}</button>
-                      ))}
+                      {WAREHOUSES.map((w) => <button key={w} className="btn-sm" onClick={() => addToEditingRoute(w)} style={{ borderColor: "#06b6d4", color: "#06b6d4" }}>+ {w}</button>)}
                     </div>
                     {editingPlan.plannedRoute.length > 0 && (
                       <div style={{ marginBottom: 14 }}>
@@ -1042,42 +743,25 @@ export default function App() {
                                 <div style={{ width: 20, height: 20, borderRadius: "50%", background: "#1e2130", border: "1px solid #f59e0b", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, color: "#f59e0b", fontWeight: 700, flexShrink: 0 }}>{i + 1}</div>
                                 <span style={{ color: "#06b6d4", fontSize: 13, flex: 1 }}>🏭 {w}</span>
                                 <div style={{ display: "flex", gap: 4 }}>
-                                  <button title={l.insertBefore} onClick={() => { setReplacingStop(null); setInsertingStop(isInsertingBeforeHere ? null : { dateKey: selectedDay, index: i, direction: "before", pending: null }); }}
-                                    style={{ background: isInsertingBeforeHere ? "#a78bfa" : "#1e2130", border: "1px solid #a78bfa", color: isInsertingBeforeHere ? "#0f1117" : "#a78bfa", borderRadius: 6, width: 24, height: 24, cursor: "pointer", fontSize: 10, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700 }}>+⬆</button>
-                                  <button title={l.insertAfter} onClick={() => { setReplacingStop(null); setInsertingStop(isInsertingAfterHere ? null : { dateKey: selectedDay, index: i, direction: "after", pending: null }); }}
-                                    style={{ background: isInsertingAfterHere ? "#a78bfa" : "#1e2130", border: "1px solid #a78bfa", color: isInsertingAfterHere ? "#0f1117" : "#a78bfa", borderRadius: 6, width: 24, height: 24, cursor: "pointer", fontSize: 10, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700 }}>+⬇</button>
-                                  <button onClick={() => { setInsertingStop(null); setReplacingStop(isReplacingHere ? null : { dateKey: selectedDay, index: i, pending: null }); }}
-                                    style={{ background: isReplacingHere ? "#06b6d4" : "#1e2130", border: "1px solid #06b6d4", color: isReplacingHere ? "#0f1117" : "#06b6d4", borderRadius: 6, width: 24, height: 24, cursor: "pointer", fontSize: 13, display: "flex", alignItems: "center", justifyContent: "center" }}>🔄</button>
-                                  <button onClick={() => removePlannedStop(selectedDay, i)}
-                                    style={{ background: "#1e2130", border: "1px solid #ef4444", color: "#ef4444", borderRadius: 6, width: 24, height: 24, cursor: "pointer", fontSize: 14, display: "flex", alignItems: "center", justifyContent: "center" }}>−</button>
-                                  {isReplacingHere && replacingStop.pending && (
-                                    <button onClick={() => replacePlannedStop(selectedDay, i, replacingStop.pending)}
-                                      style={{ background: "#10b981", border: "none", color: "#0f1117", borderRadius: 6, width: 24, height: 24, cursor: "pointer", fontSize: 13, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700 }}>✓</button>
-                                  )}
-                                  {(isInsertingBeforeHere || isInsertingAfterHere) && insertingStop.pending && (
-                                    <button onClick={() => insertPlannedStop(selectedDay, i, insertingStop.direction, insertingStop.pending)}
-                                      style={{ background: "#10b981", border: "none", color: "#0f1117", borderRadius: 6, width: 24, height: 24, cursor: "pointer", fontSize: 13, display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700 }}>✓</button>
-                                  )}
+                                  <button title={l.insertBefore} onClick={() => { setReplacingStop(null); setInsertingStop(isInsertingBeforeHere ? null : { dateKey: selectedDay, index: i, direction: "before", pending: null }); }} style={bs("#a78bfa", isInsertingBeforeHere)}>+⬆</button>
+                                  <button title={l.insertAfter} onClick={() => { setReplacingStop(null); setInsertingStop(isInsertingAfterHere ? null : { dateKey: selectedDay, index: i, direction: "after", pending: null }); }} style={bs("#a78bfa", isInsertingAfterHere)}>+⬇</button>
+                                  <button onClick={() => { setInsertingStop(null); setReplacingStop(isReplacingHere ? null : { dateKey: selectedDay, index: i, pending: null }); }} style={bs("#06b6d4", isReplacingHere, 13)}>🔄</button>
+                                  <button onClick={() => removePlannedStop(selectedDay, i)} style={bs("#ef4444", false, 14)}>−</button>
+                                  {isReplacingHere && replacingStop.pending && <button onClick={() => replacePlannedStop(selectedDay, i, replacingStop.pending)} style={bs("#10b981", true, 13)}>✓</button>}
+                                  {(isInsertingBeforeHere || isInsertingAfterHere) && insertingStop.pending && <button onClick={() => insertPlannedStop(selectedDay, i, insertingStop.direction, insertingStop.pending)} style={bs("#10b981", true, 13)}>✓</button>}
                                 </div>
                               </div>
                               {isReplacingHere && (
                                 <div style={{ marginTop: 6, background: "#0f1117", border: "1px solid #06b6d4", borderRadius: 8, padding: 8 }}>
                                   <div style={{ color: "#06b6d4", fontSize: 10, textTransform: "uppercase", letterSpacing: 1, marginBottom: 6 }}>{l.replaceLocation}</div>
-                                  {WAREHOUSES.filter((ww) => ww !== w).map((ww) => {
-                                    const ip = replacingStop.pending === ww;
-                                    return (
-                                      <button key={ww} onClick={() => setReplacingStop((prev) => ({ ...prev, pending: ww }))}
-                                        style={{ display: "block", width: "100%", textAlign: "left", background: ip ? "#06b6d422" : "transparent", border: "none", borderLeft: ip ? "2px solid #06b6d4" : "2px solid transparent", color: ip ? "#06b6d4" : "#4a5568", padding: "5px 8px", cursor: "pointer", fontSize: 12, fontWeight: ip ? 700 : 400 }}>🏭 {ww}</button>
-                                    );
-                                  })}
+                                  {WAREHOUSES.filter((ww) => ww !== w).map((ww) => { const ip = replacingStop.pending === ww; return <button key={ww} onClick={() => setReplacingStop((prev) => ({ ...prev, pending: ww }))} style={{ display: "block", width: "100%", textAlign: "left", background: ip ? "#06b6d422" : "transparent", border: "none", borderLeft: ip ? "2px solid #06b6d4" : "2px solid transparent", color: ip ? "#06b6d4" : "#4a5568", padding: "5px 8px", cursor: "pointer", fontSize: 12, fontWeight: ip ? 700 : 400 }}>🏭 {ww}</button>; })}
                                 </div>
                               )}
                               {(isInsertingBeforeHere || isInsertingAfterHere) && (
                                 <div style={{ marginTop: 6, background: "#0f1117", border: "1px solid #a78bfa", borderRadius: 8, padding: 8 }}>
                                   <div style={{ color: "#a78bfa", fontSize: 10, textTransform: "uppercase", letterSpacing: 1, marginBottom: 6 }}>{isInsertingBeforeHere ? l.insertBefore : l.insertAfter}</div>
                                   <select className="select-dark" value={insertingStop.pending || ""} onChange={(e) => setInsertingStop((prev) => ({ ...prev, pending: e.target.value || null }))}>
-                                    <option value="">— válassz helyszínt —</option>
-                                    {WAREHOUSES.map((ww) => <option key={ww} value={ww}>{ww}</option>)}
+                                    <option value="">— válassz helyszínt —</option>{WAREHOUSES.map((ww) => <option key={ww} value={ww}>{ww}</option>)}
                                   </select>
                                 </div>
                               )}
@@ -1094,7 +778,7 @@ export default function App() {
                 );
               }
 
-              // ZÁROLT TERV — aktív útvonal
+              // ZÁROLT TERV
               return (
                 <>
                   <div className="card">
@@ -1106,29 +790,29 @@ export default function App() {
                           <StatusBadge statusKey={plan.status} l={l} />
                         </div>
                       </div>
-                      <div style={{ display: "flex", gap: 6, flexDirection: "column", alignItems: "flex-end" }}>
-                        {isToday && <button className="btn-sm" onClick={() => resetDay(selectedDay)} style={{ borderColor: "#4a5568", color: "#4a5568" }}>{l.reset}</button>}
-                      </div>
+                      {isToday && <button className="btn-sm" onClick={() => resetDay(selectedDay)} style={{ borderColor: "#4a5568", color: "#4a5568" }}>{l.reset}</button>}
                     </div>
                   </div>
                   <div className="card">
                     <span style={LABEL}>{l.todayRoute} – {formatDateLabel(selectedDay)}</span>
                     {(plan.route || []).map((stop, i) => {
                       const ss = stop.stopStatus || "várja";
+                      const isLastStop = i === plan.route.length - 1;
                       const isCompleted = ss === "indult";
-                      // Szerkesztő gombok: "várja" státuszban MINDIG láthatók (zárolt tervnél is)
-                      const canEditStop = ss === "várja";
                       const prevOk = i === 0 ? true : plan.route[i - 1]?.stopStatus === "indult";
-                      const allowed = {
-                        érkezett: prevOk && ss === "várja",
-                        "rakodás alatt": ss === "érkezett" || ss === "rakodás alatt",
-                        indult: ss === "rakodás alatt",
-                      };
+                      const allowed = { érkezett: prevOk && ss === "várja", "rakodás alatt": ss === "érkezett" || ss === "rakodás alatt", indult: ss === "rakodás alatt" };
                       const isReplacing = replacingStop && replacingStop.dateKey === selectedDay && replacingStop.index === i;
                       const isInsertingBefore = insertingStop && insertingStop.dateKey === selectedDay && insertingStop.index === i && insertingStop.direction === "before";
                       const isInsertingAfter = insertingStop && insertingStop.dateKey === selectedDay && insertingStop.index === i && insertingStop.direction === "after";
                       const isAnyPanel = isReplacing || isInsertingBefore || isInsertingAfter;
                       const canDepart = ss === "rakodás alatt" && stop.truckLoad;
+
+                      // Szerkesztő gombok logika:
+                      // "várja": +⬆ +⬇ 🔄 − (mind a 4)
+                      // utolsó stop + érkezett/rakodás alatt: +⬇ 🔄 − ↩ (elé szúr NEM kell)
+                      // egyéb nem "várja": csak ↩
+                      const showAllEditBtns = ss === "várja";
+                      const showLastStopBtns = isLastStop && (ss === "érkezett" || ss === "rakodás alatt");
 
                       return (
                         <div key={i} style={{ marginBottom: 16 }}>
@@ -1140,19 +824,35 @@ export default function App() {
                             <div style={{ flex: 1 }}>
                               <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6, flexWrap: "wrap" }}>
                                 <span style={{ color: ss === "várja" ? "#164e63" : "#06b6d4", fontSize: 14, fontWeight: 700 }}>{stop.warehouse}</span>
-                                <span style={{ fontSize: 10, padding: "2px 8px", borderRadius: 10, background: stopColors[ss] + "33", color: stopColors[ss], fontWeight: 700 }}>
-                                  {stopIcons[ss]} {trStopStatus(ss, l)}
-                                </span>
+                                <span style={{ fontSize: 10, padding: "2px 8px", borderRadius: 10, background: stopColors[ss] + "33", color: stopColors[ss], fontWeight: 700 }}>{stopIcons[ss]} {trStopStatus(ss, l)}</span>
                                 <div style={{ display: "flex", gap: 4, marginLeft: "auto" }}>
-                                  {/* Szerkesztő gombok — csak "várja" státuszban */}
-                                  {canEditStop && (
-                                    <StopEditButtons dk={selectedDay} i={i} stop={stop} plan={plan}
-                                      isReplacing={isReplacing} isInsertingBefore={isInsertingBefore} isInsertingAfter={isInsertingAfter} />
+
+                                  {/* "várja" státusz: mind a 4 szerkesztő gomb */}
+                                  {showAllEditBtns && (
+                                    <>
+                                      <button title={l.insertBefore} onClick={() => { setReplacingStop(null); setInsertingStop(isInsertingBefore ? null : { dateKey: selectedDay, index: i, direction: "before", pending: null }); }} style={bs("#a78bfa", isInsertingBefore)}>+⬆</button>
+                                      <button title={l.insertAfter} onClick={() => { setReplacingStop(null); setInsertingStop(isInsertingAfter ? null : { dateKey: selectedDay, index: i, direction: "after", pending: null }); }} style={bs("#a78bfa", isInsertingAfter)}>+⬇</button>
+                                      <button onClick={() => { setInsertingStop(null); setReplacingStop(isReplacing ? null : { dateKey: selectedDay, index: i, pending: null }); }} style={bs("#06b6d4", isReplacing, 13)}>🔄</button>
+                                      <button onClick={() => removeActiveStop(selectedDay, i)} style={bs("#ef4444", false, 14)}>−</button>
+                                      {isReplacing && replacingStop.pending && <button onClick={() => replaceStop(selectedDay, i, replacingStop.pending)} style={bs("#10b981", true, 13)}>✓</button>}
+                                      {(isInsertingBefore || isInsertingAfter) && insertingStop.pending && <button onClick={() => insertStop(selectedDay, i, insertingStop.direction, insertingStop.pending)} style={bs("#10b981", true, 13)}>✓</button>}
+                                    </>
                                   )}
-                                  {/* Visszavonás gomb — ha nem "várja" */}
+
+                                  {/* Utolsó stop érkezett/rakodás alatt: +⬇ 🔄 − */}
+                                  {showLastStopBtns && (
+                                    <>
+                                      <button title={l.insertAfter} onClick={() => { setReplacingStop(null); setInsertingStop(isInsertingAfter ? null : { dateKey: selectedDay, index: i, direction: "after", pending: null }); }} style={bs("#a78bfa", isInsertingAfter)}>+⬇</button>
+                                      <button onClick={() => { setInsertingStop(null); setReplacingStop(isReplacing ? null : { dateKey: selectedDay, index: i, pending: null }); }} style={bs("#06b6d4", isReplacing, 13)}>🔄</button>
+                                      <button onClick={() => removeActiveStop(selectedDay, i)} style={bs("#ef4444", false, 14)}>−</button>
+                                      {isReplacing && replacingStop.pending && <button onClick={() => replaceStop(selectedDay, i, replacingStop.pending)} style={bs("#10b981", true, 13)}>✓</button>}
+                                      {isInsertingAfter && insertingStop.pending && <button onClick={() => insertStop(selectedDay, i, "after", insertingStop.pending)} style={bs("#10b981", true, 13)}>✓</button>}
+                                    </>
+                                  )}
+
+                                  {/* Visszavonás gomb: minden nem "várja" státusznál */}
                                   {ss !== "várja" && (
-                                    <button onClick={() => revertStopStatus(selectedDay, i)}
-                                      style={{ background: "#1e2130", border: "1px solid #ef4444", color: "#ef4444", borderRadius: 6, width: 24, height: 24, cursor: "pointer", fontSize: 13, display: "flex", alignItems: "center", justifyContent: "center" }}>↩</button>
+                                    <button onClick={() => revertStopStatus(selectedDay, i)} style={bs("#ef4444", false, 13)}>↩</button>
                                   )}
                                 </div>
                               </div>
@@ -1160,21 +860,14 @@ export default function App() {
                               {isReplacing && (
                                 <div style={{ marginBottom: 8, background: "#0f1117", border: "1px solid #06b6d4", borderRadius: 8, padding: 8 }}>
                                   <div style={{ color: "#06b6d4", fontSize: 10, textTransform: "uppercase", letterSpacing: 1, marginBottom: 6 }}>{l.replaceLocation}</div>
-                                  {WAREHOUSES.filter((w) => w !== stop.warehouse).map((w) => {
-                                    const isPending = replacingStop.pending === w;
-                                    return (
-                                      <button key={w} onClick={() => setReplacingStop((prev) => ({ ...prev, pending: w }))}
-                                        style={{ display: "block", width: "100%", textAlign: "left", background: isPending ? "#06b6d422" : "transparent", border: "none", borderLeft: isPending ? "2px solid #06b6d4" : "2px solid transparent", color: isPending ? "#06b6d4" : "#4a5568", padding: "5px 8px", cursor: "pointer", fontSize: 12, fontWeight: isPending ? 700 : 400 }}>🏭 {w}</button>
-                                    );
-                                  })}
+                                  {WAREHOUSES.filter((w) => w !== stop.warehouse).map((w) => { const ip = replacingStop.pending === w; return <button key={w} onClick={() => setReplacingStop((prev) => ({ ...prev, pending: w }))} style={{ display: "block", width: "100%", textAlign: "left", background: ip ? "#06b6d422" : "transparent", border: "none", borderLeft: ip ? "2px solid #06b6d4" : "2px solid transparent", color: ip ? "#06b6d4" : "#4a5568", padding: "5px 8px", cursor: "pointer", fontSize: 12, fontWeight: ip ? 700 : 400 }}>🏭 {w}</button>; })}
                                 </div>
                               )}
                               {(isInsertingBefore || isInsertingAfter) && (
                                 <div style={{ marginBottom: 8, background: "#0f1117", border: "1px solid #a78bfa", borderRadius: 8, padding: 8 }}>
                                   <div style={{ color: "#a78bfa", fontSize: 10, textTransform: "uppercase", letterSpacing: 1, marginBottom: 6 }}>{isInsertingBefore ? l.insertBefore : l.insertAfter}</div>
                                   <select className="select-dark" value={insertingStop.pending || ""} onChange={(e) => setInsertingStop((prev) => ({ ...prev, pending: e.target.value || null }))} style={{ marginBottom: 0 }}>
-                                    <option value="">— válassz helyszínt —</option>
-                                    {WAREHOUSES.map((w) => <option key={w} value={w}>{w}</option>)}
+                                    <option value="">— válassz helyszínt —</option>{WAREHOUSES.map((w) => <option key={w} value={w}>{w}</option>)}
                                   </select>
                                 </div>
                               )}
@@ -1191,40 +884,18 @@ export default function App() {
                                 <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
                                   {["érkezett", "rakodás alatt"].map((s) => {
                                     const isActive = ss === s, isEnabled = allowed[s];
-                                    return (
-                                      <button key={s} className="btn-sm" onClick={() => isEnabled && updateStopStatus(selectedDay, i, s)}
-                                        style={{ borderColor: isEnabled ? stopColors[s] : "#2a2d3a", color: isActive ? "#0f1117" : isEnabled ? stopColors[s] : "#2a2d3a", background: isActive ? stopColors[s] : "transparent", cursor: isEnabled ? "pointer" : "not-allowed", opacity: isEnabled ? 1 : 0.3 }}>
-                                        {s === "érkezett" ? `🏭 ${l.arrived}` : `⏳ ${l.loadingBtn}`}
-                                      </button>
-                                    );
+                                    return <button key={s} className="btn-sm" onClick={() => isEnabled && updateStopStatus(selectedDay, i, s)} style={{ borderColor: isEnabled ? stopColors[s] : "#2a2d3a", color: isActive ? "#0f1117" : isEnabled ? stopColors[s] : "#2a2d3a", background: isActive ? stopColors[s] : "transparent", cursor: isEnabled ? "pointer" : "not-allowed", opacity: isEnabled ? 1 : 0.3 }}>{s === "érkezett" ? `🏭 ${l.arrived}` : `⏳ ${l.loadingBtn}`}</button>;
                                   })}
                                 </div>
                               )}
 
                               {ss === "rakodás alatt" && (
                                 <div style={{ display: "flex", gap: 6, marginTop: 8, flexWrap: "wrap", alignItems: "center" }}>
-                                  {TRUCK_LOAD_KEYS.map((v) => {
-                                    const isActive = stop.truckLoad === v;
-                                    return (
-                                      <button key={v} className="btn-sm"
-                                        onClick={() => { const nr = plan.route.map((s2, idx) => idx === i ? { ...s2, truckLoad: v } : s2); saveDayPlan(selectedDay, { ...plan, route: nr }); }}
-                                        style={{ borderColor: "#06b6d4", color: isActive ? "#0f1117" : "#06b6d4", background: isActive ? "#06b6d4" : "transparent", fontWeight: 700 }}>
-                                        {v === "teli" ? `📦 ${l.full}` : `🔲 ${l.empty}`}
-                                      </button>
-                                    );
-                                  })}
-                                  <button className="btn-sm" disabled={!canDepart} onClick={() => canDepart && updateStopStatus(selectedDay, i, "indult")}
-                                    style={{ borderColor: canDepart ? stopColors["indult"] : "#2a2d3a", color: canDepart ? "#0f1117" : "#2a2d3a", background: canDepart ? stopColors["indult"] : "transparent", cursor: canDepart ? "pointer" : "not-allowed", opacity: canDepart ? 1 : 0.3 }}>
-                                    🚀 {l.departed}
-                                  </button>
+                                  {TRUCK_LOAD_KEYS.map((v) => { const isActive = stop.truckLoad === v; return <button key={v} className="btn-sm" onClick={() => { const nr = plan.route.map((s2, idx) => idx === i ? { ...s2, truckLoad: v } : s2); saveDayPlan(selectedDay, { ...plan, route: nr }); }} style={{ borderColor: "#06b6d4", color: isActive ? "#0f1117" : "#06b6d4", background: isActive ? "#06b6d4" : "transparent", fontWeight: 700 }}>{v === "teli" ? `📦 ${l.full}` : `🔲 ${l.empty}`}</button>; })}
+                                  <button className="btn-sm" disabled={!canDepart} onClick={() => canDepart && updateStopStatus(selectedDay, i, "indult")} style={{ borderColor: canDepart ? stopColors["indult"] : "#2a2d3a", color: canDepart ? "#0f1117" : "#2a2d3a", background: canDepart ? stopColors["indult"] : "transparent", cursor: canDepart ? "pointer" : "not-allowed", opacity: canDepart ? 1 : 0.3 }}>🚀 {l.departed}</button>
                                 </div>
                               )}
-
-                              {isCompleted && stop.truckLoad && (
-                                <div style={{ marginTop: 4 }}>
-                                  <span style={{ fontSize: 11, color: "#06b6d4", fontWeight: 700 }}>📦 {trStatus(stop.truckLoad, l)}</span>
-                                </div>
-                              )}
+                              {isCompleted && stop.truckLoad && <div style={{ marginTop: 4 }}><span style={{ fontSize: 11, color: "#06b6d4", fontWeight: 700 }}>📦 {trStatus(stop.truckLoad, l)}</span></div>}
                             </div>
                           </div>
                         </div>
@@ -1237,7 +908,6 @@ export default function App() {
           </>
         )}
 
-        {/* FUVAR IGÉNY */}
         {activeTab === "fuvar" && (
           <>
             {fuvarModal && <FuvarModal onClose={() => setFuvarModal(false)} onAdd={(item) => setFuvarDraft((prev) => [...prev, item])} l={l} />}
@@ -1245,51 +915,39 @@ export default function App() {
               <div style={{ color: "#f59e0b", fontSize: 18, fontFamily: "'Bebas Neue',sans-serif", letterSpacing: 2 }}>{l.fuvarTitle}</div>
               <button onClick={() => setFuvarModal(true)} style={{ background: "#f59e0b", border: "none", color: "#0f1117", borderRadius: 8, padding: "8px 16px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>+ {l.fuvarCreate}</button>
             </div>
-
             {fuvarDraft.length > 0 && (
               <div className="card" style={{ marginBottom: 12 }}>
                 <div style={{ color: "#f59e0b", fontSize: 11, fontWeight: 700, letterSpacing: 1, marginBottom: 10 }}>{l.fuvarDraftTitle} ({fuvarDraft.length})</div>
                 {fuvarDraft.map((item: any, idx) => (
                   <div key={idx} style={{ display: "flex", alignItems: "center", gap: 8, padding: "7px 0", borderBottom: "1px solid #2a2d3a" }}>
                     <div style={{ flex: 1 }}>
-                      <div style={{ color: "#e2e8f0", fontSize: 13, fontWeight: 700 }}>
-                        {item.from}{item.via?.filter(Boolean).map((v, i) => <span key={i}> → <span style={{ color: "#06b6d4" }}>{v}</span></span>)}{" → "}{item.to}
-                        {item.urgent && <span style={{ marginLeft: 6, color: "#ef4444", fontSize: 10, fontWeight: 700 }}>⚡ SÜRGŐS</span>}
-                      </div>
+                      <div style={{ color: "#e2e8f0", fontSize: 13, fontWeight: 700 }}>{item.from}{item.via?.filter(Boolean).map((v, i) => <span key={i}> → <span style={{ color: "#06b6d4" }}>{v}</span></span>)}{" → "}{item.to}{item.urgent && <span style={{ marginLeft: 6, color: "#ef4444", fontSize: 10, fontWeight: 700 }}>⚡ SÜRGŐS</span>}</div>
                       {(item.timeFrom || item.timeTo) && <div style={{ color: "#4a5568", fontSize: 11, marginTop: 2 }}>🕐 {item.timeFrom || "—"} – {item.timeTo || "—"}</div>}
                     </div>
                     <button onClick={() => setFuvarDraft((prev) => prev.filter((_, i) => i !== idx))} style={{ background: "#ef444422", border: "1px solid #ef4444", color: "#ef4444", borderRadius: 6, padding: "3px 8px", fontSize: 11, cursor: "pointer" }}>×</button>
                   </div>
                 ))}
-                <button onClick={saveFuvarDraft} style={{ width: "100%", marginTop: 12, background: "#10b981", border: "none", color: "#fff", borderRadius: 8, padding: "10px", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
-                  💾 {l.fuvarSave} ({fuvarDraft.length} fuvar)
-                </button>
+                <button onClick={saveFuvarDraft} style={{ width: "100%", marginTop: 12, background: "#10b981", border: "none", color: "#fff", borderRadius: 8, padding: "10px", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>💾 {l.fuvarSave} ({fuvarDraft.length} fuvar)</button>
               </div>
             )}
-
             {fuvarSaved.length === 0 && fuvarDraft.length === 0 ? (
               <div className="card" style={{ textAlign: "center", color: "#4a5568", fontSize: 12, padding: 24 }}>{l.noData}</div>
-            ) : (
-              fuvarSaved.length > 0 && (
-                <div className="card">
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
-                    <div style={{ color: "#10b981", fontSize: 11, fontWeight: 700, letterSpacing: 1 }}>✓ {l.fuvarSavedTitle} ({fuvarSaved.length})</div>
-                    <div style={{ color: "#67e8f9", fontSize: 10 }}>{fuvarSavedAt ? `${l.fuvarUpdated}: ${formatTime(fuvarSavedAt)}` : ""}</div>
-                  </div>
-                  {fuvarSaved.map((item: any, idx) => (
-                    <div key={idx} style={{ display: "flex", alignItems: "center", gap: 8, padding: "7px 0", borderBottom: "1px solid #2a2d3a" }}>
-                      <div style={{ flex: 1 }}>
-                        <div style={{ color: "#e2e8f0", fontSize: 13, fontWeight: 700 }}>
-                          {item.from}{item.via?.filter(Boolean).map((v, i) => <span key={i}> → <span style={{ color: "#06b6d4" }}>{v}</span></span>)}{" → "}{item.to}
-                          {item.urgent && <span style={{ marginLeft: 6, color: "#ef4444", fontSize: 10, fontWeight: 700 }}>⚡ SÜRGŐS</span>}
-                        </div>
-                        {(item.timeFrom || item.timeTo) && <div style={{ color: "#4a5568", fontSize: 11, marginTop: 2 }}>🕐 {item.timeFrom || "—"} – {item.timeTo || "—"}</div>}
-                      </div>
-                      <button onClick={() => deleteFuvarItem(idx)} style={{ background: "#ef444422", border: "1px solid #ef4444", color: "#ef4444", borderRadius: 6, padding: "3px 8px", fontSize: 11, cursor: "pointer" }}>🗑️</button>
-                    </div>
-                  ))}
+            ) : fuvarSaved.length > 0 && (
+              <div className="card">
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+                  <div style={{ color: "#10b981", fontSize: 11, fontWeight: 700, letterSpacing: 1 }}>✓ {l.fuvarSavedTitle} ({fuvarSaved.length})</div>
+                  <div style={{ color: "#67e8f9", fontSize: 10 }}>{fuvarSavedAt ? `${l.fuvarUpdated}: ${formatTime(fuvarSavedAt)}` : ""}</div>
                 </div>
-              )
+                {fuvarSaved.map((item: any, idx) => (
+                  <div key={idx} style={{ display: "flex", alignItems: "center", gap: 8, padding: "7px 0", borderBottom: "1px solid #2a2d3a" }}>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ color: "#e2e8f0", fontSize: 13, fontWeight: 700 }}>{item.from}{item.via?.filter(Boolean).map((v, i) => <span key={i}> → <span style={{ color: "#06b6d4" }}>{v}</span></span>)}{" → "}{item.to}{item.urgent && <span style={{ marginLeft: 6, color: "#ef4444", fontSize: 10, fontWeight: 700 }}>⚡ SÜRGŐS</span>}</div>
+                      {(item.timeFrom || item.timeTo) && <div style={{ color: "#4a5568", fontSize: 11, marginTop: 2 }}>🕐 {item.timeFrom || "—"} – {item.timeTo || "—"}</div>}
+                    </div>
+                    <button onClick={() => deleteFuvarItem(idx)} style={{ background: "#ef444422", border: "1px solid #ef4444", color: "#ef4444", borderRadius: 6, padding: "3px 8px", fontSize: 11, cursor: "pointer" }}>🗑️</button>
+                  </div>
+                ))}
+              </div>
             )}
           </>
         )}
