@@ -17,7 +17,7 @@ const TRAILER_STATUSES = [
 ];
 const TRUCK_LOAD_KEYS = ["üres", "teli"];
 const HOURS = Array.from({ length: 19 }, (_, i) => `${String(i + 5).padStart(2, "0")}:00`);
-const VAPID_PUBLIC_KEY = 'BCeKAwDGjkhR2z5YDE_9-ET7dVsPIF_McU9FlfKW3lYze3NfU5pf8vx1gJsj9YUAEFJopn-md6GZl_64Id648Q0';
+const VAPID_PUBLIC_KEY = 'BK3xvCCzNJbkYNDvMkRVF9z5N2rK9vr31tJkGmzSwXJ9zpzs4Q1K_0WBYCp5qDqfsVHvk0Xy0U5xVacWlwQxePx_PLy6R_FSWVix7Vjwl-A';
 
 const T = {
   hu: {
@@ -139,10 +139,14 @@ async function subscribeToPush() {
     if (!('serviceWorker' in navigator) || !('PushManager' in window)) return null;
     const reg = await navigator.serviceWorker.ready;
     let sub = await reg.pushManager.getSubscription();
-    if (sub) return sub;
-    const permission = await Notification.requestPermission();
-    if (permission !== 'granted') return null;
-    sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY) });
+    if (!sub) {
+      const permission = await Notification.requestPermission();
+      if (permission !== 'granted') return null;
+      sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY) });
+    }
+    // Store subscription in Firebase so all devices can receive notifications
+    const subKey = btoa(sub.endpoint).replace(/[.#$/\[\]]/g, '_').slice(-80);
+    await fbSet(`pushSubscriptions/${subKey}`, sub.toJSON());
     return sub;
   } catch (e) { console.error('Push subscription error:', e); return null; }
 }
@@ -363,11 +367,8 @@ export default function App() {
   }, []);
 
   const sendPush = async (title: string, body: string) => {
-    let sub = pushSubRef.current;
-    if (!sub) { sub = await subscribeToPush(); if (sub) pushSubRef.current = sub; }
-    if (!sub) { console.warn('No push subscription'); return; }
     try {
-      const res = await fetch('/.netlify/functions/send-push', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ subscription: sub, title, body }) });
+      const res = await fetch('/.netlify/functions/send-push', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title, body }) });
       console.log('Push sent:', res.status);
     } catch (e) { console.error('Push error:', e); }
   };
