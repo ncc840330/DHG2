@@ -15,7 +15,7 @@ const TRAILER_STATUSES = [
   "indulásra kész - rakodva",
   "indulásra kész - üres",
 ];
-const TRUCK_LOAD_KEYS = ["üres", "teli"];
+const TRUCK_LOAD_KEYS = ["üres", "25%", "50%", "75%", "100%"];
 const HOURS = Array.from({ length: 19 }, (_, i) => `${String(i + 5).padStart(2, "0")}:00`);
 const VAPID_PUBLIC_KEY = 'BCeKAwDGjkhR2z5YDE_9-ET7dVsPIF_McU9FlfKW3lYze3NfU5pf8vx1gJsj9YUAEFJopn-md6GZl_64Id648Q0';
 
@@ -33,7 +33,7 @@ const T = {
     noPlan: "Még nincs útvonal tervezve erre a napra.",
     arrived: "Érkezett", loadingBtn: "Rakodás", departed: "Indult",
     truckLoad: "Kamion rakodottsága", truckStatus: "Kamion állapota",
-    empty: "Üres", full: "Teli", today: "MA", tomorrow: "HOLNAP", stops: "stop",
+    empty: "Üres", full: "Teli", "25%": "25%", "50%": "50%", "75%": "75%", "100%": "100%", today: "MA", tomorrow: "HOLNAP", stops: "stop",
     replaceLocation: "Csere helyszín:", insertBefore: "Elé szúr:", insertAfter: "Alá szúr:",
     fuvarTitle: "Fuvar igények", fuvarCreate: "Fuvar létrehozása",
     fuvarDraftTitle: "📋 Vázlat – még nem mentve", fuvarSavedTitle: "Mentett fuvarok",
@@ -43,6 +43,9 @@ const T = {
     addCargo: "📦 Rakomány", cargoModalTitle: "Rakomány hozzáadása",
     cargoScan: "Szkennelj vagy írj be egy tételt...", cargoSave: "💾 Mentés",
     cargoClear: "🗑️ Lista ürítés", cargoUpdated: "Frissítve", cargoEmpty: "Nincs rakomány rögzítve.",
+    trailer: "Trailer", trailerPickedUp: "felvéve", trailerCargo: "Rakomány",
+    noTrailerAvailable: "Nincs elérhető trailer", selectTrailer: "Válassz trailert:",
+    confirmTrailer: "Biztosan felveszed?", undoTrailer: "Visszavon",
     s_rakodasravar: "rakodásra vár", s_rakodas: "rakodás alatt", s_szedes: "szedés alatt",
     s_szedesvar: "szedésre vár", s_indulas_rakodva: "indulásra kész - rakodva",
     s_indulas_ures: "indulásra kész - üres", ss_varja: "várja", ss_erkezett: "érkezett",
@@ -62,7 +65,7 @@ const T = {
     noPlan: "No route planned for this day yet.",
     arrived: "Arrived", loadingBtn: "Loading", departed: "Departed",
     truckLoad: "Truck load", truckStatus: "Truck status",
-    empty: "Empty", full: "Loaded", today: "TODAY", tomorrow: "TOMORROW", stops: "stops",
+    empty: "Empty", full: "Loaded", "25%": "25%", "50%": "50%", "75%": "75%", "100%": "100%", today: "TODAY", tomorrow: "TOMORROW", stops: "stops",
     replaceLocation: "Replace location:", insertBefore: "Insert before:", insertAfter: "Insert after:",
     fuvarTitle: "Transport Requests", fuvarCreate: "New request",
     fuvarDraftTitle: "📋 Draft – not saved yet", fuvarSavedTitle: "Saved requests",
@@ -72,6 +75,9 @@ const T = {
     addCargo: "📦 Cargo", cargoModalTitle: "Add cargo",
     cargoScan: "Scan or type an item...", cargoSave: "💾 Save",
     cargoClear: "🗑️ Clear list", cargoUpdated: "Updated", cargoEmpty: "No cargo recorded.",
+    trailer: "Trailer", trailerPickedUp: "picked up", trailerCargo: "Cargo",
+    noTrailerAvailable: "No trailer available", selectTrailer: "Select trailer:",
+    confirmTrailer: "Confirm pickup?", undoTrailer: "Undo",
     s_rakodasravar: "waiting load", s_rakodas: "loading", s_szedes: "picking",
     s_szedesvar: "waiting pick", s_indulas_rakodva: "ready to go - loaded",
     s_indulas_ures: "ready to go - empty", ss_varja: "waiting", ss_erkezett: "arrived",
@@ -85,9 +91,9 @@ function trStatus(key: string, l: any) {
     "rakodásra vár": l.s_rakodasravar, "rakodás alatt": l.s_rakodas,
     "szedés alatt": l.s_szedes, "szedésre vár": l.s_szedesvar,
     "indulásra kész - rakodva": l.s_indulas_rakodva, "indulásra kész - üres": l.s_indulas_ures,
-    várja: l.ss_varja, érkezett: l.ss_erkezett, indult: l.ss_indult,
+    trailer: l.trailer, várja: l.ss_varja, érkezett: l.ss_erkezett, indult: l.ss_indult,
     úton: l.ts_uton, állomásozik: l.ts_allomásozik, "beállításra vár": l.ts_vár,
-    teli: l.full, üres: l.empty,
+    teli: l.full, üres: l.empty, "25%": "25%", "50%": "50%", "75%": "75%", "100%": "100%",
   };
   return map[key] || key;
 }
@@ -162,6 +168,7 @@ function TimeDisplay({ iso, label }: { iso: string, label: string }) {
 function StatusBadge({ statusKey, l }: { statusKey: string, l: any }) {
   const colors: any = {
     teli: { bg: "#f59e0b", color: "#0f1117" }, üres: { bg: "#2a2d3a", color: "#94a3b8" },
+    "25%": { bg: "#3b82f6", color: "#fff" }, "50%": { bg: "#f59e0b", color: "#0f1117" }, "75%": { bg: "#f97316", color: "#fff" }, "100%": { bg: "#10b981", color: "#fff" },
     "rakodásra vár": { bg: "#eab308", color: "#0f1117" }, "rakodás alatt": { bg: "#3b82f6", color: "#fff" },
     "szedés alatt": { bg: "#8b5cf6", color: "#fff" }, "szedésre vár": { bg: "#f97316", color: "#fff" },
     "indulásra kész - rakodva": { bg: "#10b981", color: "#fff" }, "indulásra kész - üres": { bg: "#6b7280", color: "#fff" },
@@ -349,6 +356,8 @@ export default function App() {
   const [editingPlan, setEditingPlan] = useState(null);
   const [replacingStop, setReplacingStop] = useState(null);
   const [insertingStop, setInsertingStop] = useState(null);
+  const [trailerDropdown, setTrailerDropdown] = useState(null);
+  const [trailerConfirm, setTrailerConfirm] = useState<{ stopIndex: number; trailerName: string } | null>(null);
   const [cargoModal, setCargoModal] = useState(null);
   const [cargoInputs, setCargoInputs] = useState({});
   const pushSubRef = useRef<any>(null);
@@ -399,7 +408,7 @@ export default function App() {
   }, []);
 
   const today = getTodayKey();
-  const dayKeys = [0, 1, 2, 3].map((i) => getDateKey(i));
+  const dayKeys = [-2, -1, 0, 1, 2, 3].map((i) => getDateKey(i));
   const todayPlan = days[today] || initialDayPlan();
 
   const saveDayPlan = async (dk, plan) => { const nd = { ...days, [dk]: plan }; setDays(nd); await fbSet("days", nd); };
@@ -450,7 +459,7 @@ export default function App() {
     if (existing.routeLocked) {
       const locked = existing.route.map((s) => s.warehouse);
       const newStops = editingPlan.plannedRoute.filter((w) => !locked.includes(w));
-      const newRoute = [...existing.route, ...newStops.map((w) => ({ warehouse: w, stopStatus: "várja", arrived: null, loading: null, departed: null, truckLoad: null }))];
+      const newRoute = [...existing.route, ...newStops.map((w) => ({ warehouse: w, stopStatus: "várja", arrived: null, loading: null, departed: null, truckLoad: null, pickedTrailer: null, pickedCargo: null }))];
       await saveDayPlan(editingPlan.dateKey, { ...existing, plannedRoute: editingPlan.plannedRoute, route: newRoute });
     } else {
       await saveDayPlan(editingPlan.dateKey, { ...existing, plannedRoute: editingPlan.plannedRoute });
@@ -470,7 +479,7 @@ export default function App() {
   const insertStop = async (dk, index, direction, newW) => {
     const plan = days[dk] || initialDayPlan();
     const insertAt = direction === "before" ? index : index + 1;
-    const newRouteStop = { warehouse: newW, stopStatus: "várja", arrived: null, loading: null, departed: null, truckLoad: null };
+    const newRouteStop = { warehouse: newW, stopStatus: "várja", arrived: null, loading: null, departed: null, truckLoad: null, pickedTrailer: null, pickedCargo: null };
     await saveDayPlan(dk, { ...plan, route: [...plan.route.slice(0, insertAt), newRouteStop, ...plan.route.slice(insertAt)], plannedRoute: [...plan.plannedRoute.slice(0, insertAt), newW, ...plan.plannedRoute.slice(insertAt)] });
     setInsertingStop(null);
   };
@@ -485,7 +494,7 @@ export default function App() {
   const lockAndStart = async (dk) => {
     const plan = days[dk] || initialDayPlan();
     if (!plan.plannedRoute || plan.plannedRoute.length === 0) return;
-    await saveDayPlan(dk, { ...plan, routeLocked: true, route: plan.plannedRoute.map((w) => ({ warehouse: w, stopStatus: "várja", arrived: null, loading: null, departed: null, truckLoad: null })), status: "beállításra vár" });
+    await saveDayPlan(dk, { ...plan, routeLocked: true, route: plan.plannedRoute.map((w) => ({ warehouse: w, stopStatus: "várja", arrived: null, loading: null, departed: null, truckLoad: null, pickedTrailer: null, pickedCargo: null })), status: "beállításra vár" });
     await sendPush(`📋 Napi terv feltöltve`, `${formatDateLabel(dk)} – ${plan.plannedRoute.length} helyszín`);
   };
   const updateStopStatus = async (dk, index, newSS) => {
@@ -513,9 +522,9 @@ export default function App() {
     const newRoute = plan.route.map((s, i) => {
       if (i !== index) return s;
       const u: any = { stopStatus: prev };
-      if (prev === "érkezett") { u.loading = null; u.departed = null; u.truckLoad = null; }
+      if (prev === "érkezett") { u.loading = null; u.departed = null; u.truckLoad = null; u.pickedTrailer = null; u.pickedCargo = null; }
       if (prev === "rakodás alatt") { u.departed = null; u.truckLoad = null; }
-      if (prev === "várja") { u.arrived = null; u.loading = null; u.departed = null; u.truckLoad = null; }
+      if (prev === "várja") { u.arrived = null; u.loading = null; u.departed = null; u.truckLoad = null; u.pickedTrailer = null; u.pickedCargo = null; }
       return { ...s, ...u };
     });
     const status = prev === "várja" ? (plan.route.some((s) => s.stopStatus === "indult") ? "úton" : "beállításra vár") : "állomásozik";
@@ -523,6 +532,61 @@ export default function App() {
     await saveDayPlan(dk, { ...plan, route: newRoute, status, location });
   };
   const resetDay = async (dk) => { await saveDayPlan(dk, initialDayPlan()); };
+
+  const getAvailableTrailers = (warehouse: string) => {
+    return TRAILER_NAMES.filter((name) => {
+      const t = trailers[name] || {};
+      return (t.status === "indulásra kész - rakodva" || t.status === "indulásra kész - üres") && t.location === warehouse;
+    });
+  };
+
+  const pickTrailer = async (dk: string, stopIndex: number, trailerName: string) => {
+    const plan = days[dk] || initialDayPlan();
+    if (!plan.route || !plan.route[stopIndex]) return;
+    const cargo = cargoInputs[trailerName];
+    const cargoItems = cargo?.items || [];
+    const newRoute = plan.route.map((s, i) => {
+      if (i !== stopIndex) return s;
+      return { ...s, pickedTrailer: trailerName, pickedCargo: cargoItems.length > 0 ? cargoItems : null };
+    });
+    await saveDayPlan(dk, { ...plan, route: newRoute });
+    const trailerData = trailers[trailerName] || {};
+    await saveTrailers({ ...trailers, [trailerName]: { ...trailerData, status: "beállításra vár", lastUpdated: new Date().toISOString() } });
+    // Clear cargo from trailer - it moved to the truck
+    if (cargoItems.length > 0) {
+      const updatedCargo = { ...cargoInputs, [trailerName]: null };
+      setCargoInputs(updatedCargo);
+      await fbSet("trailerCargo", updatedCargo);
+    }
+    await sendPush(`🚛 Trailer felvéve`, `${trailerName} → ${plan.route[stopIndex].warehouse}`);
+    setTrailerDropdown(null);
+    setTrailerConfirm(null);
+  };
+
+  const undoTrailer = async (dk: string, stopIndex: number) => {
+    const plan = days[dk] || initialDayPlan();
+    if (!plan.route || !plan.route[stopIndex]) return;
+    const stop = plan.route[stopIndex];
+    const trailerName = stop.pickedTrailer;
+    if (!trailerName) return;
+    const hadCargo = stop.pickedCargo && stop.pickedCargo.length > 0;
+    const newRoute = plan.route.map((s, i) => {
+      if (i !== stopIndex) return s;
+      return { ...s, pickedTrailer: null, pickedCargo: null };
+    });
+    await saveDayPlan(dk, { ...plan, route: newRoute });
+    // Restore trailer to "indulásra kész" status
+    const trailerData = trailers[trailerName] || {};
+    await saveTrailers({ ...trailers, [trailerName]: { ...trailerData, status: hadCargo ? "indulásra kész - rakodva" : "indulásra kész - üres", lastUpdated: new Date().toISOString() } });
+    // Restore cargo back to the trailer
+    if (hadCargo) {
+      const now = new Date().toISOString();
+      const updatedCargo = { ...cargoInputs, [trailerName]: { items: stop.pickedCargo, savedAt: now } };
+      setCargoInputs(updatedCargo);
+      await fbSet("trailerCargo", updatedCargo);
+    }
+    await sendPush(`🚛 Trailer visszavonva`, `${trailerName} → ${stop.warehouse}`);
+  };
 
   if (!loaded) return (
     <div style={{ minHeight: "100vh", background: "#0f1117", display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -615,7 +679,7 @@ export default function App() {
                     const prevStop = plan.route && [...plan.route].reverse().find((s) => s.stopStatus === "indult");
                     if (plan.status === "úton" && prevStop && nextStop) return (
                       <><div style={{ color: "#e2e8f0", fontSize: 15, fontWeight: 700 }}>{prevStop.warehouse} <span style={{ color: "#f59e0b" }}>→</span> {nextStop.warehouse}</div>
-                        <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 4, flexWrap: "wrap" }}><StatusBadge statusKey="úton" l={l} />{prevStop.truckLoad && <span style={{ fontSize: 12, color: "#06b6d4", fontWeight: 700 }}>📦 {trStatus(prevStop.truckLoad, l)}</span>}</div></>
+                        <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 4, flexWrap: "wrap" }}><StatusBadge statusKey="úton" l={l} />{prevStop.truckLoad && <span style={{ fontSize: 12, color: "#06b6d4", fontWeight: 700 }}>📦 {trStatus(prevStop.truckLoad, l)}</span>}{prevStop.pickedTrailer && <span style={{ fontSize: 12, color: "#fbbf24", fontWeight: 800, background: "#f59e0b22", padding: "2px 8px", borderRadius: 6, border: "1px solid #f59e0b66" }}>🚛 {prevStop.pickedTrailer}</span>}</div></>
                     );
                     if (plan.status === "állomásozik" && currentStop) return (
                       <><div style={{ color: "#e2e8f0", fontSize: 15, fontWeight: 700 }}>{currentStop.warehouse}</div>
@@ -678,15 +742,16 @@ export default function App() {
 
         {activeTab === "utvonal" && (
           <>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8, marginBottom: 16 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(6, 1fr)", gap: 4, marginBottom: 16 }}>
               {dayKeys.map((dk) => {
                 const isToday = dk === today, isSelected = dk === selectedDay;
+                const isPast = dk < today;
                 const plan = days[dk], hasRoute = plan?.plannedRoute?.length > 0;
                 return (
-                  <div key={dk} className={`day-btn ${isSelected ? "selected" : isToday ? "tomorrow-style" : ""}`} onClick={() => { setSelectedDay(dk); setEditingPlan(null); setReplacingStop(null); }}>
-                    <div style={{ fontSize: 13, fontWeight: 700 }}>{formatDateLabel(dk)}</div>
-                    <div style={{ fontSize: 10, marginTop: 2, opacity: 0.7 }}>{isToday ? l.today : dk === getDateKey(1) ? l.tomorrow : ""}</div>
-                    {hasRoute && <div style={{ fontSize: 9, color: isSelected ? "#0f1117" : "#10b981", marginTop: 2 }}>● {plan.plannedRoute.length} {l.stops}</div>}
+                  <div key={dk} className={`day-btn ${isSelected ? "selected" : isToday ? "tomorrow-style" : ""}`} onClick={() => { setSelectedDay(dk); setEditingPlan(null); setReplacingStop(null); }} style={isPast && !isSelected ? { background: "#065f4620", borderColor: "#10b981" } : undefined}>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: isPast && !isSelected ? "#10b981" : undefined }}>{formatDateLabel(dk)}</div>
+                    <div style={{ fontSize: 9, marginTop: 2, opacity: 0.7 }}>{isToday ? l.today : dk === getDateKey(1) ? l.tomorrow : ""}</div>
+                    {hasRoute && <div style={{ fontSize: 8, color: isSelected ? "#0f1117" : "#10b981", marginTop: 2 }}>● {plan.plannedRoute.length} {l.stops}</div>}
                   </div>
                 );
               })}
@@ -805,7 +870,7 @@ export default function App() {
                       const isInsertingBefore = insertingStop && insertingStop.dateKey === selectedDay && insertingStop.index === i && insertingStop.direction === "before";
                       const isInsertingAfter = insertingStop && insertingStop.dateKey === selectedDay && insertingStop.index === i && insertingStop.direction === "after";
                       const isAnyPanel = isReplacing || isInsertingBefore || isInsertingAfter;
-                      const canDepart = ss === "rakodás alatt" && stop.truckLoad;
+                      const canDepart = ss === "rakodás alatt" && (stop.truckLoad || stop.pickedTrailer);
 
                       // Szerkesztő gombok logika:
                       // "várja": +⬆ +⬇ 🔄 − (mind a 4)
@@ -851,9 +916,15 @@ export default function App() {
                                   )}
 
                                   {/* Visszavonás gomb: minden nem "várja" státusznál */}
-                                  {ss !== "várja" && (
-                                    <button onClick={() => revertStopStatus(selectedDay, i)} style={bs("#ef4444", false, 13)}>↩</button>
-                                  )}
+                                  {/* Az aktuális napon: ha egy helyszínre érkezett/rakodás/indult, az előtte lévőknél a visszavonás tiltva */}
+                                  {ss !== "várja" && (() => {
+                                    let revertDisabled = false;
+                                    if (isToday) {
+                                      const latestActiveIdx = plan.route.reduce((max, s, idx) => (s.stopStatus && s.stopStatus !== "várja" && s.stopStatus !== "indult" ? idx : max), -1);
+                                      if (latestActiveIdx > i) revertDisabled = true;
+                                    }
+                                    return <button disabled={revertDisabled} onClick={() => !revertDisabled && revertStopStatus(selectedDay, i)} style={{ ...bs("#ef4444", false, 13), ...(revertDisabled ? { opacity: 0.3, cursor: "not-allowed" } : {}) }}>↩</button>;
+                                  })()}
                                 </div>
                               </div>
 
@@ -890,12 +961,87 @@ export default function App() {
                               )}
 
                               {ss === "rakodás alatt" && (
-                                <div style={{ display: "flex", gap: 6, marginTop: 8, flexWrap: "wrap", alignItems: "center" }}>
-                                  {TRUCK_LOAD_KEYS.map((v) => { const isActive = stop.truckLoad === v; return <button key={v} className="btn-sm" onClick={() => { const nr = plan.route.map((s2, idx) => idx === i ? { ...s2, truckLoad: v } : s2); saveDayPlan(selectedDay, { ...plan, route: nr }); }} style={{ borderColor: "#06b6d4", color: isActive ? "#0f1117" : "#06b6d4", background: isActive ? "#06b6d4" : "transparent", fontWeight: 700 }}>{v === "teli" ? `📦 ${l.full}` : `🔲 ${l.empty}`}</button>; })}
-                                  <button className="btn-sm" disabled={!canDepart} onClick={() => canDepart && updateStopStatus(selectedDay, i, "indult")} style={{ borderColor: canDepart ? stopColors["indult"] : "#2a2d3a", color: canDepart ? "#0f1117" : "#2a2d3a", background: canDepart ? stopColors["indult"] : "transparent", cursor: canDepart ? "pointer" : "not-allowed", opacity: canDepart ? 1 : 0.3 }}>🚀 {l.departed}</button>
+                                <div style={{ marginTop: 8 }}>
+                                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
+                                    {TRUCK_LOAD_KEYS.map((v) => { const isActive = stop.truckLoad === v; return <button key={v} className="btn-sm" onClick={() => { const nr = plan.route.map((s2, idx) => idx === i ? { ...s2, truckLoad: v } : s2); saveDayPlan(selectedDay, { ...plan, route: nr }); setTrailerDropdown(null); }} style={{ borderColor: "#06b6d4", color: isActive ? "#0f1117" : "#06b6d4", background: isActive ? "#06b6d4" : "transparent", fontWeight: 700, fontSize: 11, minWidth: v === "üres" ? undefined : 38 }}>{v === "üres" ? `🔲 ${l.empty}` : v}</button>; })}
+                                    {(() => {
+                                      const available = getAvailableTrailers(stop.warehouse);
+                                      const hasTrailer = !!stop.pickedTrailer;
+                                      const isDropdownOpen = trailerDropdown === i;
+                                      const isConfirming = trailerConfirm && trailerConfirm.stopIndex === i;
+                                      return (
+                                        <>
+                                          <button className="btn-sm" onClick={() => {
+                                            if (available.length === 0) return;
+                                            if (available.length === 1) { setTrailerConfirm({ stopIndex: i, trailerName: available[0] }); setTrailerDropdown(null); return; }
+                                            setTrailerDropdown(isDropdownOpen ? null : i);
+                                            setTrailerConfirm(null);
+                                          }} style={{ borderColor: available.length > 0 || hasTrailer ? "#f59e0b" : "#2a2d3a", color: hasTrailer ? "#0f1117" : available.length > 0 ? "#0f1117" : "#2a2d3a", background: hasTrailer ? "#f59e0b" : available.length > 0 ? "#fbbf2488" : "transparent", fontWeight: 700, cursor: available.length > 0 ? "pointer" : "not-allowed", opacity: available.length > 0 || hasTrailer ? 1 : 0.4, boxShadow: available.length > 0 && !hasTrailer ? "0 0 8px #f59e0b44" : hasTrailer ? "0 0 10px #f59e0b66" : "none" }}>
+                                            🚛 {l.trailer}{hasTrailer ? " ✓" : ""}{!hasTrailer && available.length > 0 ? ` (${available.length})` : ""}
+                                          </button>
+                                        </>
+                                      );
+                                    })()}
+                                    <button className="btn-sm" disabled={!canDepart} onClick={() => canDepart && updateStopStatus(selectedDay, i, "indult")} style={{ borderColor: canDepart ? stopColors["indult"] : "#2a2d3a", color: canDepart ? "#0f1117" : "#2a2d3a", background: canDepart ? stopColors["indult"] : "transparent", cursor: canDepart ? "pointer" : "not-allowed", opacity: canDepart ? 1 : 0.3 }}>🚀 {l.departed}</button>
+                                  </div>
+                                  {trailerDropdown === i && (() => {
+                                    const available = getAvailableTrailers(stop.warehouse);
+                                    return available.length > 1 ? (
+                                      <div style={{ marginTop: 8, background: "#0f1117", border: "1px solid #f59e0b", borderRadius: 8, padding: 8 }}>
+                                        <div style={{ color: "#f59e0b", fontSize: 10, textTransform: "uppercase", letterSpacing: 1, marginBottom: 6 }}>{l.selectTrailer}</div>
+                                        {available.map((tn) => {
+                                          const tc = cargoInputs[tn];
+                                          const cargoCount = tc?.items?.length || 0;
+                                          return (
+                                            <button key={tn} onClick={() => { setTrailerConfirm({ stopIndex: i, trailerName: tn }); setTrailerDropdown(null); }} style={{ display: "block", width: "100%", textAlign: "left", background: "transparent", border: "none", borderLeft: "2px solid #f59e0b", color: "#e2e8f0", padding: "6px 8px", cursor: "pointer", fontSize: 12, fontWeight: 700, marginBottom: 4 }}>
+                                              🚛 {tn}{cargoCount > 0 ? ` — 📦 ${cargoCount} tétel` : ""}
+                                            </button>
+                                          );
+                                        })}
+                                      </div>
+                                    ) : null;
+                                  })()}
+                                  {trailerConfirm && trailerConfirm.stopIndex === i && !stop.pickedTrailer && (
+                                    <div style={{ marginTop: 8, background: "#0f1117", border: "1px solid #f59e0b", borderRadius: 8, padding: 10, display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                                      <span style={{ color: "#f59e0b", fontSize: 12, fontWeight: 700 }}>🚛 {trailerConfirm.trailerName}</span>
+                                      <span style={{ color: "#94a3b8", fontSize: 11 }}>— {l.confirmTrailer}</span>
+                                      <button className="btn-sm" onClick={() => { pickTrailer(selectedDay, i, trailerConfirm.trailerName); }} style={{ borderColor: "#10b981", color: "#0f1117", background: "#10b981", fontWeight: 700, fontSize: 11 }}>✓ Igen</button>
+                                      <button className="btn-sm" onClick={() => setTrailerConfirm(null)} style={{ borderColor: "#ef4444", color: "#ef4444", background: "transparent", fontWeight: 700, fontSize: 11 }}>✕ Mégsem</button>
+                                    </div>
+                                  )}
+                                  {stop.pickedTrailer && (
+                                    <div style={{ marginTop: 6, padding: "8px 12px", background: "linear-gradient(135deg, #f59e0b22, #fbbf2422)", border: "2px solid #f59e0b88", borderRadius: 10, boxShadow: "0 0 12px #f59e0b22" }}>
+                                      <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                                        <span style={{ color: "#fbbf24", fontSize: 13, fontWeight: 800, letterSpacing: 0.5 }}>🚛 {stop.pickedTrailer} {l.trailerPickedUp}</span>
+                                        <button className="btn-sm" onClick={() => undoTrailer(selectedDay, i)} style={{ borderColor: "#ef4444", color: "#ef4444", background: "transparent", fontWeight: 700, fontSize: 10, padding: "1px 6px" }}>↩ {l.undoTrailer}</button>
+                                      </div>
+                                      {stop.pickedCargo && stop.pickedCargo.length > 0 && (
+                                        <div style={{ color: "#06b6d4", fontSize: 11, marginTop: 4 }}>📦 {l.trailerCargo} ({stop.pickedCargo.length}): {stop.pickedCargo.map((c: any) => c.text || c).join(", ")}</div>
+                                      )}
+                                    </div>
+                                  )}
                                 </div>
                               )}
-                              {isCompleted && stop.truckLoad && <div style={{ marginTop: 4 }}><span style={{ fontSize: 11, color: "#06b6d4", fontWeight: 700 }}>📦 {trStatus(stop.truckLoad, l)}</span></div>}
+                              {isCompleted && stop.truckLoad && (
+                                <div style={{ marginTop: 4 }}>
+                                  <span style={{ fontSize: 11, color: "#06b6d4", fontWeight: 700 }}>📦 {trStatus(stop.truckLoad, l)}</span>
+                                </div>
+                              )}
+                              {isCompleted && stop.pickedCargo && stop.pickedCargo.length > 0 && !stop.pickedTrailer && (
+                                <div style={{ marginTop: 4, padding: "6px 10px", background: "#06b6d411", border: "1px solid #06b6d433", borderRadius: 8 }}>
+                                  <div style={{ color: "#06b6d4", fontSize: 11, fontWeight: 700 }}>📦 {l.trailerCargo} ({stop.pickedCargo.length}): {stop.pickedCargo.map((c: any) => c.text || c).join(", ")}</div>
+                                </div>
+                              )}
+                              {isCompleted && stop.pickedTrailer && (
+                                <div style={{ marginTop: 6, padding: "8px 12px", background: "linear-gradient(135deg, #f59e0b22, #fbbf2422)", border: "2px solid #f59e0b88", borderRadius: 10, boxShadow: "0 0 12px #f59e0b22" }}>
+                                  <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                                    <span style={{ color: "#fbbf24", fontSize: 13, fontWeight: 800, letterSpacing: 0.5 }}>🚛 {stop.pickedTrailer} {l.trailerPickedUp}</span>
+                                  </div>
+                                  {stop.pickedCargo && stop.pickedCargo.length > 0 && (
+                                    <div style={{ color: "#06b6d4", fontSize: 11, marginTop: 4 }}>📦 {l.trailerCargo} ({stop.pickedCargo.length}): {stop.pickedCargo.map((c: any) => c.text || c).join(", ")}</div>
+                                  )}
+                                </div>
+                              )}
                             </div>
                           </div>
                         </div>
