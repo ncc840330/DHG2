@@ -138,6 +138,7 @@ const T = {
     transferAddGroup: "➕ Csoport hozzáadása", transferGroupSaved: "Csoport hozzáadva",
     transferZone: "Zóna (Komárom-Huawei)", transferPickZone: "Kötelező: B1 vagy B4",
     transferDeleteRound: "Forduló törlése", transferRoundSummary: "tétel",
+    transferCopy: "📋 Másolás Excelbe", transferCopied: "✓ Vágólapra másolva", transferCopyEmpty: "Nincs másolható tétel",
     palletTitle: "Paletta szám", palletHint: `Add meg a forduló palettaszámát (${PALLET_FULL_LOAD} = 100%)`,
     palletLoad: "Rakomány töltöttség", palletRequired: "Add meg a paletta számot a mentéshez",
     note: "Megjegyzés", notePlaceholder: "Pár mondatos megjegyzés (opcionális)…",
@@ -177,6 +178,7 @@ const T = {
     transferAddGroup: "➕ Add group", transferGroupSaved: "Group added",
     transferZone: "Zone (Komárom-Huawei)", transferPickZone: "Required: B1 or B4",
     transferDeleteRound: "Delete round", transferRoundSummary: "items",
+    transferCopy: "📋 Copy to Excel", transferCopied: "✓ Copied to clipboard", transferCopyEmpty: "Nothing to copy",
     palletTitle: "Pallet count", palletHint: `Enter pallet count for this round (${PALLET_FULL_LOAD} = 100%)`,
     palletLoad: "Load level", palletRequired: "Pallet count required to save",
     note: "Note", notePlaceholder: "A short note (optional)…",
@@ -278,6 +280,60 @@ function StatusBadge({ statusKey, l, c }: { statusKey: string, l: any, c: Colors
 }
 
 const labelStyle = (c: Colors): any => ({ color: c.accent, fontSize: 11, letterSpacing: 2, textTransform: "uppercase", marginBottom: 8, display: "block" });
+
+function CopyRoundButton({ round, l, c }: { round: any; l: any; c: any }) {
+  const [copied, setCopied] = useState(false);
+  const totalItems = (round?.groups || []).reduce((s: number, g: any) => s + (g.items?.length || 0), 0);
+  const disabled = totalItems === 0;
+  const handleCopy = async () => {
+    if (disabled) return;
+    const lines: string[] = [];
+    (round.groups || []).forEach((g: any) => {
+      (g.items || []).forEach((it: any) => {
+        const cat = String(g.category ?? "").replace(/\t/g, " ").replace(/\r?\n/g, " ");
+        const txt = String(it.text ?? "").replace(/\t/g, " ").replace(/\r?\n/g, " ");
+        lines.push(`${cat}\t${txt}`);
+      });
+    });
+    const tsv = lines.join("\r\n");
+    try {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(tsv);
+      } else {
+        const ta = document.createElement("textarea");
+        ta.value = tsv;
+        ta.style.position = "fixed";
+        ta.style.opacity = "0";
+        document.body.appendChild(ta);
+        ta.focus(); ta.select();
+        document.execCommand("copy");
+        document.body.removeChild(ta);
+      }
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      alert(l.transferCopy);
+    }
+  };
+  return (
+    <button onClick={handleCopy} disabled={disabled}
+      style={{
+        display: "inline-flex", alignItems: "center", gap: 6,
+        background: copied ? c.green : "transparent",
+        border: `1px solid ${copied ? c.green : c.cyan}`,
+        color: copied ? "#fff" : c.cyan,
+        borderRadius: 14, padding: "3px 10px",
+        fontSize: 10, fontWeight: 700, letterSpacing: 1, textTransform: "uppercase",
+        cursor: disabled ? "not-allowed" : "pointer",
+        opacity: disabled ? 0.5 : 1,
+        fontFamily: "inherit",
+      }}
+      title={disabled ? l.transferCopyEmpty : l.transferCopy}
+    >
+      {copied ? l.transferCopied : `${l.transferCopy}${totalItems > 0 ? ` (${totalItems})` : ""}`}
+    </button>
+  );
+}
 
 function TransferModal({ route, roundIndex, round, onSave, onClose, l, c }: any) {
   const requiresZone = route.to === "Komárom-Huawei";
@@ -1260,7 +1316,7 @@ export default function App() {
                           )}
                           {r.lastUpdated && <div style={{ color: c.cyanLight, fontSize: 10, marginTop: 6 }}>{l.updatedAt}: {formatTime(r.lastUpdated)}</div>}
 
-                          <div style={{ marginTop: 10, display: "flex", justifyContent: "center" }}>
+                          <div style={{ marginTop: 10, display: "flex", justifyContent: "center", flexWrap: "wrap", gap: 8 }}>
                             <button
                               onClick={() => !arrived && markRoundArrived(transferDay, routeIdx, ri)}
                               disabled={arrived}
@@ -1279,6 +1335,7 @@ export default function App() {
                               {arrived ? "✓" : "○"} {l.arrivedRound}
                               {arrived && <span style={{ color: c.green, fontWeight: 700, opacity: 0.85 }}>· {formatTime(r.arrivedAt)}</span>}
                             </button>
+                            <CopyRoundButton round={r} l={l} c={c} />
                           </div>
                         </div>
                       );
