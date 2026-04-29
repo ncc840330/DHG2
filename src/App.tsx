@@ -2,29 +2,31 @@ import { useState, useEffect, useRef } from "react";
 
 const FIREBASE_URL = "https://tatai-tracker-default-rtdb.firebaseio.com";
 const WAREHOUSES = ["Győr", "Komárom-Huawei", "KMRM2", "Komárom-Nokia"];
-const TRAILER_NAMES = [
-  "Standby Trailer 1",
-  "Standby Trailer 2",
-  "Standby Trailer 3",
-];
-const TRAILER_STATUSES = [
-  "rakodásra vár",
-  "rakodás alatt",
-  "szedés alatt",
-  "szedésre vár",
-  "indulásra kész - rakodva",
-  "indulásra kész - üres",
-];
 const TRUCK_LOAD_KEYS = ["üres", "teli"];
 const HOURS = Array.from({ length: 19 }, (_, i) => `${String(i + 5).padStart(2, "0")}:00`);
 const VAPID_PUBLIC_KEY = 'BCeKAwDGjkhR2z5YDE_9-ET7dVsPIF_McU9FlfKW3lYze3NfU5pf8vx1gJsj9YUAEFJopn-md6GZl_64Id648Q0';
 
+const TRANSFER_ROUTES = [
+  { from: "Győr", to: "Komárom-Huawei" },
+  { from: "Győr", to: "KMRM2" },
+  { from: "Komárom-Huawei", to: "Győr" },
+  { from: "Komárom-Huawei", to: "KMRM2" },
+];
+const TRANSFER_CATEGORIES = ["China-repacking", "Inbound", "Egyéb"];
+const HUAWEI_ZONES = ["B1", "B4"];
+const PALLET_FULL_LOAD = 33;
+const transferRouteKey = (r: { from: string; to: string }) => `${r.from}__${r.to}`;
+const palletPercent = (count: number) =>
+  Math.max(0, Math.min(100, Math.round(((count || 0) / PALLET_FULL_LOAD) * 100)));
+const palletColor = (pct: number) =>
+  pct >= 90 ? "#10b981" : pct >= 60 ? "#a3e635" : pct >= 30 ? "#f59e0b" : "#ef4444";
+
 const T = {
   hu: {
     appSub: "LOGISZTIKAI NYOMKÖVETŐ", live: "ÉLŐ", loading: "Betöltés...",
-    overview: "📊 Áttekintés", route: "🗺️ Útvonal terv", fuvarTab: "🚚 Fuvar igény",
-    noData: "Még nincs adat", standbyTrailers: "Standby Trailerek",
-    status: "Állapot", location: "Helyszín", save: "Mentés", saved: "✓ Mentve",
+    route: "🗺️ Útvonal terv", transferTab: "🔁 Transzfer", fuvarTab: "🚚 Fuvar igény",
+    noData: "Még nincs adat",
+    save: "Mentés", saved: "✓ Mentve",
     since: "óta", updatedAt: "Frissítve", dailyPlan: "Napi terv",
     editPlan: "✏️ Szerkesztés", savePlan: "💾 Mentés", cancel: "Mégse",
     lockStart: "🔒 Terv zárolása", reset: "🔄 Reset", todayRoute: "Mai útvonal",
@@ -43,6 +45,14 @@ const T = {
     addCargo: "📦 Rakomány", cargoModalTitle: "Rakomány hozzáadása",
     cargoScan: "Szkennelj vagy írj be egy tételt...", cargoSave: "💾 Mentés",
     cargoClear: "🗑️ Lista ürítés", cargoUpdated: "Frissítve", cargoEmpty: "Nincs rakomány rögzítve.",
+    transferTitle: "Rakomány transzferek", transferRound: "forduló", transferAddRound: "➕ Új forduló",
+    transferNoRounds: "Nincs forduló rögzítve.", transferLastUpdated: "Utolsó frissítés",
+    transferCategory: "Csoport", transferPickCategory: "Válassz csoportot a szkenneléshez:",
+    transferAddGroup: "➕ Csoport hozzáadása", transferGroupSaved: "Csoport hozzáadva",
+    transferZone: "Zóna (Komárom-Huawei)", transferPickZone: "Kötelező: B1 vagy B4",
+    transferDeleteRound: "Forduló törlése", transferRoundSummary: "tétel",
+    palletTitle: "Paletta szám", palletHint: `Add meg a forduló palettaszámát (${PALLET_FULL_LOAD} = 100%)`,
+    palletLoad: "Rakomány töltöttség", palletRequired: "Add meg a paletta számot a mentéshez",
     s_rakodasravar: "rakodásra vár", s_rakodas: "rakodás alatt", s_szedes: "szedés alatt",
     s_szedesvar: "szedésre vár", s_indulas_rakodva: "indulásra kész - rakodva",
     s_indulas_ures: "indulásra kész - üres", ss_varja: "várja", ss_erkezett: "érkezett",
@@ -51,9 +61,9 @@ const T = {
   },
   en: {
     appSub: "LOGISTICS TRACKER", live: "LIVE", loading: "Loading...",
-    overview: "📊 Overview", route: "🗺️ Route Plan", fuvarTab: "🚚 Transport Request",
-    noData: "No data yet", standbyTrailers: "Standby Trailers",
-    status: "Status", location: "Location", save: "Save", saved: "✓ Saved",
+    route: "🗺️ Route Plan", transferTab: "🔁 Transfer", fuvarTab: "🚚 Transport Request",
+    noData: "No data yet",
+    save: "Save", saved: "✓ Saved",
     since: "ago", updatedAt: "Updated", dailyPlan: "Daily plan",
     editPlan: "✏️ Edit", savePlan: "💾 Save", cancel: "Cancel",
     lockStart: "🔒 Lock plan", reset: "🔄 Reset", todayRoute: "Today's route",
@@ -72,6 +82,14 @@ const T = {
     addCargo: "📦 Cargo", cargoModalTitle: "Add cargo",
     cargoScan: "Scan or type an item...", cargoSave: "💾 Save",
     cargoClear: "🗑️ Clear list", cargoUpdated: "Updated", cargoEmpty: "No cargo recorded.",
+    transferTitle: "Cargo transfers", transferRound: "round", transferAddRound: "➕ New round",
+    transferNoRounds: "No round recorded.", transferLastUpdated: "Last update",
+    transferCategory: "Group", transferPickCategory: "Pick a group to scan:",
+    transferAddGroup: "➕ Add group", transferGroupSaved: "Group added",
+    transferZone: "Zone (Komárom-Huawei)", transferPickZone: "Required: B1 or B4",
+    transferDeleteRound: "Delete round", transferRoundSummary: "items",
+    palletTitle: "Pallet count", palletHint: `Enter pallet count for this round (${PALLET_FULL_LOAD} = 100%)`,
+    palletLoad: "Load level", palletRequired: "Pallet count required to save",
     s_rakodasravar: "waiting load", s_rakodas: "loading", s_szedes: "picking",
     s_szedesvar: "waiting pick", s_indulas_rakodva: "ready to go - loaded",
     s_indulas_ures: "ready to go - empty", ss_varja: "waiting", ss_erkezett: "arrived",
@@ -104,11 +122,6 @@ function formatDateLabel(k: string) {
 }
 function getTodayKey() { return getDateKey(0); }
 const initialDayPlan = () => ({ plannedRoute: [], route: [], routeLocked: false, status: "beállításra vár", location: "—", departure: null });
-const initialTrailerState = () => ({
-  "Standby Trailer 1": { status: "rakodásra vár", location: "Győr", lastUpdated: null },
-  "Standby Trailer 2": { status: "rakodásra vár", location: "Győr", lastUpdated: null },
-  "Standby Trailer 3": { status: "rakodásra vár", location: "Győr", lastUpdated: null },
-});
 async function fbGet(path) {
   try { const r = await fetch(`${FIREBASE_URL}/${path}.json`); return await r.json(); } catch { return null; }
 }
@@ -175,44 +188,194 @@ function StatusBadge({ statusKey, l }: { statusKey: string, l: any }) {
 
 const LABEL: any = { color: "#f59e0b", fontSize: 11, letterSpacing: 2, textTransform: "uppercase", marginBottom: 8, display: "block" };
 
-function CargoModal({ name, cargoData, onSave, onClear, onClose, l }: any) {
-  const [items, setItems] = useState(cargoData?.items ? [...cargoData.items] : []);
+function TransferModal({ route, roundIndex, round, onSave, onClose, l }: any) {
+  const requiresZone = route.to === "Komárom-Huawei";
+  const [groups, setGroups] = useState<any[]>(round?.groups ? round.groups.map((g: any) => ({ ...g, items: [...(g.items || [])] })) : []);
+  const [zone, setZone] = useState<string | null>(round?.zone || null);
+  const [palletCount, setPalletCount] = useState<number | "">(typeof round?.palletCount === "number" ? round.palletCount : "");
+  const [activeCategory, setActiveCategory] = useState<string | null>(null);
+  const [activeItems, setActiveItems] = useState<any[]>([]);
   const [inputVal, setInputVal] = useState("");
   const inputRef = useRef<any>(null);
-  useEffect(() => { setTimeout(() => inputRef.current?.focus(), 100); }, []);
-  const addItem = (val) => {
+
+  useEffect(() => { if (activeCategory) setTimeout(() => inputRef.current?.focus(), 80); }, [activeCategory]);
+
+  const flatItemsCount = groups.reduce((sum, g) => sum + (g.items?.length || 0), 0) + activeItems.length;
+  const allTexts = [
+    ...groups.flatMap((g) => g.items?.map((i: any) => i.text) || []),
+    ...activeItems.map((i) => i.text),
+  ];
+
+  const addItem = (val: string) => {
     const text = val.trim(); if (!text) return;
-    if (items.some((i) => i.text === text)) { alert(`⚠️ Már scannelve: ${text}`); setInputVal(""); setTimeout(() => inputRef.current?.focus(), 50); return; }
-    setItems((prev) => [...prev, { text, scannedAt: new Date().toISOString() }]);
+    if (allTexts.includes(text)) { alert(`⚠️ Már scannelve: ${text}`); setInputVal(""); setTimeout(() => inputRef.current?.focus(), 50); return; }
+    setActiveItems((prev) => [...prev, { text, scannedAt: new Date().toISOString() }]);
     setInputVal(""); setTimeout(() => inputRef.current?.focus(), 50);
   };
-  const handleKeyDown = (e) => { if (e.key === "Enter") { e.preventDefault(); addItem(inputVal); } };
-  const removeItem = (idx) => setItems((prev) => prev.filter((_, i) => i !== idx));
+  const handleKeyDown = (e: any) => { if (e.key === "Enter") { e.preventDefault(); addItem(inputVal); } };
+  const removeActiveItem = (idx: number) => setActiveItems((prev) => prev.filter((_, i) => i !== idx));
+  const removeGroupItem = (gIdx: number, iIdx: number) =>
+    setGroups((prev) => prev.map((g, i) => i === gIdx ? { ...g, items: g.items.filter((_: any, j: number) => j !== iIdx) } : g).filter((g) => g.items.length > 0));
+  const removeGroup = (gIdx: number) => setGroups((prev) => prev.filter((_, i) => i !== gIdx));
+
+  const commitGroup = () => {
+    if (!activeCategory || activeItems.length === 0) return;
+    setGroups((prev) => {
+      const existingIdx = prev.findIndex((g) => g.category === activeCategory);
+      if (existingIdx >= 0) {
+        return prev.map((g, i) => i === existingIdx ? { ...g, items: [...g.items, ...activeItems] } : g);
+      }
+      return [...prev, { category: activeCategory, items: activeItems }];
+    });
+    setActiveItems([]); setActiveCategory(null); setInputVal("");
+  };
+
+  const palletNum = typeof palletCount === "number" ? palletCount : 0;
+  const palletPct = palletPercent(palletNum);
+  const palletBarColor = palletColor(palletPct);
+  const hasPallet = typeof palletCount === "number" && palletCount > 0;
+  const canSave = (groups.length > 0 || activeItems.length > 0) && (!requiresZone || !!zone) && hasPallet;
+
+  const handleSave = () => {
+    let finalGroups = groups;
+    if (activeCategory && activeItems.length > 0) {
+      const existingIdx = finalGroups.findIndex((g) => g.category === activeCategory);
+      if (existingIdx >= 0) {
+        finalGroups = finalGroups.map((g, i) => i === existingIdx ? { ...g, items: [...g.items, ...activeItems] } : g);
+      } else {
+        finalGroups = [...finalGroups, { category: activeCategory, items: activeItems }];
+      }
+    }
+    onSave({ groups: finalGroups, zone: requiresZone ? zone : null, palletCount: palletNum, savedAt: new Date().toISOString() });
+    onClose();
+  };
+
+  const titleSuffix = roundIndex != null ? ` ${roundIndex + 1}. ${l.transferRound}` : ` ${l.transferRound}`;
+
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.75)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
-      <div style={{ background: "#1a1d2e", border: "1px solid #f59e0b", borderRadius: 12, width: "100%", maxWidth: 460, maxHeight: "85vh", display: "flex", flexDirection: "column" }}>
+      <div style={{ background: "#1a1d2e", border: "1px solid #f59e0b", borderRadius: 12, width: "100%", maxWidth: 480, maxHeight: "90vh", display: "flex", flexDirection: "column" }}>
         <div style={{ padding: "14px 16px", borderBottom: "1px solid #2a2d3a", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <div><div style={{ color: "#f59e0b", fontWeight: 700, fontSize: 14, letterSpacing: 1 }}>{l.cargoModalTitle}</div><div style={{ color: "#4a5568", fontSize: 11, marginTop: 2 }}>{name}</div></div>
+          <div>
+            <div style={{ color: "#f59e0b", fontWeight: 700, fontSize: 14, letterSpacing: 1 }}>{l.cargoModalTitle}</div>
+            <div style={{ color: "#06b6d4", fontSize: 11, marginTop: 2, fontWeight: 700 }}>{route.from} → {route.to}{titleSuffix}</div>
+          </div>
           <button onClick={onClose} style={{ background: "transparent", border: "none", color: "#4a5568", fontSize: 20, cursor: "pointer" }}>×</button>
         </div>
-        <div style={{ padding: "12px 16px", borderBottom: "1px solid #2a2d3a" }}>
-          <input ref={inputRef} value={inputVal} onChange={(e) => setInputVal(e.target.value)} onKeyDown={handleKeyDown} placeholder={l.cargoScan}
-            style={{ width: "100%", background: "#0f1117", border: "1px solid #f59e0b", borderRadius: 8, padding: "10px 12px", color: "#e2e8f0", fontSize: 13, fontFamily: "inherit", boxSizing: "border-box", outline: "none" }} />
-          <div style={{ color: "#4a5568", fontSize: 10, marginTop: 6, textAlign: "center" }}>Enter = automatikus hozzáadás</div>
-        </div>
-        <div style={{ flex: 1, overflowY: "auto", padding: "8px 16px" }}>
-          {items.length === 0 ? <div style={{ color: "#4a5568", fontSize: 12, textAlign: "center", padding: "20px 0" }}>{l.cargoEmpty}</div> :
-            [...items].reverse().map((item, idx) => (
-              <div key={idx} style={{ display: "flex", alignItems: "center", gap: 8, padding: "7px 0", borderBottom: "1px solid #2a2d3a22" }}>
-                <div style={{ flex: 1 }}><div style={{ color: "#e2e8f0", fontSize: 13 }}>{item.text}</div></div>
-                <button onClick={() => removeItem(items.length - 1 - idx)} style={{ background: "#ef444422", border: "1px solid #ef4444", color: "#ef4444", cursor: "pointer", fontSize: 11, fontWeight: 700, padding: "3px 8px", borderRadius: 6 }}>Törlés</button>
+
+        <div style={{ overflowY: "auto", flex: 1, padding: "12px 16px", display: "flex", flexDirection: "column", gap: 10 }}>
+          {requiresZone && (
+            <div style={{ background: "#0f1117", border: `1px solid ${zone ? "#10b981" : "#ef4444"}`, borderRadius: 8, padding: 10 }}>
+              <div style={{ color: zone ? "#10b981" : "#ef4444", fontSize: 10, letterSpacing: 1, textTransform: "uppercase", marginBottom: 6, fontWeight: 700 }}>{l.transferZone} – {l.transferPickZone}</div>
+              <div style={{ display: "flex", gap: 8 }}>
+                {HUAWEI_ZONES.map((z) => (
+                  <button key={z} onClick={() => setZone(z)}
+                    style={{ flex: 1, background: zone === z ? "#f59e0b" : "transparent", border: `1px solid ${zone === z ? "#f59e0b" : "#374151"}`, color: zone === z ? "#0f1117" : "#e2e8f0", borderRadius: 8, padding: "10px", fontSize: 14, fontWeight: 700, cursor: "pointer" }}>{z}</button>
+                ))}
               </div>
-            ))}
+            </div>
+          )}
+
+          {groups.length > 0 && (
+            <div>
+              <div style={{ color: "#4a5568", fontSize: 10, letterSpacing: 1, textTransform: "uppercase", marginBottom: 6 }}>Mentett csoportok</div>
+              {groups.map((g, gIdx) => (
+                <div key={gIdx} style={{ background: "#0f1117", border: "1px solid #2a2d3a", borderRadius: 8, padding: 8, marginBottom: 6 }}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
+                    <div style={{ color: "#a78bfa", fontSize: 12, fontWeight: 700 }}>📂 {g.category} <span style={{ color: "#4a5568", fontWeight: 400 }}>({g.items.length})</span></div>
+                    <button onClick={() => removeGroup(gIdx)} style={{ background: "#ef444422", border: "1px solid #ef4444", color: "#ef4444", borderRadius: 6, padding: "2px 8px", fontSize: 10, fontWeight: 700, cursor: "pointer" }}>Törlés</button>
+                  </div>
+                  {g.items.map((it: any, iIdx: number) => (
+                    <div key={iIdx} style={{ display: "flex", alignItems: "center", gap: 8, padding: "3px 0" }}>
+                      <div style={{ flex: 1, color: "#e2e8f0", fontSize: 12 }}>{it.text}</div>
+                      <button onClick={() => removeGroupItem(gIdx, iIdx)} style={{ background: "transparent", border: "none", color: "#ef4444", cursor: "pointer", fontSize: 13 }}>×</button>
+                    </div>
+                  ))}
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div style={{ background: "#0f1117", border: "1px solid #2a2d3a", borderRadius: 8, padding: 10 }}>
+            {!activeCategory ? (
+              <>
+                <div style={{ color: "#f59e0b", fontSize: 10, letterSpacing: 1, textTransform: "uppercase", marginBottom: 6, fontWeight: 700 }}>{l.transferPickCategory}</div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 6 }}>
+                  {TRANSFER_CATEGORIES.map((c) => (
+                    <button key={c} onClick={() => setActiveCategory(c)}
+                      style={{ background: "transparent", border: "1px solid #a78bfa", color: "#a78bfa", borderRadius: 6, padding: "8px 6px", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>{c}</button>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+                  <div style={{ color: "#a78bfa", fontSize: 12, fontWeight: 700 }}>📂 {activeCategory}</div>
+                  <button onClick={() => { setActiveCategory(null); setActiveItems([]); setInputVal(""); }} style={{ background: "transparent", border: "1px solid #4a5568", color: "#4a5568", borderRadius: 6, padding: "2px 8px", fontSize: 10, cursor: "pointer" }}>Mégse</button>
+                </div>
+                <input ref={inputRef} value={inputVal} onChange={(e) => setInputVal(e.target.value)} onKeyDown={handleKeyDown} placeholder={l.cargoScan}
+                  style={{ width: "100%", background: "#0f1117", border: "1px solid #f59e0b", borderRadius: 8, padding: "10px 12px", color: "#e2e8f0", fontSize: 13, fontFamily: "inherit", boxSizing: "border-box", outline: "none" }} />
+                <div style={{ color: "#4a5568", fontSize: 10, marginTop: 6, textAlign: "center" }}>Enter = automatikus hozzáadás</div>
+                {activeItems.length > 0 && (
+                  <div style={{ marginTop: 8 }}>
+                    {[...activeItems].reverse().map((item, idx) => (
+                      <div key={idx} style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 0", borderBottom: "1px solid #2a2d3a22" }}>
+                        <div style={{ flex: 1, color: "#e2e8f0", fontSize: 12 }}>{item.text}</div>
+                        <button onClick={() => removeActiveItem(activeItems.length - 1 - idx)} style={{ background: "#ef444422", border: "1px solid #ef4444", color: "#ef4444", cursor: "pointer", fontSize: 10, fontWeight: 700, padding: "2px 6px", borderRadius: 6 }}>Törlés</button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <button onClick={commitGroup} disabled={activeItems.length === 0}
+                  style={{ marginTop: 10, width: "100%", background: activeItems.length > 0 ? "#10b981" : "#2a2d3a", border: "none", color: activeItems.length > 0 ? "#fff" : "#4a5568", borderRadius: 8, padding: "9px", fontSize: 12, fontWeight: 700, cursor: activeItems.length > 0 ? "pointer" : "not-allowed" }}>{l.transferAddGroup} ({activeItems.length})</button>
+              </>
+            )}
+          </div>
+
+          {flatItemsCount === 0 && groups.length === 0 && (
+            <div style={{ color: "#4a5568", fontSize: 12, textAlign: "center", padding: "8px 0" }}>{l.cargoEmpty}</div>
+          )}
+
+          <div style={{ background: "#0f1117", border: `1px solid ${hasPallet ? palletBarColor : "#ef4444"}`, borderRadius: 8, padding: 10 }}>
+            <div style={{ color: hasPallet ? palletBarColor : "#ef4444", fontSize: 10, letterSpacing: 1, textTransform: "uppercase", marginBottom: 6, fontWeight: 700 }}>
+              {l.palletTitle} {hasPallet ? "" : `– ${l.palletRequired}`}
+            </div>
+            <div style={{ color: "#4a5568", fontSize: 11, marginBottom: 8 }}>{l.palletHint}</div>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+              <button onClick={() => setPalletCount((p) => Math.max(0, (typeof p === "number" ? p : 0) - 1))}
+                style={{ background: "#1e2130", border: "1px solid #374151", color: "#e2e8f0", borderRadius: 8, padding: "8px 14px", fontSize: 16, fontWeight: 700, cursor: "pointer" }}>−</button>
+              <input
+                type="number"
+                inputMode="numeric"
+                min={0}
+                value={palletCount}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  if (v === "") { setPalletCount(""); return; }
+                  const n = parseInt(v, 10);
+                  if (!isNaN(n)) setPalletCount(Math.max(0, n));
+                }}
+                placeholder="0"
+                style={{ flex: 1, background: "#0f1117", border: `1px solid ${hasPallet ? palletBarColor : "#ef4444"}`, borderRadius: 8, padding: "10px 12px", color: "#e2e8f0", fontSize: 16, fontFamily: "inherit", textAlign: "center", fontWeight: 700, boxSizing: "border-box", outline: "none" }}
+              />
+              <button onClick={() => setPalletCount((p) => (typeof p === "number" ? p : 0) + 1)}
+                style={{ background: "#1e2130", border: "1px solid #374151", color: "#e2e8f0", borderRadius: 8, padding: "8px 14px", fontSize: 16, fontWeight: 700, cursor: "pointer" }}>+</button>
+            </div>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+              <div style={{ color: "#94a3b8", fontSize: 11, fontWeight: 700 }}>{l.palletLoad}</div>
+              <div style={{ color: palletBarColor, fontSize: 13, fontWeight: 700 }}>{palletNum} / {PALLET_FULL_LOAD} · {palletPct}%</div>
+            </div>
+            <div style={{ width: "100%", height: 14, background: "#1e2130", borderRadius: 7, overflow: "hidden", border: "1px solid #2a2d3a" }}>
+              <div style={{ width: `${palletPct}%`, height: "100%", background: palletBarColor, transition: "width 0.25s ease, background 0.25s ease" }} />
+            </div>
+          </div>
         </div>
+
         <div style={{ padding: "12px 16px", borderTop: "1px solid #2a2d3a", display: "flex", gap: 8 }}>
-          <button onClick={() => { if (window.confirm("Biztosan törlöd az összes rakományt?")) { onClear(); onClose(); } }} style={{ background: "#1e2130", border: "1px solid #ef4444", color: "#ef4444", borderRadius: 8, padding: "9px 14px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>{l.cargoClear}</button>
-          <button onClick={() => { navigator.clipboard.writeText([...items].reverse().map((i) => i.text).join("\n")); }} disabled={items.length === 0} style={{ background: "#1e2130", border: "1px solid #06b6d4", color: items.length > 0 ? "#06b6d4" : "#2a2d3a", borderRadius: 8, padding: "9px 14px", fontSize: 12, fontWeight: 700, cursor: items.length > 0 ? "pointer" : "not-allowed" }}>📋 Másolás</button>
-          <button onClick={() => { onSave(items); onClose(); }} style={{ flex: 1, background: "#f59e0b", border: "none", color: "#0f1117", borderRadius: 8, padding: "9px 14px", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>{l.cargoSave}</button>
+          <button onClick={() => { if (window.confirm("Biztosan törlöd a teljes fordulót?")) { onSave(null); onClose(); } }}
+            style={{ background: "#1e2130", border: "1px solid #ef4444", color: "#ef4444", borderRadius: 8, padding: "9px 14px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>{l.cargoClear}</button>
+          <button onClick={handleSave} disabled={!canSave}
+            style={{ flex: 1, background: canSave ? "#f59e0b" : "#2a2d3a", border: "none", color: canSave ? "#0f1117" : "#4a5568", borderRadius: 8, padding: "9px 14px", fontSize: 13, fontWeight: 700, cursor: canSave ? "pointer" : "not-allowed" }}>{l.cargoSave}{flatItemsCount > 0 ? ` (${flatItemsCount})` : ""}</button>
         </div>
       </div>
     </div>
@@ -333,24 +496,21 @@ export default function App() {
 
   const [lang, setLang] = useState("hu");
   const [showLangMenu, setShowLangMenu] = useState(false);
-  const [trailers, setTrailers] = useState(initialTrailerState());
   const [days, setDays] = useState({});
   const [fuvarDraft, setFuvarDraft] = useState([]);
   const [fuvarSaved, setFuvarSaved] = useState([]);
   const [fuvarSavedAt, setFuvarSavedAt] = useState(null);
   const [fuvarModal, setFuvarModal] = useState(false);
   const [selectedDay, setSelectedDay] = useState(getTodayKey());
-  const [activeTab, setActiveTab] = useState("dashboard");
+  const [transferDay, setTransferDay] = useState(getTodayKey());
+  const [activeTab, setActiveTab] = useState("utvonal");
   const [loaded, setLoaded] = useState(false);
   const [lastSync, setLastSync] = useState<string | null>(null);
-  const [pendingTrailers, setPendingTrailers] = useState({});
-  const [dirtyTrailers, setDirtyTrailers] = useState({});
-  const [savedTrailers, setSavedTrailers] = useState({});
   const [editingPlan, setEditingPlan] = useState(null);
   const [replacingStop, setReplacingStop] = useState(null);
   const [insertingStop, setInsertingStop] = useState(null);
-  const [cargoModal, setCargoModal] = useState(null);
-  const [cargoInputs, setCargoInputs] = useState({});
+  const [transfers, setTransfers] = useState<any>({});
+  const [transferModal, setTransferModal] = useState<{ routeIdx: number; roundIdx: number | null } | null>(null);
   const pushSubRef = useRef<any>(null);
   const midnightRef = useRef<any>(null);
   const l = T[lang];
@@ -383,11 +543,10 @@ export default function App() {
   }, []);
 
   const syncNow = async () => {
-    const t = await fbGet("trailers"); if (t) setTrailers(t);
     const d = await fbGet("days"); if (d) setDays(d);
-    const tc = await fbGet("trailerCargo"); if (tc) setCargoInputs(tc);
     const fs = await fbGet("fuvarRequests");
     if (fs) { setFuvarSaved(fs.items || []); setFuvarSavedAt(fs.savedAt || null); }
+    const tr = await fbGet("transfers"); if (tr) setTransfers(tr);
     setLastSync(new Date().toISOString());
   };
 
@@ -400,10 +559,30 @@ export default function App() {
 
   const today = getTodayKey();
   const dayKeys = [0, 1, 2, 3].map((i) => getDateKey(i));
-  const todayPlan = days[today] || initialDayPlan();
+  const transferDayKeys = [-3, -2, -1, 0, 1, 2, 3].map((i) => getDateKey(i));
 
   const saveDayPlan = async (dk, plan) => { const nd = { ...days, [dk]: plan }; setDays(nd); await fbSet("days", nd); };
-  const saveTrailers = async (ns) => { setTrailers(ns); await fbSet("trailers", ns); };
+
+  const saveTransferRound = async (dk: string, routeIdx: number, roundIdx: number | null, roundData: any) => {
+    const route = TRANSFER_ROUTES[routeIdx];
+    const rk = transferRouteKey(route);
+    const now = new Date().toISOString();
+    const dayData = transfers[dk] || {};
+    const routeData = dayData[rk] || { rounds: [], lastUpdated: null };
+    let rounds = routeData.rounds ? [...routeData.rounds] : [];
+    if (roundData === null) {
+      if (roundIdx != null) rounds = rounds.filter((_, i) => i !== roundIdx);
+    } else if (roundIdx == null) {
+      rounds = [...rounds, { ...roundData, lastUpdated: now }];
+    } else {
+      rounds = rounds.map((r, i) => i === roundIdx ? { ...roundData, lastUpdated: now } : r);
+    }
+    const newRouteData = { rounds, lastUpdated: now };
+    const newDayData = { ...dayData, [rk]: newRouteData };
+    const newTransfers = { ...transfers, [dk]: newDayData };
+    setTransfers(newTransfers);
+    await fbSet("transfers", newTransfers);
+  };
 
   const saveFuvarDraft = async () => {
     const now = new Date().toISOString();
@@ -417,29 +596,6 @@ export default function App() {
     setFuvarSaved(newItems); setFuvarSavedAt(now);
     await fbSet("fuvarRequests", { items: newItems, savedAt: now });
   };
-
-  const handleTrailerChange = (name, field, value) => {
-    const current = trailers[name] || { status: TRAILER_STATUSES[0], location: WAREHOUSES[0] };
-    setPendingTrailers((prev) => ({ ...prev, [name]: { ...(prev[name] || { status: current.status, location: current.location }), [field]: value } }));
-    setDirtyTrailers((prev) => ({ ...prev, [name]: true }));
-    setSavedTrailers((prev) => ({ ...prev, [name]: false }));
-  };
-  const submitTrailer = async (name) => {
-    const pending = pendingTrailers[name]; if (!pending) return;
-    const now = new Date().toISOString();
-    const old = trailers[name] || { status: TRAILER_STATUSES[0], location: WAREHOUSES[0], lastUpdated: null };
-    await saveTrailers({ ...trailers, [name]: { ...old, ...pending, lastUpdated: now } });
-    if (pending.status && pending.status !== old.status) {
-      const pushStatuses = ["rakodásra vár", "indulásra kész - rakodva", "indulásra kész - üres"];
-      if (pushStatuses.includes(pending.status)) await sendPush(`🚛 ${name}`, `Státusz: ${pending.status}`);
-    }
-    setDirtyTrailers((prev) => ({ ...prev, [name]: false }));
-    setSavedTrailers((prev) => ({ ...prev, [name]: true }));
-    setPendingTrailers((prev) => { const n = { ...prev }; delete n[name]; return n; });
-  };
-
-  const saveCargo = async (name, items) => { const now = new Date().toISOString(); const updated = { ...cargoInputs, [name]: { items, savedAt: now } }; setCargoInputs(updated); await fbSet("trailerCargo", updated); };
-  const clearCargo = async (name) => { const updated = { ...cargoInputs, [name]: null }; setCargoInputs(updated); await fbSet("trailerCargo", updated); };
 
   const startEditing = (dk) => { const plan = days[dk] || initialDayPlan(); setEditingPlan({ dateKey: dk, plannedRoute: [...(plan.plannedRoute || [])] }); };
   const addToEditingRoute = (w) => { if (!editingPlan) return; setEditingPlan((prev) => ({ ...prev, plannedRoute: [...prev.plannedRoute, w] })); };
@@ -544,7 +700,16 @@ export default function App() {
 
   return (
     <div style={{ minHeight: "100vh", background: "#0f1117", fontFamily: "'DM Mono', monospace" }} onClick={() => setShowLangMenu(false)}>
-      {cargoModal && <CargoModal name={cargoModal} cargoData={cargoInputs[cargoModal]} onSave={(items) => saveCargo(cargoModal, items)} onClear={() => clearCargo(cargoModal)} onClose={() => setCargoModal(null)} l={l} />}
+      {transferModal && (() => {
+        const route = TRANSFER_ROUTES[transferModal.routeIdx];
+        const rk = transferRouteKey(route);
+        const dayData = transfers[transferDay] || {};
+        const routeData = dayData[rk] || { rounds: [] };
+        const round = transferModal.roundIdx != null ? routeData.rounds?.[transferModal.roundIdx] : null;
+        return <TransferModal route={route} roundIndex={transferModal.roundIdx} round={round}
+          onSave={(roundData) => saveTransferRound(transferDay, transferModal.routeIdx, transferModal.roundIdx, roundData)}
+          onClose={() => setTransferModal(null)} l={l} />;
+      })()}
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Bebas+Neue&display=swap');
         * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -591,90 +756,15 @@ export default function App() {
           </div>
         </div>
         <div style={{ maxWidth: 680, margin: "0 auto", padding: "0 16px 10px", display: "flex", gap: 8, overflowX: "auto" }}>
-          {["dashboard", "utvonal", "fuvar"].map((tab) => (
+          {["utvonal", "transzfer", "fuvar"].map((tab) => (
             <button key={tab} className={`tab-btn ${activeTab === tab ? "active" : ""}`} onClick={() => setActiveTab(tab)}>
-              {tab === "dashboard" ? l.overview : tab === "utvonal" ? l.route : l.fuvarTab}
+              {tab === "utvonal" ? l.route : tab === "transzfer" ? l.transferTab : l.fuvarTab}
             </button>
           ))}
         </div>
       </div>
 
       <div style={{ maxWidth: 680, margin: "0 auto", padding: "16px" }}>
-
-        {activeTab === "dashboard" && (
-          <>
-            <div className="card">
-              <span style={LABEL}>{l.truckStatus}</span>
-              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                <div style={{ fontSize: 32 }}>🚛</div>
-                <div style={{ flex: 1 }}>
-                  {(() => {
-                    const plan = todayPlan;
-                    const currentStop = plan.route && plan.route.find((s) => s.stopStatus === "rakodás alatt" || s.stopStatus === "érkezett");
-                    const nextStop = plan.route && plan.route.find((s) => s.stopStatus === "várja");
-                    const prevStop = plan.route && [...plan.route].reverse().find((s) => s.stopStatus === "indult");
-                    if (plan.status === "úton" && prevStop && nextStop) return (
-                      <><div style={{ color: "#e2e8f0", fontSize: 15, fontWeight: 700 }}>{prevStop.warehouse} <span style={{ color: "#f59e0b" }}>→</span> {nextStop.warehouse}</div>
-                        <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 4, flexWrap: "wrap" }}><StatusBadge statusKey="úton" l={l} />{prevStop.truckLoad && <span style={{ fontSize: 12, color: "#06b6d4", fontWeight: 700 }}>📦 {trStatus(prevStop.truckLoad, l)}</span>}</div></>
-                    );
-                    if (plan.status === "állomásozik" && currentStop) return (
-                      <><div style={{ color: "#e2e8f0", fontSize: 15, fontWeight: 700 }}>{currentStop.warehouse}</div>
-                        <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 4, flexWrap: "wrap" }}><StatusBadge statusKey={currentStop.stopStatus === "rakodás alatt" ? "rakodás alatt" : "érkezett"} l={l} />{currentStop.truckLoad && <span style={{ fontSize: 12, color: "#06b6d4", fontWeight: 700 }}>📦 {trStatus(currentStop.truckLoad, l)}</span>}</div></>
-                    );
-                    return (<><div style={{ color: "#e2e8f0", fontSize: 15, fontWeight: 700 }}>{plan.location}</div><StatusBadge statusKey={plan.status} l={l} /></>);
-                  })()}
-                </div>
-              </div>
-            </div>
-            <span style={LABEL}>{l.standbyTrailers}</span>
-            {TRAILER_NAMES.map((name) => {
-              const t = trailers[name] || { status: "rakodásra vár", location: "Győr" };
-              const pending = pendingTrailers[name];
-              const isDirty = dirtyTrailers[name], isSaved = savedTrailers[name];
-              const currentStatus = pending?.status !== undefined ? pending.status : t.status;
-              const currentLocation = pending?.location !== undefined ? pending.location : t.location;
-              const cargo = cargoInputs[name]; const cargoItems = cargo?.items || [];
-              return (
-                <div key={name} className="card">
-                  <div style={{ marginBottom: 12 }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
-                      <div style={{ color: "#e2e8f0", fontSize: 14, fontWeight: 700 }}>{name}</div>
-                      <StatusBadge statusKey={t.status} l={l} />
-                    </div>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-                      <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
-                        <button onClick={() => setCargoModal(name)} style={{ background: cargoItems.length > 0 ? "#f59e0b22" : "#1e2130", border: `1px solid ${cargoItems.length > 0 ? "#f59e0b" : "#374151"}`, color: cargoItems.length > 0 ? "#f59e0b" : "#4a5568", borderRadius: 6, padding: "3px 10px", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
-                          {l.addCargo}{cargoItems.length > 0 ? ` (${cargoItems.length})` : ""}
-                        </button>
-                        {cargo?.savedAt && <div style={{ color: "#f59e0b", fontSize: 10 }}>{l.cargoUpdated}: {formatTime(cargo.savedAt)}</div>}
-                      </div>
-                      {cargoItems.length > 0 && <button onClick={() => { if (window.confirm("Törlöd a rakománylistát?")) clearCargo(name); }} style={{ background: "#ef444422", border: "1px solid #ef4444", color: "#ef4444", cursor: "pointer", fontSize: 13, padding: "3px 8px", borderRadius: 6, fontWeight: 700 }}>🗑️</button>}
-                    </div>
-                    <div style={{ color: "#06b6d4", fontSize: 12 }}>📍 {t.location}</div>
-                    {t.lastUpdated && <div style={{ borderTop: "1px solid #2a2d3a", marginTop: 6, paddingTop: 6 }}>
-                      <div style={{ color: "#67e8f9", fontSize: 10 }}>{l.updatedAt}: {formatTime(t.lastUpdated)}</div>
-                      <div style={{ color: "#06b6d4", fontSize: 11, marginTop: 2 }}>⏱ {formatSince(t.lastUpdated)} {l.since}</div>
-                    </div>}
-                  </div>
-                  <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
-                    <div style={{ flex: 1 }}><span style={LABEL}>{l.status}</span>
-                      <select className="select-dark" value={currentStatus} onChange={(e) => handleTrailerChange(name, "status", e.target.value)}>
-                        {TRAILER_STATUSES.map((s) => <option key={s} value={s}>{trStatus(s, l)}</option>)}
-                      </select></div>
-                    <div style={{ flex: 1 }}><span style={LABEL}>{l.location}</span>
-                      <select className="select-dark" value={currentLocation} onChange={(e) => handleTrailerChange(name, "location", e.target.value)}>
-                        {WAREHOUSES.map((w) => <option key={w} value={w}>{w}</option>)}
-                      </select></div>
-                  </div>
-                  <button onClick={() => submitTrailer(name)} disabled={!isDirty}
-                    style={{ width: "100%", padding: "10px", borderRadius: 8, fontFamily: "inherit", fontSize: 13, fontWeight: 700, cursor: isDirty ? "pointer" : "not-allowed", border: `2px solid ${isDirty ? "#f59e0b" : isSaved ? "#10b981" : "#374151"}`, background: isSaved && !isDirty ? "#10b981" : "#1e2130", color: isSaved && !isDirty ? "#fff" : isDirty ? "#f59e0b" : "#4a5568" }}>
-                    {isSaved && !isDirty ? l.saved : l.save}
-                  </button>
-                </div>
-              );
-            })}
-          </>
-        )}
 
         {activeTab === "utvonal" && (
           <>
@@ -905,6 +995,90 @@ export default function App() {
                 </>
               );
             })()}
+          </>
+        )}
+
+        {activeTab === "transzfer" && (
+          <>
+            <div style={{ color: "#f59e0b", fontSize: 18, fontFamily: "'Bebas Neue',sans-serif", letterSpacing: 2, marginBottom: 12 }}>{l.transferTitle}</div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: 6, marginBottom: 16 }}>
+              {transferDayKeys.map((dk) => {
+                const isToday = dk === today, isSelected = dk === transferDay;
+                const dayData = transfers[dk] || {};
+                const totalRounds = TRANSFER_ROUTES.reduce((sum, r) => sum + (dayData[transferRouteKey(r)]?.rounds?.length || 0), 0);
+                return (
+                  <div key={dk} className={`day-btn ${isSelected && isToday ? "selected" : isSelected ? "selected" : isToday ? "tomorrow-style" : ""}`} onClick={() => setTransferDay(dk)} style={{ padding: "6px 4px" }}>
+                    <div style={{ fontSize: 11, fontWeight: 700 }}>{formatDateLabel(dk)}</div>
+                    {isToday && <div style={{ fontSize: 9, marginTop: 2, opacity: 0.85 }}>{l.today}</div>}
+                    {totalRounds > 0 && <div style={{ fontSize: 9, color: isSelected ? "#0f1117" : "#06b6d4", marginTop: 2 }}>● {totalRounds}</div>}
+                  </div>
+                );
+              })}
+            </div>
+
+            {TRANSFER_ROUTES.map((route, routeIdx) => {
+              const rk = transferRouteKey(route);
+              const dayData = transfers[transferDay] || {};
+              const routeData = dayData[rk] || { rounds: [], lastUpdated: null };
+              const rounds = routeData.rounds || [];
+              return (
+                <div key={rk} className="card">
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10, flexWrap: "wrap", gap: 6 }}>
+                    <div>
+                      <div style={{ color: "#e2e8f0", fontSize: 14, fontWeight: 700 }}>
+                        <span style={{ color: "#06b6d4" }}>{route.from}</span> <span style={{ color: "#f59e0b" }}>→</span> <span style={{ color: "#06b6d4" }}>{route.to}</span>
+                      </div>
+                      {routeData.lastUpdated && <div style={{ color: "#67e8f9", fontSize: 10, marginTop: 2 }}>{l.transferLastUpdated}: {formatTime(routeData.lastUpdated)}</div>}
+                    </div>
+                    <button onClick={() => setTransferModal({ routeIdx, roundIdx: null })}
+                      style={{ background: "#f59e0b", border: "none", color: "#0f1117", borderRadius: 8, padding: "7px 12px", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>{l.transferAddRound}</button>
+                  </div>
+
+                  {rounds.length === 0 ? (
+                    <div style={{ color: "#374151", fontSize: 12, textAlign: "center", padding: "12px 0" }}>{l.transferNoRounds}</div>
+                  ) : (
+                    rounds.map((r: any, ri: number) => {
+                      const itemCount = (r.groups || []).reduce((s: number, g: any) => s + (g.items?.length || 0), 0);
+                      const rPallets = typeof r.palletCount === "number" ? r.palletCount : 0;
+                      const rPct = palletPercent(rPallets);
+                      const rColor = palletColor(rPct);
+                      return (
+                        <div key={ri} style={{ background: "#0f1117", border: "1px solid #2a2d3a", borderRadius: 8, padding: 10, marginBottom: 8 }}>
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6, flexWrap: "wrap", gap: 6 }}>
+                            <div style={{ color: "#f59e0b", fontSize: 13, fontWeight: 700 }}>{ri + 1}. {l.transferRound}{r.zone ? ` · ${r.zone}` : ""}</div>
+                            <div style={{ display: "flex", gap: 6 }}>
+                              <button onClick={() => setTransferModal({ routeIdx, roundIdx: ri })}
+                                style={{ background: "#1e2130", border: "1px solid #06b6d4", color: "#06b6d4", borderRadius: 6, padding: "4px 10px", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>{l.addCargo}{itemCount > 0 ? ` (${itemCount})` : ""}</button>
+                              <button onClick={() => { if (window.confirm(`${l.transferDeleteRound}?`)) saveTransferRound(transferDay, routeIdx, ri, null); }}
+                                style={{ background: "#ef444422", border: "1px solid #ef4444", color: "#ef4444", borderRadius: 6, padding: "4px 10px", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>🗑️</button>
+                            </div>
+                          </div>
+                          <div style={{ marginBottom: 8 }}>
+                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 3 }}>
+                              <div style={{ color: "#94a3b8", fontSize: 10, fontWeight: 700, letterSpacing: 1, textTransform: "uppercase" }}>📦 {l.palletTitle}</div>
+                              <div style={{ color: rColor, fontSize: 11, fontWeight: 700 }}>{rPallets} / {PALLET_FULL_LOAD} · {rPct}%</div>
+                            </div>
+                            <div style={{ width: "100%", height: 10, background: "#1e2130", borderRadius: 5, overflow: "hidden", border: "1px solid #2a2d3a" }}>
+                              <div style={{ width: `${rPct}%`, height: "100%", background: rColor, transition: "width 0.25s ease, background 0.25s ease" }} />
+                            </div>
+                          </div>
+                          {(r.groups || []).map((g: any, gi: number) => (
+                            <div key={gi} style={{ marginTop: 4, paddingTop: 4, borderTop: gi > 0 ? "1px solid #2a2d3a55" : "none" }}>
+                              <div style={{ color: "#a78bfa", fontSize: 11, fontWeight: 700, marginBottom: 2 }}>📂 {g.category} <span style={{ color: "#4a5568" }}>({g.items?.length || 0} {l.transferRoundSummary})</span></div>
+                              <div style={{ color: "#94a3b8", fontSize: 11, lineHeight: 1.4 }}>
+                                {(g.items || []).slice(0, 6).map((it: any) => it.text).join(", ")}
+                                {g.items && g.items.length > 6 ? ` … +${g.items.length - 6}` : ""}
+                              </div>
+                            </div>
+                          ))}
+                          {r.lastUpdated && <div style={{ color: "#67e8f9", fontSize: 10, marginTop: 6 }}>{l.updatedAt}: {formatTime(r.lastUpdated)}</div>}
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              );
+            })}
           </>
         )}
 
