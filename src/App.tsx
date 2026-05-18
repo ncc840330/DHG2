@@ -140,8 +140,9 @@ const T = {
     transferZone: "Zóna (Komárom-Huawei)", transferPickZone: "Kötelező: B1 vagy B4",
     transferDeleteRound: "Forduló törlése", transferRoundSummary: "tétel",
     transferCopy: "📋 Másolás Excelbe", transferCopied: "✓ Vágólapra másolva", transferCopyEmpty: "Nincs másolható tétel",
-    palletTitle: "Paletta szám", palletHint: `Add meg a forduló palettaszámát (${PALLET_FULL_LOAD} = 100%)`,
+    palletTitle: "Paletta szám", palletHint: `Hány palettát adsz hozzá most? (${PALLET_FULL_LOAD} = 100%)`,
     palletLoad: "Rakomány töltöttség", palletRequired: "Add meg a paletta számot a mentéshez",
+    palletStored: "Jelenleg eltárolva", palletNew: "Hozzáadás most", palletTotal: "Új összesen",
     note: "Megjegyzés", notePlaceholder: "Pár mondatos megjegyzés (opcionális)…",
     arrivedRound: "Érkezett",
     s_rakodasravar: "rakodásra vár", s_rakodas: "rakodás alatt", s_szedes: "szedés alatt",
@@ -186,8 +187,9 @@ const T = {
     transferZone: "Zone (Komárom-Huawei)", transferPickZone: "Required: B1 or B4",
     transferDeleteRound: "Delete round", transferRoundSummary: "items",
     transferCopy: "📋 Copy to Excel", transferCopied: "✓ Copied to clipboard", transferCopyEmpty: "Nothing to copy",
-    palletTitle: "Pallet count", palletHint: `Enter pallet count for this round (${PALLET_FULL_LOAD} = 100%)`,
+    palletTitle: "Pallet count", palletHint: `How many pallets are you adding now? (${PALLET_FULL_LOAD} = 100%)`,
     palletLoad: "Load level", palletRequired: "Pallet count required to save",
+    palletStored: "Currently stored", palletNew: "Adding now", palletTotal: "New total",
     note: "Note", notePlaceholder: "A short note (optional)…",
     arrivedRound: "Arrived",
     s_rakodasravar: "waiting load", s_rakodas: "loading", s_szedes: "picking",
@@ -354,12 +356,12 @@ function TransferModal({ route, roundIndex, round, onSave, onClose, l, c }: any)
   const requiresZone = route.to === "Komárom-Huawei";
   const [groups, setGroups] = useState<any[]>(round?.groups ? round.groups.map((g: any) => ({ ...g, items: [...(g.items || [])] })) : []);
   const [zone, setZone] = useState<string | null>(round?.zone || null);
-  const [palletCount, setPalletCount] = useState<number | "">(typeof round?.palletCount === "number" ? round.palletCount : "");
+  const storedPallets = typeof round?.palletCount === "number" ? round.palletCount : 0;
+  const [palletAdd, setPalletAdd] = useState<number | "">(storedPallets > 0 ? "" : "");
   const [note, setNote] = useState<string>(round?.note || "");
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [activeItems, setActiveItems] = useState<any[]>([]);
   const [inputVal, setInputVal] = useState("");
-  const [palletAddVal, setPalletAddVal] = useState<number | "">("");
   const inputRef = useRef<any>(null);
 
   useEffect(() => { if (activeCategory) setTimeout(() => inputRef.current?.focus(), 80); }, [activeCategory]);
@@ -394,10 +396,11 @@ function TransferModal({ route, roundIndex, round, onSave, onClose, l, c }: any)
     setActiveItems([]); setActiveCategory(null); setInputVal("");
   };
 
-  const palletNum = typeof palletCount === "number" ? palletCount : 0;
-  const palletPct = palletPercent(palletNum);
+  const palletAddNum = typeof palletAdd === "number" ? palletAdd : 0;
+  const palletTotal = storedPallets + palletAddNum;
+  const palletPct = palletPercent(palletTotal);
   const palletBarColor = palletColor(palletPct);
-  const hasPallet = typeof palletCount === "number" && palletCount > 0;
+  const hasPallet = palletTotal > 0;
   const canSave = (groups.length > 0 || activeItems.length > 0) && (!requiresZone || !!zone) && hasPallet;
 
   const handleSave = () => {
@@ -413,7 +416,7 @@ function TransferModal({ route, roundIndex, round, onSave, onClose, l, c }: any)
     const trimmedNote = (note || "").trim();
     const preserved: any = {};
     if (round?.arrivedAt) preserved.arrivedAt = round.arrivedAt;
-    onSave({ groups: finalGroups, zone: requiresZone ? zone : null, palletCount: palletNum, note: trimmedNote, savedAt: new Date().toISOString(), ...preserved });
+    onSave({ groups: finalGroups, zone: requiresZone ? zone : null, palletCount: palletTotal, note: trimmedNote, savedAt: new Date().toISOString(), ...preserved });
     onClose();
   };
 
@@ -508,55 +511,46 @@ function TransferModal({ route, roundIndex, round, onSave, onClose, l, c }: any)
             <div style={{ color: hasPallet ? palletBarColor : c.red, fontSize: 10, letterSpacing: 1, textTransform: "uppercase", marginBottom: 6, fontWeight: 700 }}>
               {l.palletTitle} {hasPallet ? "" : `– ${l.palletRequired}`}
             </div>
+
+            {storedPallets > 0 && (
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8, background: c.surfaceAlt, border: `1px solid ${c.cyan}`, borderRadius: 8, padding: "8px 10px" }}>
+                <div style={{ color: c.cyan, fontSize: 11, fontWeight: 700, flex: 1 }}>{l.palletStored}:</div>
+                <div style={{ color: c.text, fontSize: 16, fontWeight: 700 }}>{storedPallets}</div>
+              </div>
+            )}
+
             <div style={{ color: c.subtle, fontSize: 11, marginBottom: 8 }}>{l.palletHint}</div>
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
-              <button onClick={() => setPalletCount((p) => Math.max(0, (typeof p === "number" ? p : 0) - 1))}
+              <button onClick={() => setPalletAdd((p) => Math.max(0, (typeof p === "number" ? p : 0) - 1))}
                 style={{ background: c.surfaceAlt, border: `1px solid ${c.borderStrong}`, color: c.text, borderRadius: 8, padding: "8px 14px", fontSize: 16, fontWeight: 700, cursor: "pointer" }}>−</button>
               <input
                 type="number"
                 inputMode="numeric"
                 min={0}
-                value={palletCount}
+                value={palletAdd}
                 onChange={(e) => {
                   const v = e.target.value;
-                  if (v === "") { setPalletCount(""); return; }
+                  if (v === "") { setPalletAdd(""); return; }
                   const n = parseInt(v, 10);
-                  if (!isNaN(n)) setPalletCount(Math.max(0, n));
+                  if (!isNaN(n)) setPalletAdd(Math.max(0, n));
                 }}
                 placeholder="0"
-                style={{ flex: 1, background: c.bgInput, border: `1px solid ${hasPallet ? palletBarColor : c.red}`, borderRadius: 8, padding: "10px 12px", color: c.text, fontSize: 16, fontFamily: "inherit", textAlign: "center", fontWeight: 700, boxSizing: "border-box", outline: "none" }}
+                style={{ flex: 1, background: c.bgInput, border: `1px solid ${c.green}`, borderRadius: 8, padding: "10px 12px", color: c.text, fontSize: 16, fontFamily: "inherit", textAlign: "center", fontWeight: 700, boxSizing: "border-box", outline: "none" }}
               />
-              <button onClick={() => setPalletCount((p) => (typeof p === "number" ? p : 0) + 1)}
+              <button onClick={() => setPalletAdd((p) => (typeof p === "number" ? p : 0) + 1)}
                 style={{ background: c.surfaceAlt, border: `1px solid ${c.borderStrong}`, color: c.text, borderRadius: 8, padding: "8px 14px", fontSize: 16, fontWeight: 700, cursor: "pointer" }}>+</button>
             </div>
-            {hasPallet && (
-              <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 10, background: c.surfaceAlt, border: `1px solid ${c.green}`, borderRadius: 8, padding: "6px 8px" }}>
-                <div style={{ color: c.green, fontSize: 10, fontWeight: 700, whiteSpace: "nowrap" }}>+ Hozzáadás:</div>
-                <input
-                  type="number"
-                  inputMode="numeric"
-                  min={0}
-                  value={palletAddVal}
-                  onChange={(e) => {
-                    const v = e.target.value;
-                    if (v === "") { setPalletAddVal(""); return; }
-                    const n = parseInt(v, 10);
-                    if (!isNaN(n)) setPalletAddVal(Math.max(0, n));
-                  }}
-                  placeholder="0"
-                  style={{ flex: 1, background: c.bgInput, border: `1px solid ${c.green}`, borderRadius: 8, padding: "6px 8px", color: c.text, fontSize: 14, fontFamily: "inherit", textAlign: "center", fontWeight: 700, boxSizing: "border-box", outline: "none" }}
-                />
-                <button onClick={() => {
-                  const add = typeof palletAddVal === "number" ? palletAddVal : 0;
-                  if (add > 0) { setPalletCount((p) => (typeof p === "number" ? p : 0) + add); setPalletAddVal(""); }
-                }}
-                  disabled={typeof palletAddVal !== "number" || palletAddVal <= 0}
-                  style={{ background: typeof palletAddVal === "number" && palletAddVal > 0 ? c.green : c.surfaceAlt, border: `1px solid ${c.green}`, color: typeof palletAddVal === "number" && palletAddVal > 0 ? "#fff" : c.subtle, borderRadius: 8, padding: "6px 12px", fontSize: 12, fontWeight: 700, cursor: typeof palletAddVal === "number" && palletAddVal > 0 ? "pointer" : "not-allowed", whiteSpace: "nowrap" }}>+ Hozzáad</button>
+
+            {storedPallets > 0 && palletAddNum > 0 && (
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8, background: c.surfaceAlt, border: `1px solid ${c.green}`, borderRadius: 8, padding: "8px 10px" }}>
+                <div style={{ color: c.green, fontSize: 11, fontWeight: 700, flex: 1 }}>{l.palletTotal}:</div>
+                <div style={{ color: c.green, fontSize: 16, fontWeight: 700 }}>{storedPallets} + {palletAddNum} = {palletTotal}</div>
               </div>
             )}
+
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
               <div style={{ color: c.muted, fontSize: 11, fontWeight: 700 }}>{l.palletLoad}</div>
-              <div style={{ color: palletBarColor, fontSize: 13, fontWeight: 700 }}>{palletNum} / {PALLET_FULL_LOAD} · {palletPct}%</div>
+              <div style={{ color: palletBarColor, fontSize: 13, fontWeight: 700 }}>{palletTotal} / {PALLET_FULL_LOAD} · {palletPct}%</div>
             </div>
             <div style={{ width: "100%", height: 14, background: c.surfaceAlt, borderRadius: 7, overflow: "hidden", border: `1px solid ${c.border}` }}>
               <div style={{ width: `${palletPct}%`, height: "100%", background: palletBarColor, transition: "width 0.25s ease, background 0.25s ease" }} />
