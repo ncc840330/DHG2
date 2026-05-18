@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import * as XLSX from "xlsx";
 
 const FIREBASE_URL = "https://tatai-tracker-default-rtdb.firebaseio.com";
 const WAREHOUSES = ["Győr", "Komárom-Huawei", "KMRM2", "Komárom-Nokia"];
@@ -14,7 +15,7 @@ const TRANSFER_ROUTES = [
   { from: "KMRM2", to: "Győr" },
   { from: "KMRM2", to: "Komárom-Huawei" },
 ];
-const TRANSFER_CATEGORIES = ["China-repacking", "Inbound", "Kiszedett lista", "Repackingolt lista", "Egyéb"];
+const TRANSFER_CATEGORIES = ["China-repacking", "Inbound", "Kiszedett lista", "Repackingolt lista", "RC-PD contract", "Egyéb"];
 const HUAWEI_ZONES = ["B1", "B4"];
 const PALLET_FULL_LOAD = 33;
 const transferRouteKey = (r: { from: string; to: string }) => `${r.from}__${r.to}`;
@@ -148,6 +149,12 @@ const T = {
     s_indulas_ures: "indulásra kész - üres", ss_varja: "várja", ss_erkezett: "érkezett",
     ss_rakodas: "rakodás alatt", ss_indult: "indult", ts_uton: "úton",
     ts_allomásozik: "állomásozik", ts_vár: "beállításra vár",
+    exportTab: "📤 Export", exportTitle: "Adatok exportálása",
+    exportCargo: "📦 Export rakomány", exportRoutePlan: "🗺️ Export útvonalterv",
+    exportCargoDesc: "Rakomány adatok exportálása Excel fájlba (dátum, csoport, rakomány, honnan, hova)",
+    exportRoutePlanDesc: "Útvonalterv adatok exportálása Excel fájlba (dátum, állomások időrendben, érkezési idők)",
+    exportNoData: "Nincs exportálható adat.",
+    exportSuccess: "Exportálás sikeres!",
   },
   en: {
     appSub: "LOGISTICS TRACKER", live: "LIVE", loading: "Loading...",
@@ -188,6 +195,12 @@ const T = {
     s_indulas_ures: "ready to go - empty", ss_varja: "waiting", ss_erkezett: "arrived",
     ss_rakodas: "loading", ss_indult: "departed", ts_uton: "on the way",
     ts_allomásozik: "stationed", ts_vár: "pending setup",
+    exportTab: "📤 Export", exportTitle: "Export data",
+    exportCargo: "📦 Export cargo", exportRoutePlan: "🗺️ Export route plan",
+    exportCargoDesc: "Export cargo data to Excel file (date, group, cargo, from, to)",
+    exportRoutePlanDesc: "Export route plan data to Excel file (date, stations in order, arrival times)",
+    exportNoData: "No data to export.",
+    exportSuccess: "Export successful!",
   },
 };
 
@@ -757,7 +770,7 @@ export default function App() {
   }, []);
 
   const today = getTodayKey();
-  const dayKeys = [0, 1, 2, 3].map((i) => getDateKey(i));
+  const dayKeys = [-7, -6, -5, -4, -3, -2, -1, 0, 1, 2, 3].map((i) => getDateKey(i));
   const transferDayKeys = [-3, -2, -1, 0, 1, 2, 3].map((i) => getDateKey(i));
   const fuvarDayKeys = [-3, -2, -1, 0, 1, 2, 3].map((i) => getDateKey(i));
 
@@ -999,9 +1012,9 @@ export default function App() {
           </div>
         </div>
         <div style={{ maxWidth: 680, margin: "0 auto", padding: "0 16px 10px", display: "flex", gap: 8, overflowX: "auto" }}>
-          {["utvonal", "transzfer", "fuvar"].map((tab) => (
+          {["utvonal", "transzfer", "fuvar", "export"].map((tab) => (
             <button key={tab} className={`tab-btn ${activeTab === tab ? "active" : ""}`} onClick={() => setActiveTab(tab)}>
-              {tab === "utvonal" ? l.route : tab === "transzfer" ? l.transferTab : l.fuvarTab}
+              {tab === "utvonal" ? l.route : tab === "transzfer" ? l.transferTab : tab === "fuvar" ? l.fuvarTab : l.exportTab}
             </button>
           ))}
         </div>
@@ -1011,12 +1024,13 @@ export default function App() {
 
         {activeTab === "utvonal" && (
           <>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8, marginBottom: 16 }}>
+            <div style={{ display: "flex", gap: 8, marginBottom: 16, overflowX: "auto", paddingBottom: 4 }}>
               {dayKeys.map((dk) => {
                 const isToday = dk === today, isSelected = dk === selectedDay;
+                const isPast = dk < today;
                 const plan = days[dk], hasRoute = plan?.plannedRoute?.length > 0;
                 return (
-                  <div key={dk} className={`day-btn ${isSelected ? "selected" : isToday ? "tomorrow-style" : ""}`} onClick={() => { setSelectedDay(dk); setEditingPlan(null); setReplacingStop(null); }}>
+                  <div key={dk} className={`day-btn ${isSelected ? "selected" : isToday ? "tomorrow-style" : ""}`} onClick={() => { setSelectedDay(dk); setEditingPlan(null); setReplacingStop(null); }} style={{ minWidth: 72, opacity: isPast && !isSelected ? 0.7 : 1, flexShrink: 0 }}>
                     <div style={{ fontSize: 13, fontWeight: 700 }}>{formatDateLabel(dk)}</div>
                     <div style={{ fontSize: 10, marginTop: 2, opacity: 0.7 }}>{isToday ? l.today : dk === getDateKey(1) ? l.tomorrow : ""}</div>
                     {hasRoute && <div style={{ fontSize: 9, color: isSelected ? c.accentText : c.green, marginTop: 2 }}>● {plan.plannedRoute.length} {l.stops}</div>}
@@ -1057,12 +1071,14 @@ export default function App() {
                 );
               }
 
+              const isPastDay = selectedDay < today;
+
               if (!plan.routeLocked) {
                 return (
                   <div className="card">
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
                       <span style={LABEL}>📋 {formatDateLabel(selectedDay)} – {l.dailyPlan}</span>
-                      <button className="btn-sm" onClick={() => startEditing(selectedDay)} style={{ borderColor: c.accent, color: c.accent }}>{l.editPlan}</button>
+                      {!isPastDay && <button className="btn-sm" onClick={() => startEditing(selectedDay)} style={{ borderColor: c.accent, color: c.accent }}>{l.editPlan}</button>}
                     </div>
                     {plan.plannedRoute && plan.plannedRoute.length > 0 ? (
                       <>
@@ -1405,6 +1421,102 @@ export default function App() {
                   ))}
                 </div>
               )}
+            </>
+          );
+        })()}
+
+        {activeTab === "export" && (() => {
+          const exportCargo = () => {
+            const rows: any[][] = [["Dátum", "Csoport", "Rakomány", "Honnan", "Hova"]];
+            const dateKeys = Object.keys(transfers).sort();
+            dateKeys.forEach((dk) => {
+              const dayData = transfers[dk] || {};
+              TRANSFER_ROUTES.forEach((route) => {
+                const rk = transferRouteKey(route);
+                const routeData = dayData[rk];
+                if (!routeData?.rounds) return;
+                routeData.rounds.forEach((round: any) => {
+                  (round.groups || []).forEach((g: any) => {
+                    (g.items || []).forEach((item: any) => {
+                      rows.push([dk, g.category || "", item.text || "", route.from, route.to]);
+                    });
+                  });
+                });
+              });
+            });
+            if (rows.length <= 1) { alert(l.exportNoData); return; }
+            const ws = XLSX.utils.aoa_to_sheet(rows);
+            ws["!cols"] = [{ wch: 12 }, { wch: 20 }, { wch: 30 }, { wch: 20 }, { wch: 20 }];
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "Rakomány");
+            XLSX.writeFile(wb, `rakomany_export_${getTodayKey()}.xlsx`);
+          };
+
+          const exportRoutePlan = () => {
+            const dateKeys = Object.keys(days).sort();
+            if (dateKeys.length === 0) { alert(l.exportNoData); return; }
+            let maxStops = 0;
+            dateKeys.forEach((dk) => {
+              const plan = days[dk];
+              const stops = plan?.route?.length || plan?.plannedRoute?.length || 0;
+              if (stops > maxStops) maxStops = stops;
+            });
+            if (maxStops === 0) { alert(l.exportNoData); return; }
+            const header: string[] = ["Dátum"];
+            for (let i = 1; i <= maxStops; i++) {
+              header.push(`${i}. állomás`);
+              header.push(`${i}. érkezés`);
+            }
+            const rows: any[][] = [header];
+            dateKeys.forEach((dk) => {
+              const plan = days[dk];
+              const route = plan?.route || [];
+              const planned = plan?.plannedRoute || [];
+              const stops = route.length > 0 ? route : planned.map((w: string) => ({ warehouse: w }));
+              const row: any[] = [dk];
+              stops.forEach((stop: any) => {
+                row.push(stop.warehouse || stop || "");
+                const arrival = stop.arrived ? new Date(stop.arrived).toLocaleString("hu-HU", { month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" }) : "";
+                row.push(arrival);
+              });
+              while (row.length < header.length) row.push("");
+              rows.push(row);
+            });
+            const ws = XLSX.utils.aoa_to_sheet(rows);
+            const colWidths: any[] = [{ wch: 12 }];
+            for (let i = 0; i < maxStops; i++) {
+              colWidths.push({ wch: 20 });
+              colWidths.push({ wch: 16 });
+            }
+            ws["!cols"] = colWidths;
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, "Útvonalterv");
+            XLSX.writeFile(wb, `utvonalterv_export_${getTodayKey()}.xlsx`);
+          };
+
+          return (
+            <>
+              <div style={{ color: c.accent, fontSize: 18, fontFamily: "'Bebas Neue',sans-serif", letterSpacing: 2, marginBottom: 16 }}>{l.exportTitle}</div>
+              <div className="card" style={{ marginBottom: 12 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 10 }}>
+                  <div style={{ fontSize: 28 }}>📦</div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ color: c.text, fontSize: 14, fontWeight: 700 }}>{l.exportCargo}</div>
+                    <div style={{ color: c.subtle, fontSize: 11, marginTop: 2 }}>{l.exportCargoDesc}</div>
+                  </div>
+                </div>
+                <button onClick={exportCargo} style={{ width: "100%", background: c.accent, border: "none", color: c.accentText, borderRadius: 8, padding: "12px", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>{l.exportCargo}</button>
+              </div>
+              <div className="card">
+                <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 10 }}>
+                  <div style={{ fontSize: 28 }}>🗺️</div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ color: c.text, fontSize: 14, fontWeight: 700 }}>{l.exportRoutePlan}</div>
+                    <div style={{ color: c.subtle, fontSize: 11, marginTop: 2 }}>{l.exportRoutePlanDesc}</div>
+                  </div>
+                </div>
+                <button onClick={exportRoutePlan} style={{ width: "100%", background: c.accent, border: "none", color: c.accentText, borderRadius: 8, padding: "12px", fontSize: 13, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>{l.exportRoutePlan}</button>
+              </div>
             </>
           );
         })()}
