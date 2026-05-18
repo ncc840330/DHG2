@@ -2,16 +2,21 @@
   "name": "react-typescript",
   "version": "1.0.0",
   "description": "React and TypeScript example starter project",
-  "keywords": ["typescript", "react", "starter"],
+  "keywords": [
+    "typescript",
+    "react",
+    "starter"
+  ],
   "main": "src/index.tsx",
   "dependencies": {
-    "tailwindcss": "^3.0.0",
     "loader-utils": "3.2.1",
     "react": "18.2.0",
     "react-dom": "18.2.0",
     "react-scripts": "5.0.1",
-    "web-push": "^3.6.7"
-},
+    "tailwindcss": "^3.0.0",
+    "web-push": "^3.6.7",
+    "xlsx": "^0.18.5"
+  },
   "devDependencies": {
     "@types/react": "18.2.38",
     "@types/react-dom": "18.2.15",
@@ -23,5 +28,10 @@
     "test": "react-scripts test --env=jsdom",
     "eject": "react-scripts eject"
   },
-  "browserslist": [">0.2%", "not dead", "not ie <= 11", "not op_mini all"]
+  "browserslist": [
+    ">0.2%",
+    "not dead",
+    "not ie <= 11",
+    "not op_mini all"
+  ]
 }
