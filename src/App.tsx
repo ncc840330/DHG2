@@ -220,7 +220,9 @@ function trStopStatus(key: string, l: any) {
   return trStatus(key, l);
 }
 function getDateKey(offset = 0) {
-  const d = new Date(); d.setDate(d.getDate() + offset); return d.toISOString().slice(0, 10);
+  const d = new Date(); d.setDate(d.getDate() + offset);
+  const y = d.getFullYear(), m = String(d.getMonth() + 1).padStart(2, '0'), day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
 }
 function formatDateLabel(k: string) {
   if (!k || !k.includes("-")) return "—";
@@ -357,6 +359,7 @@ function TransferModal({ route, roundIndex, round, onSave, onClose, l, c }: any)
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   const [activeItems, setActiveItems] = useState<any[]>([]);
   const [inputVal, setInputVal] = useState("");
+  const [palletAddVal, setPalletAddVal] = useState<number | "">("");
   const inputRef = useRef<any>(null);
 
   useEffect(() => { if (activeCategory) setTimeout(() => inputRef.current?.focus(), 80); }, [activeCategory]);
@@ -506,7 +509,7 @@ function TransferModal({ route, roundIndex, round, onSave, onClose, l, c }: any)
               {l.palletTitle} {hasPallet ? "" : `– ${l.palletRequired}`}
             </div>
             <div style={{ color: c.subtle, fontSize: 11, marginBottom: 8 }}>{l.palletHint}</div>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
               <button onClick={() => setPalletCount((p) => Math.max(0, (typeof p === "number" ? p : 0) - 1))}
                 style={{ background: c.surfaceAlt, border: `1px solid ${c.borderStrong}`, color: c.text, borderRadius: 8, padding: "8px 14px", fontSize: 16, fontWeight: 700, cursor: "pointer" }}>−</button>
               <input
@@ -526,6 +529,31 @@ function TransferModal({ route, roundIndex, round, onSave, onClose, l, c }: any)
               <button onClick={() => setPalletCount((p) => (typeof p === "number" ? p : 0) + 1)}
                 style={{ background: c.surfaceAlt, border: `1px solid ${c.borderStrong}`, color: c.text, borderRadius: 8, padding: "8px 14px", fontSize: 16, fontWeight: 700, cursor: "pointer" }}>+</button>
             </div>
+            {hasPallet && (
+              <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 10, background: c.surfaceAlt, border: `1px solid ${c.green}`, borderRadius: 8, padding: "6px 8px" }}>
+                <div style={{ color: c.green, fontSize: 10, fontWeight: 700, whiteSpace: "nowrap" }}>+ Hozzáadás:</div>
+                <input
+                  type="number"
+                  inputMode="numeric"
+                  min={0}
+                  value={palletAddVal}
+                  onChange={(e) => {
+                    const v = e.target.value;
+                    if (v === "") { setPalletAddVal(""); return; }
+                    const n = parseInt(v, 10);
+                    if (!isNaN(n)) setPalletAddVal(Math.max(0, n));
+                  }}
+                  placeholder="0"
+                  style={{ flex: 1, background: c.bgInput, border: `1px solid ${c.green}`, borderRadius: 8, padding: "6px 8px", color: c.text, fontSize: 14, fontFamily: "inherit", textAlign: "center", fontWeight: 700, boxSizing: "border-box", outline: "none" }}
+                />
+                <button onClick={() => {
+                  const add = typeof palletAddVal === "number" ? palletAddVal : 0;
+                  if (add > 0) { setPalletCount((p) => (typeof p === "number" ? p : 0) + add); setPalletAddVal(""); }
+                }}
+                  disabled={typeof palletAddVal !== "number" || palletAddVal <= 0}
+                  style={{ background: typeof palletAddVal === "number" && palletAddVal > 0 ? c.green : c.surfaceAlt, border: `1px solid ${c.green}`, color: typeof palletAddVal === "number" && palletAddVal > 0 ? "#fff" : c.subtle, borderRadius: 8, padding: "6px 12px", fontSize: 12, fontWeight: 700, cursor: typeof palletAddVal === "number" && palletAddVal > 0 ? "pointer" : "not-allowed", whiteSpace: "nowrap" }}>+ Hozzáad</button>
+              </div>
+            )}
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
               <div style={{ color: c.muted, fontSize: 11, fontWeight: 700 }}>{l.palletLoad}</div>
               <div style={{ color: palletBarColor, fontSize: 13, fontWeight: 700 }}>{palletNum} / {PALLET_FULL_LOAD} · {palletPct}%</div>
@@ -671,6 +699,98 @@ export default function App() {
     localStorage.setItem("tt_theme", next);
     return next;
   });
+  const [lang, setLang] = useState("hu");
+  const [showLangMenu, setShowLangMenu] = useState(false);
+  const [days, setDays] = useState({});
+  const [fuvarDay, setFuvarDay] = useState(getTodayKey());
+  const [fuvarDraftMap, setFuvarDraftMap] = useState<{ [dk: string]: any[] }>({});
+  const [fuvarSavedMap, setFuvarSavedMap] = useState<{ [dk: string]: { items: any[]; savedAt: string } }>({});
+  const [fuvarModal, setFuvarModal] = useState(false);
+  const [selectedDay, setSelectedDay] = useState(getTodayKey());
+  const [transferDay, setTransferDay] = useState(getTodayKey());
+  const [activeTab, setActiveTab] = useState("utvonal");
+  const [loaded, setLoaded] = useState(false);
+  const [lastSync, setLastSync] = useState<string | null>(null);
+  const [editingPlan, setEditingPlan] = useState(null);
+  const [replacingStop, setReplacingStop] = useState(null);
+  const [insertingStop, setInsertingStop] = useState(null);
+  const [transfers, setTransfers] = useState<any>({});
+  const [transferModal, setTransferModal] = useState<{ routeIdx: number; roundIdx: number | null } | null>(null);
+  const pushSubRef = useRef<any>(null);
+  const midnightRef = useRef<any>(null);
+  const todayBtnRef = useRef<HTMLDivElement>(null);
+  const l = T[lang];
+
+  const syncNow = async () => {
+    const d = await fbGet("days"); if (d) setDays(d);
+    const fs = await fbGet("fuvarRequests");
+    if (fs) {
+      if (Array.isArray(fs.items)) {
+        const today = getTodayKey();
+        setFuvarSavedMap({ [today]: { items: fs.items, savedAt: fs.savedAt || new Date().toISOString() } });
+      } else if (typeof fs === "object") {
+        const cleaned: any = {};
+        Object.keys(fs).forEach((k) => {
+          const v: any = (fs as any)[k];
+          if (v && Array.isArray(v.items)) cleaned[k] = { items: v.items, savedAt: v.savedAt || null };
+        });
+        setFuvarSavedMap(cleaned);
+      }
+    }
+    const tr = await fbGet("transfers"); if (tr) setTransfers(tr);
+    setLastSync(new Date().toISOString());
+  };
+
+  useEffect(() => {
+    if (!authed) return;
+    subscribeToPush().then(sub => {
+      if (sub) { pushSubRef.current = sub; console.log('✅ Push subscription OK'); }
+      else { console.warn('⚠️ Push subscription failed or denied'); }
+    });
+  }, [authed]);
+
+  const sendPush = async (title: string, body: string) => {
+    let sub = pushSubRef.current;
+    if (!sub) { sub = await subscribeToPush(); if (sub) pushSubRef.current = sub; }
+    if (!sub) { console.warn('No push subscription'); return; }
+    try {
+      const res = await fetch('/.netlify/functions/send-push', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ subscription: sub, title, body }) });
+      console.log('Push sent:', res.status);
+    } catch (e) { console.error('Push error:', e); }
+  };
+
+  useEffect(() => { if (!authed) return; const t = setInterval(() => {}, 60000); return () => clearInterval(t); }, [authed]);
+  useEffect(() => { if (!authed || !loaded) return; setTimeout(() => todayBtnRef.current?.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" }), 300); }, [activeTab, authed, loaded]);
+  useEffect(() => {
+    if (!authed) return;
+    const go = () => {
+      const now = new Date(), tom = new Date(now);
+      tom.setDate(tom.getDate() + 1); tom.setHours(0, 0, 0, 0);
+      midnightRef.current = setTimeout(() => { setSelectedDay(getTodayKey()); go(); }, tom.getTime() - now.getTime());
+    };
+    go(); return () => clearTimeout(midnightRef.current);
+  }, [authed]);
+  useEffect(() => {
+    if (!authed) return;
+    const onVisible = () => {
+      if (document.visibilityState !== "visible") return;
+      const t = getTodayKey();
+      setSelectedDay(t);
+      setTransferDay(t);
+      setFuvarDay(t);
+      setTimeout(() => todayBtnRef.current?.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" }), 300);
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => document.removeEventListener("visibilitychange", onVisible);
+  }, [authed]);
+
+  useEffect(() => {
+    if (!authed) return;
+    const load = async () => { await syncNow(); setLoaded(true); };
+    load();
+    const iv = setInterval(syncNow, 60000);
+    return () => clearInterval(iv);
+  }, [authed]);
 
   if (!authed) {
     return (
@@ -690,84 +810,6 @@ export default function App() {
       </div>
     );
   }
-
-  const [lang, setLang] = useState("hu");
-  const [showLangMenu, setShowLangMenu] = useState(false);
-  const [days, setDays] = useState({});
-  const [fuvarDay, setFuvarDay] = useState(getTodayKey());
-  // fuvarDraftMap: { [dk]: item[] } - in-memory drafts per day
-  const [fuvarDraftMap, setFuvarDraftMap] = useState<{ [dk: string]: any[] }>({});
-  // fuvarSavedMap: { [dk]: { items, savedAt } } - persisted per day
-  const [fuvarSavedMap, setFuvarSavedMap] = useState<{ [dk: string]: { items: any[]; savedAt: string } }>({});
-  const [fuvarModal, setFuvarModal] = useState(false);
-  const [selectedDay, setSelectedDay] = useState(getTodayKey());
-  const [transferDay, setTransferDay] = useState(getTodayKey());
-  const [activeTab, setActiveTab] = useState("utvonal");
-  const [loaded, setLoaded] = useState(false);
-  const [lastSync, setLastSync] = useState<string | null>(null);
-  const [editingPlan, setEditingPlan] = useState(null);
-  const [replacingStop, setReplacingStop] = useState(null);
-  const [insertingStop, setInsertingStop] = useState(null);
-  const [transfers, setTransfers] = useState<any>({});
-  const [transferModal, setTransferModal] = useState<{ routeIdx: number; roundIdx: number | null } | null>(null);
-  const pushSubRef = useRef<any>(null);
-  const midnightRef = useRef<any>(null);
-  const l = T[lang];
-
-  useEffect(() => {
-    subscribeToPush().then(sub => {
-      if (sub) { pushSubRef.current = sub; console.log('✅ Push subscription OK'); }
-      else { console.warn('⚠️ Push subscription failed or denied'); }
-    });
-  }, []);
-
-  const sendPush = async (title: string, body: string) => {
-    let sub = pushSubRef.current;
-    if (!sub) { sub = await subscribeToPush(); if (sub) pushSubRef.current = sub; }
-    if (!sub) { console.warn('No push subscription'); return; }
-    try {
-      const res = await fetch('/.netlify/functions/send-push', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ subscription: sub, title, body }) });
-      console.log('Push sent:', res.status);
-    } catch (e) { console.error('Push error:', e); }
-  };
-
-  useEffect(() => { const t = setInterval(() => {}, 60000); return () => clearInterval(t); }, []);
-  useEffect(() => {
-    const go = () => {
-      const now = new Date(), tom = new Date(now);
-      tom.setDate(tom.getDate() + 1); tom.setHours(0, 0, 0, 0);
-      midnightRef.current = setTimeout(() => { setSelectedDay(getTodayKey()); go(); }, tom.getTime() - now.getTime());
-    };
-    go(); return () => clearTimeout(midnightRef.current);
-  }, []);
-
-  const syncNow = async () => {
-    const d = await fbGet("days"); if (d) setDays(d);
-    const fs = await fbGet("fuvarRequests");
-    if (fs) {
-      // Detect legacy shape: { items, savedAt } with array items at root
-      if (Array.isArray(fs.items)) {
-        const today = getTodayKey();
-        setFuvarSavedMap({ [today]: { items: fs.items, savedAt: fs.savedAt || new Date().toISOString() } });
-      } else if (typeof fs === "object") {
-        const cleaned: any = {};
-        Object.keys(fs).forEach((k) => {
-          const v: any = (fs as any)[k];
-          if (v && Array.isArray(v.items)) cleaned[k] = { items: v.items, savedAt: v.savedAt || null };
-        });
-        setFuvarSavedMap(cleaned);
-      }
-    }
-    const tr = await fbGet("transfers"); if (tr) setTransfers(tr);
-    setLastSync(new Date().toISOString());
-  };
-
-  useEffect(() => {
-    const load = async () => { await syncNow(); setLoaded(true); };
-    load();
-    const iv = setInterval(syncNow, 60000);
-    return () => clearInterval(iv);
-  }, []);
 
   const today = getTodayKey();
   const dayKeys = [-7, -6, -5, -4, -3, -2, -1, 0, 1, 2, 3].map((i) => getDateKey(i));
@@ -1030,7 +1072,7 @@ export default function App() {
                 const isPast = dk < today;
                 const plan = days[dk], hasRoute = plan?.plannedRoute?.length > 0;
                 return (
-                  <div key={dk} className={`day-btn ${isSelected ? "selected" : isToday ? "tomorrow-style" : ""}`} onClick={() => { setSelectedDay(dk); setEditingPlan(null); setReplacingStop(null); }} style={{ minWidth: 72, opacity: isPast && !isSelected ? 0.7 : 1, flexShrink: 0 }}>
+                  <div key={dk} ref={isToday ? todayBtnRef : undefined} className={`day-btn ${isSelected ? "selected" : isToday ? "tomorrow-style" : ""}`} onClick={() => { setSelectedDay(dk); setEditingPlan(null); setReplacingStop(null); }} style={{ minWidth: 72, opacity: isPast && !isSelected ? 0.7 : 1, flexShrink: 0 }}>
                     <div style={{ fontSize: 13, fontWeight: 700 }}>{formatDateLabel(dk)}</div>
                     <div style={{ fontSize: 10, marginTop: 2, opacity: 0.7 }}>{isToday ? l.today : dk === getDateKey(1) ? l.tomorrow : ""}</div>
                     {hasRoute && <div style={{ fontSize: 9, color: isSelected ? c.accentText : c.green, marginTop: 2 }}>● {plan.plannedRoute.length} {l.stops}</div>}
