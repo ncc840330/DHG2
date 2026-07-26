@@ -46,10 +46,11 @@ button { -webkit-tap-highlight-color: transparent; }
 
 .app-header {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
+  gap: 12px;
   border-bottom: 1px solid var(--line);
-  padding-bottom: 18px;
+  padding-bottom: 14px;
 }
 
 .app-kicker, .panel-heading p {
@@ -60,14 +61,9 @@ button { -webkit-tap-highlight-color: transparent; }
   letter-spacing: 0.18em;
 }
 
-h1, h2, h3 { font-family: "Barlow Condensed", sans-serif; }
+.app-header .app-kicker { margin: 0; }
 
-h1 {
-  margin: 0;
-  font-size: 3.2rem;
-  line-height: 0.9;
-  letter-spacing: -0.04em;
-}
+h1, h2, h3 { font-family: "Barlow Condensed", sans-serif; }
 
 .sync-button {
   display: grid;
@@ -87,20 +83,7 @@ h1 {
 .sync-button span { font-size: 0.58rem; font-weight: 600; letter-spacing: 0.12em; }
 .sync-button time { color: var(--muted); font-size: 0.58rem; }
 
-.date-section { padding: 22px 0 16px; }
-
-.section-label {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-bottom: 10px;
-  color: var(--muted);
-  font-size: 0.58rem;
-  font-weight: 600;
-  letter-spacing: 0.14em;
-}
-
-.section-label i { width: 36px; height: 1px; background: var(--signal); }
+.date-section { padding: 14px 0 12px; }
 
 .date-strip {
   display: flex;

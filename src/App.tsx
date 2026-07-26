@@ -58,10 +58,7 @@ export default function App() {
   return (
     <main className="app-shell">
       <header className="app-header">
-        <div>
-          <p className="app-kicker">DISCREPANCY HANDLING</p>
-          <h1>DHG</h1>
-        </div>
+        <p className="app-kicker">DISCREPANCY HANDLING</p>
         <button
           className="sync-button"
           type="button"
@@ -79,7 +76,6 @@ export default function App() {
       </header>
 
       <section className="date-section" aria-label="Date selector">
-        <div className="section-label"><span>WORK DATE</span><i /></div>
         <div className="date-strip" ref={dateStripRef}>
           {dates.map(({ date }) => {
             const dateKey = getDateKey(date);
