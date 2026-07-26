@@ -1,21 +1,16 @@
 import { and, asc, eq, gte, lte, sql } from "drizzle-orm";
 import { db } from "../../db/index.js";
 import { dhgRecords } from "../../db/schema.js";
+import {
+  apiError,
+  firstFreeSequence,
+  isProblemOption,
+  isValidDateKey,
+  makeLineId,
+  parseId,
+  type ProblemOption,
+} from "../shared/records.js";
 
-const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
-const PROBLEM_OPTIONS = [
-  "Item Discrepancy",
-  "SN Discrepancy",
-  "Item not arrived",
-  "Extra Item",
-  "Corrosion",
-  "Damaged item",
-  "Burned item",
-  "Not Visible SN",
-  "Empty box",
-  "SN upload",
-  "Other",
-] as const;
 const REQUIRED_FIELDS = [
   "systemItem",
   "systemSn",
@@ -33,31 +28,12 @@ type RecordInput = {
   physicalItem: string;
   physicalSn: string;
   rfid: string;
-  problemDescription: (typeof PROBLEM_OPTIONS)[number];
+  problemDescription: ProblemOption;
   problemOther: string | null;
   locator: string;
   county: string;
   sourceTaskId: string;
 };
-
-function isValidDateKey(value: unknown): value is string {
-  if (typeof value !== "string" || !DATE_PATTERN.test(value)) return false;
-
-  const [year, month, day] = value.split("-").map(Number);
-  const date = new Date(Date.UTC(year, month - 1, day));
-
-  return (
-    date.getUTCFullYear() === year &&
-    date.getUTCMonth() === month - 1 &&
-    date.getUTCDate() === day
-  );
-}
-
-function parseId(value: string | null) {
-  if (!value || !/^\d+$/.test(value)) return null;
-  const id = Number(value);
-  return Number.isSafeInteger(id) && id > 0 ? id : null;
-}
 
 function validateRecordInput(body: unknown): RecordInput | null {
   if (!body || typeof body !== "object") return null;
@@ -70,14 +46,7 @@ function validateRecordInput(body: unknown): RecordInput | null {
     normalized[field] = value.trim();
   }
 
-  if (
-    typeof input.problemDescription !== "string" ||
-    !PROBLEM_OPTIONS.includes(
-      input.problemDescription as (typeof PROBLEM_OPTIONS)[number],
-    )
-  ) {
-    return null;
-  }
+  if (!isProblemOption(input.problemDescription)) return null;
 
   const problemOther =
     typeof input.problemOther === "string" ? input.problemOther.trim() : "";
@@ -89,20 +58,12 @@ function validateRecordInput(body: unknown): RecordInput | null {
     physicalItem: normalized.physicalItem,
     physicalSn: normalized.physicalSn,
     rfid: normalized.rfid,
-    problemDescription: input.problemDescription as RecordInput["problemDescription"],
+    problemDescription: input.problemDescription,
     problemOther: input.problemDescription === "Other" ? problemOther : null,
     locator: normalized.locator,
     county: normalized.county,
     sourceTaskId: normalized.sourceTaskId,
   };
-}
-
-function makeLineId(recordDate: string, sequence: number) {
-  return `${recordDate.replaceAll("-", "")}-${String(sequence).padStart(3, "0")}`;
-}
-
-function apiError(message: string, status: number) {
-  return Response.json({ error: message }, { status });
 }
 
 export default async (request: Request) => {
@@ -120,7 +81,12 @@ export default async (request: Request) => {
         .where(eq(dhgRecords.recordDate, date))
         .orderBy(asc(dhgRecords.lineSequence));
 
-      return Response.json({ records });
+      const nextLineId = makeLineId(
+        date,
+        firstFreeSequence(records.map((item) => ({ sequence: item.lineSequence }))),
+      );
+
+      return Response.json({ records, nextLineId });
     }
 
     const from = url.searchParams.get("from");
@@ -163,11 +129,7 @@ export default async (request: Request) => {
         .where(eq(dhgRecords.recordDate, recordDate))
         .orderBy(asc(dhgRecords.lineSequence));
 
-      let lineSequence = 1;
-      for (const item of usedSequences) {
-        if (item.sequence === lineSequence) lineSequence += 1;
-        if (item.sequence > lineSequence) break;
-      }
+      const lineSequence = firstFreeSequence(usedSequences);
 
       const [created] = await transaction
         .insert(dhgRecords)

@@ -2,14 +2,15 @@
 
 :root {
   color-scheme: dark;
-  --ink: #eaf2f1;
+  --ink: #eaf4f7;
   --muted: #8b9b9e;
+  --label: #cfe6ec;
   --base: #101719;
   --surface: #172124;
   --surface-2: #1d292c;
   --line: #314044;
-  --signal: #d6f064;
-  --signal-dark: #1f2a0c;
+  --signal: #22d3ee;
+  --signal-dark: #04232b;
   --danger: #ff887b;
   --success: #77dca4;
 }
@@ -23,9 +24,9 @@ body {
   min-width: 320px;
   min-height: 100vh;
   background:
-    linear-gradient(rgba(214, 240, 100, 0.025) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(214, 240, 100, 0.025) 1px, transparent 1px),
-    radial-gradient(circle at 90% 0%, #213033 0, transparent 34rem),
+    linear-gradient(rgba(34, 211, 238, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(34, 211, 238, 0.03) 1px, transparent 1px),
+    radial-gradient(circle at 90% 0%, #16303a 0, transparent 34rem),
     var(--base);
   background-size: 28px 28px, 28px 28px, auto, auto;
   color: var(--ink);
@@ -144,10 +145,70 @@ h1 {
 .date-button.is-selected { border-color: var(--signal); color: var(--ink); }
 .date-button.is-today { background: var(--signal); color: var(--signal-dark); border-color: var(--signal); }
 
+.workbook { margin-top: 6px; }
+
+.workbook-tabs {
+  display: flex;
+  gap: 4px;
+  margin-inline: -18px;
+  padding-inline: 18px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.workbook-tabs::-webkit-scrollbar { display: none; }
+
+.workbook-tabs button {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 0 16px;
+  border: 1px solid var(--line);
+  border-bottom: 0;
+  border-radius: 6px 6px 0 0;
+  background: #131c1f;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 0.6rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  white-space: nowrap;
+}
+
+/* The active tab sits 2px lower so it covers the sheet rail, Excel style. */
+.workbook-tabs button.is-active {
+  margin-bottom: -2px;
+  padding-bottom: 2px;
+  border-color: var(--signal);
+  background: var(--surface-2);
+  color: var(--signal);
+}
+
+.workbook-tabs button b {
+  display: grid;
+  min-width: 17px;
+  height: 17px;
+  padding: 0 4px;
+  place-items: center;
+  border-radius: 9px;
+  background: var(--success);
+  color: #102019;
+  font-size: 0.48rem;
+}
+
+.workbook-sheet {
+  border-top: 2px solid var(--signal);
+  padding-top: 16px;
+}
+
+.workbook-sheet[hidden] { display: none; }
+
 .view-switch {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  margin: 8px 0 18px;
+  margin: 0 0 18px;
   border: 1px solid var(--line);
   background: var(--surface);
 }
@@ -195,7 +256,7 @@ h1 {
 
 form {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr;
   gap: 1px;
   background: var(--line);
 }
@@ -211,8 +272,8 @@ form {
 .field-wide { grid-column: 1 / -1; }
 
 .field > span {
-  color: var(--muted);
-  font-size: 0.58rem;
+  color: var(--label);
+  font-size: 0.6rem;
   font-weight: 600;
   letter-spacing: 0.11em;
 }
@@ -237,8 +298,80 @@ form {
   box-shadow: inset 3px 0 0 var(--signal);
 }
 
-.field-readonly input { color: var(--muted); border-style: dashed; }
+.field-readonly input {
+  border-style: dashed;
+  color: var(--signal);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+}
 .field-other { box-shadow: inset 3px 0 0 var(--signal); }
+
+.photo-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.photo-slot {
+  display: grid;
+  gap: 8px;
+  padding: 8px;
+  border: 1px dashed #3a4a4e;
+  border-radius: 3px;
+  background: #11191b;
+}
+
+.photo-slot img {
+  width: 100%;
+  height: 118px;
+  border-radius: 2px;
+  background: #0b1113;
+  object-fit: cover;
+}
+
+.photo-empty {
+  display: grid;
+  height: 118px;
+  gap: 6px;
+  place-items: center;
+  color: var(--muted);
+}
+
+.photo-empty svg { width: 26px; fill: none; stroke: currentColor; stroke-width: 1.4; }
+.photo-empty b { font-size: 0.5rem; letter-spacing: 0.12em; }
+
+.photo-actions { display: flex; gap: 6px; }
+
+.photo-actions > * {
+  display: grid;
+  flex: 1;
+  min-height: 32px;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: 2px;
+  background: var(--surface-2);
+  color: var(--ink);
+  cursor: pointer;
+  font-size: 0.54rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+}
+
+.photo-pick { position: relative; overflow: hidden; }
+
+.photo-pick input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.photo-actions button { border-color: #74483f; color: var(--danger); }
 
 .form-actions {
   display: flex;
@@ -280,9 +413,73 @@ form {
 
 .record-list { display: grid; gap: 1px; background: var(--line); }
 
+.saved-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--line);
+  background: var(--surface-2);
+}
+
+.select-all {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  color: var(--label);
+  cursor: pointer;
+  font-size: 0.56rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+}
+
+input[type="checkbox"] {
+  width: 17px;
+  height: 17px;
+  accent-color: var(--signal);
+  cursor: pointer;
+}
+
+.download-button {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 38px;
+  padding: 0 14px;
+  border: 1px solid var(--signal);
+  border-radius: 2px;
+  background: var(--signal);
+  color: var(--signal-dark);
+  cursor: pointer;
+  font-size: 0.58rem;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  white-space: nowrap;
+}
+
+.download-button svg { width: 16px; fill: none; stroke: currentColor; stroke-width: 2; }
+
+.download-button:disabled {
+  border-color: var(--line);
+  background: transparent;
+  color: var(--muted);
+  cursor: not-allowed;
+}
+
+.toolbar-hint {
+  margin: 0;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--muted);
+  font-size: 0.58rem;
+  line-height: 1.5;
+}
+
 .record-row {
   display: grid;
-  grid-template-columns: 1fr 1fr auto;
+  grid-template-columns: 1fr 1fr 1fr auto;
   align-items: center;
   gap: 12px;
   min-width: 0;
@@ -290,11 +487,61 @@ form {
   background: var(--surface);
 }
 
-.record-row div { display: grid; gap: 4px; min-width: 0; }
-.record-row div span { color: var(--muted); font-size: 0.52rem; letter-spacing: 0.1em; }
-.record-row strong { overflow: hidden; font-size: 0.73rem; text-overflow: ellipsis; white-space: nowrap; }
-.record-row button { border: 0; background: transparent; color: var(--signal); cursor: pointer; font-size: 0.6rem; font-weight: 600; }
-.record-row button span { font-size: 1rem; }
+.request-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px 14px;
+  min-width: 0;
+  padding: 14px;
+  background: var(--surface);
+}
+
+.request-row.is-selected { box-shadow: inset 3px 0 0 var(--signal); }
+
+.row-select { grid-column: 1; grid-row: 1 / 3; display: flex; }
+.request-row .cell-line { grid-column: 2; grid-row: 1; }
+.request-row .cell-task { grid-column: 3; grid-row: 1; }
+.request-row .cell-item { grid-column: 2; grid-row: 2; }
+.request-row .cell-sn { grid-column: 3; grid-row: 2; }
+.request-row .row-photos { grid-column: 4; grid-row: 1; justify-self: end; }
+.request-row > button { grid-column: 4; grid-row: 2; justify-self: end; }
+
+.record-row div, .request-row div { display: grid; gap: 4px; min-width: 0; }
+
+.record-row div span, .request-row div span {
+  color: var(--muted);
+  font-size: 0.52rem;
+  letter-spacing: 0.1em;
+}
+
+.record-row strong, .request-row strong {
+  overflow: hidden;
+  font-size: 0.73rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.record-row button, .request-row > button {
+  border: 0;
+  background: transparent;
+  color: var(--signal);
+  cursor: pointer;
+  font-size: 0.6rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.record-row button span, .request-row > button span { font-size: 1rem; }
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
 
 .empty-state { padding: 48px 22px; text-align: center; }
 .empty-state svg { width: 48px; fill: none; stroke: var(--muted); stroke-width: 1.2; }
@@ -310,11 +557,24 @@ button:focus-visible { outline: 2px solid var(--signal); outline-offset: 3px; }
 @media (max-width: 560px) {
   .app-shell { padding: 18px 14px 48px; }
   .date-strip { margin-inline: -14px; padding-inline: 14px; }
-  form { grid-template-columns: 1fr; }
+  .workbook-tabs { margin-inline: -14px; padding-inline: 14px; }
   .field-wide { grid-column: auto; }
+
   .record-row { grid-template-columns: minmax(0, 1fr) auto; }
-  .record-row div:nth-child(2) { grid-column: 1; }
-  .record-row button { grid-column: 2; grid-row: 1 / 3; }
+  .record-row div { grid-column: 1; }
+  .record-row button { grid-column: 2; grid-row: 1 / 4; align-self: center; }
+
+  .request-row { grid-template-columns: auto minmax(0, 1fr) auto; }
+  .row-select { grid-row: 1 / 6; align-self: center; }
+  .request-row .cell-line { grid-column: 2; grid-row: 1; }
+  .request-row .cell-task { grid-column: 2; grid-row: 2; }
+  .request-row .cell-item { grid-column: 2; grid-row: 3; }
+  .request-row .cell-sn { grid-column: 2; grid-row: 4; }
+  .request-row .row-photos { grid-column: 2; grid-row: 5; justify-self: start; }
+  .request-row > button { grid-column: 3; grid-row: 1 / 6; align-self: center; }
+
+  .saved-toolbar { flex-direction: column; align-items: stretch; }
+  .download-button { justify-content: center; }
   .form-actions { flex-direction: column-reverse; }
   .save-button, .delete-button { justify-content: center; width: 100%; }
 }
