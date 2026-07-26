@@ -486,6 +486,7 @@ input[type="checkbox"] {
 .request-row .cell-task { grid-column: 3; grid-row: 1; }
 .request-row .cell-item { grid-column: 2; grid-row: 2; }
 .request-row .cell-sn { grid-column: 3; grid-row: 2; }
+.request-row .cell-rfid { grid-column: 2 / 4; grid-row: 3; }
 .request-row .row-photos { grid-column: 4; grid-row: 1; justify-self: end; }
 .request-row > button { grid-column: 4; grid-row: 2; justify-self: end; }
 
@@ -547,13 +548,14 @@ button:focus-visible { outline: 2px solid var(--signal); outline-offset: 3px; }
   .record-row button { grid-column: 2; grid-row: 1 / 4; align-self: center; }
 
   .request-row { grid-template-columns: auto minmax(0, 1fr) auto; }
-  .row-select { grid-row: 1 / 6; align-self: center; }
+  .row-select { grid-row: 1 / 7; align-self: center; }
   .request-row .cell-line { grid-column: 2; grid-row: 1; }
   .request-row .cell-task { grid-column: 2; grid-row: 2; }
   .request-row .cell-item { grid-column: 2; grid-row: 3; }
   .request-row .cell-sn { grid-column: 2; grid-row: 4; }
-  .request-row .row-photos { grid-column: 2; grid-row: 5; justify-self: start; }
-  .request-row > button { grid-column: 3; grid-row: 1 / 6; align-self: center; }
+  .request-row .cell-rfid { grid-column: 2; grid-row: 5; }
+  .request-row .row-photos { grid-column: 2; grid-row: 6; justify-self: start; }
+  .request-row > button { grid-column: 3; grid-row: 1 / 7; align-self: center; }
 
   .saved-toolbar { flex-direction: column; align-items: stretch; }
   .download-button { justify-content: center; }

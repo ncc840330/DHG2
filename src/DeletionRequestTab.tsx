@@ -34,6 +34,7 @@ type DeletionRequest = {
   sourceTaskId: string;
   systemItem: string;
   systemSn: string;
+  rfid: string;
   problemDescription: string;
   problemOther: string | null;
   images: RequestImage[];
@@ -43,6 +44,7 @@ type FormValues = {
   sourceTaskId: string;
   systemItem: string;
   systemSn: string;
+  rfid: string;
   problemDescription: string;
   problemOther: string | null;
 };
@@ -62,6 +64,7 @@ const EMPTY_FORM: FormValues = {
   sourceTaskId: "",
   systemItem: "",
   systemSn: "",
+  rfid: "",
   problemDescription: "",
   problemOther: null,
 };
@@ -277,6 +280,7 @@ export default function DeletionRequestTab({
     payload.set("sourceTaskId", formValues.sourceTaskId);
     payload.set("systemItem", formValues.systemItem);
     payload.set("systemSn", formValues.systemSn);
+    payload.set("rfid", formValues.rfid);
     payload.set("problemDescription", formValues.problemDescription);
     payload.set("problemOther", formValues.problemOther ?? "");
 
@@ -337,6 +341,7 @@ export default function DeletionRequestTab({
       sourceTaskId: record.sourceTaskId,
       systemItem: record.systemItem,
       systemSn: record.systemSn,
+      rfid: record.rfid,
       problemDescription: record.problemDescription,
       problemOther: record.problemOther,
     });
@@ -486,6 +491,10 @@ export default function DeletionRequestTab({
               <input required autoComplete="off" value={formValues.systemSn} onChange={(event) => updateField("systemSn", event.target.value)} />
             </label>
             <label className="field">
+              <span>RFID <small>SCAN OR TYPE</small></span>
+              <input required autoComplete="off" value={formValues.rfid} onChange={(event) => updateField("rfid", event.target.value)} />
+            </label>
+            <label className="field">
               <span>PROBLEM DESCRIPTION</span>
               <select required value={formValues.problemDescription} onChange={(event) => updateField("problemDescription", event.target.value)}>
                 <option value="" disabled>Select a problem</option>
@@ -592,8 +601,7 @@ export default function DeletionRequestTab({
             <div className="empty-state">
               <svg aria-hidden="true" viewBox="0 0 48 48"><path d="M14 8h20v32H14zM19 17h10M19 24h10M19 31h6" /></svg>
               <h3>No deletion requests</h3>
-              <p>Create the first deletion request for this work date.</p>
-              <button type="button" onClick={() => setView("add")}>ADD REQUEST</button>
+              <p>Switch to ADD REQUEST to create the first deletion request for this work date.</p>
             </div>
           ) : (
             <div className="record-list">
@@ -614,6 +622,7 @@ export default function DeletionRequestTab({
                   <div className="cell-task"><span>SOURCE TASK ID</span><strong>{record.sourceTaskId}</strong></div>
                   <div className="cell-item"><span>SYSTEM ITEM</span><strong>{record.systemItem}</strong></div>
                   <div className="cell-sn"><span>SYSTEM SN</span><strong>{record.systemSn}</strong></div>
+                  <div className="cell-rfid"><span>RFID</span><strong>{record.rfid}</strong></div>
                   <div className="row-photos">
                     <span>PHOTOS</span>
                     <strong>{record.images.length}/2</strong>

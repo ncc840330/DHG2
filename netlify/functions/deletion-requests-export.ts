@@ -12,6 +12,7 @@ const SHEET_COLUMNS = [
   "Source Task ID",
   "System Item",
   "System SN",
+  "RFID",
   "Problem Description",
 ];
 
@@ -47,6 +48,7 @@ function buildWorkbook(records: ExportRecord[]) {
       record.sourceTaskId,
       record.systemItem,
       record.systemSn,
+      record.rfid,
       describeProblem(record),
     ]),
   ];
@@ -56,6 +58,7 @@ function buildWorkbook(records: ExportRecord[]) {
     { wch: 16 },
     { wch: 20 },
     { wch: 26 },
+    { wch: 22 },
     { wch: 22 },
     { wch: 34 },
   ];
