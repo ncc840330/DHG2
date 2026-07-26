@@ -8,15 +8,15 @@ import {
   useRef,
   useState,
 } from "react";
+import SavedToolbar from "./SavedToolbar";
 import {
+  downloadArchive,
   focusNextControl,
+  formatDateKey,
   getErrorMessage,
-  makeLineId,
   PROBLEM_OPTIONS,
-  RecordCount,
   TabProps,
-  toCountMap,
-  View,
+  useSelection,
 } from "./lib";
 
 type RequestImage = {
@@ -101,45 +101,28 @@ async function prepareImage(file: File) {
   }
 }
 
-function readFileName(header: string | null) {
-  if (!header) return null;
-
-  const encoded = /filename\*=UTF-8''([^;]+)/i.exec(header);
-  if (encoded) {
-    try {
-      return decodeURIComponent(encoded[1]);
-    } catch {
-      // Fall back to the plain filename below.
-    }
-  }
-
-  const plain = /filename="([^"]+)"/i.exec(header);
-  return plain ? plain[1] : null;
-}
-
 function slotPreview(slot: PhotoSlot) {
   if (slot.kind === "new") return slot.previewUrl;
   if (slot.kind === "existing") return `/api/deletion-request-image?id=${slot.imageId}`;
   return null;
 }
 
+/**
+ * Requests are not created here: every saved DHG record already seeded one with
+ * the same Line ID. This tab lists them and lets a saved request be refined —
+ * mostly by attaching the photos that back the deletion.
+ */
 export default function DeletionRequestTab({
   isActive,
-  selectedDate,
-  rangeFrom,
-  rangeTo,
+  workDate,
   refreshToken,
-  onCounts,
+  onCount,
   onSynced,
 }: TabProps) {
-  const [view, setView] = useState<View>("add");
   const [records, setRecords] = useState<DeletionRequest[]>([]);
-  const [nextLineId, setNextLineId] = useState("");
-  const [savedCount, setSavedCount] = useState(0);
   const [formValues, setFormValues] = useState<FormValues>(EMPTY_FORM);
   const [photoSlots, setPhotoSlots] = useState<PhotoSlot[]>(EMPTY_SLOTS);
   const [editingRecord, setEditingRecord] = useState<DeletionRequest | null>(null);
-  const [selectedIds, setSelectedIds] = useState<number[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
@@ -147,8 +130,8 @@ export default function DeletionRequestTab({
   const [error, setError] = useState("");
   const formRef = useRef<HTMLFormElement>(null);
   const firstFieldRef = useRef<HTMLInputElement>(null);
-  const selectAllRef = useRef<HTMLInputElement>(null);
   const previewUrls = useRef<string[]>([]);
+  const { selectedIds, allSelected, toggle, toggleAll } = useSelection(records);
 
   const trackPreview = useCallback((url: string) => {
     previewUrls.current.push(url);
@@ -163,43 +146,29 @@ export default function DeletionRequestTab({
     [],
   );
 
-  const loadCounts = useCallback(async () => {
-    const response = await fetch(
-      `/api/deletion-requests?from=${rangeFrom}&to=${rangeTo}`,
-    );
-    if (!response.ok) throw new Error("A napi kérelmek betöltése sikertelen.");
+  const loadRecords = useCallback(
+    async (date: string) => {
+      const response = await fetch(`/api/deletion-requests?date=${date}`);
+      if (!response.ok) throw new Error("A mentett kérelmek betöltése sikertelen.");
 
-    const data = (await response.json()) as { counts: RecordCount[] };
-    onCounts(toCountMap(data.counts));
-  }, [rangeFrom, rangeTo, onCounts]);
-
-  const loadRecords = useCallback(async (date: string) => {
-    const response = await fetch(`/api/deletion-requests?date=${date}`);
-    if (!response.ok) throw new Error("A mentett kérelmek betöltése sikertelen.");
-
-    const data = (await response.json()) as {
-      records: DeletionRequest[];
-      nextLineId?: string;
-    };
-    setRecords(data.records);
-    setSavedCount(data.records.length);
-    setNextLineId(data.nextLineId ?? makeLineId(date, data.records.length + 1));
-    setSelectedIds((current) =>
-      current.filter((id) => data.records.some((record) => record.id === id)),
-    );
-  }, []);
+      const data = (await response.json()) as { records: DeletionRequest[] };
+      setRecords(data.records);
+      onCount(data.records.length);
+    },
+    [onCount],
+  );
 
   const refreshData = useCallback(async () => {
     setError("");
     try {
-      await Promise.all([loadCounts(), loadRecords(selectedDate)]);
+      await loadRecords(workDate);
       onSynced();
     } catch (loadError) {
       setError(getErrorMessage(loadError, "Ismeretlen betöltési hiba történt."));
     } finally {
       setIsLoading(false);
     }
-  }, [loadCounts, loadRecords, selectedDate, onSynced]);
+  }, [loadRecords, workDate, onSynced]);
 
   useEffect(() => {
     if (!isActive) return;
@@ -211,25 +180,6 @@ export default function DeletionRequestTab({
     const interval = window.setInterval(refreshData, 120_000);
     return () => window.clearInterval(interval);
   }, [isActive, refreshData]);
-
-  useEffect(() => {
-    setEditingRecord(null);
-    setFormValues(EMPTY_FORM);
-    setPhotoSlots(EMPTY_SLOTS);
-    setNextLineId("");
-    setSelectedIds([]);
-    setMessage("");
-    setError("");
-  }, [selectedDate]);
-
-  const allSelected = records.length > 0 && selectedIds.length === records.length;
-
-  useEffect(() => {
-    if (selectAllRef.current) {
-      selectAllRef.current.indeterminate =
-        selectedIds.length > 0 && !allSelected;
-    }
-  }, [selectedIds, allSelected]);
 
   const updateField = (field: keyof FormValues, value: string) => {
     setFormValues((current) => ({ ...current, [field]: value }));
@@ -293,44 +243,6 @@ export default function DeletionRequestTab({
     return payload;
   };
 
-  const saveRecord = async (event: FormEvent) => {
-    event.preventDefault();
-    setIsSaving(true);
-    setError("");
-    setMessage("");
-
-    try {
-      const payload = buildPayload();
-      if (!editingRecord) payload.set("recordDate", selectedDate);
-
-      const response = await fetch(
-        editingRecord
-          ? `/api/deletion-requests?id=${editingRecord.id}`
-          : "/api/deletion-requests",
-        { method: editingRecord ? "PUT" : "POST", body: payload },
-      );
-
-      if (!response.ok) throw new Error("A kérelem mentése sikertelen.");
-      const data = (await response.json()) as { record: DeletionRequest };
-
-      setMessage(
-        editingRecord
-          ? `${data.record.lineId} sikeresen módosítva.`
-          : `${data.record.lineId} sikeresen elmentve.`,
-      );
-      setEditingRecord(null);
-      setFormValues(EMPTY_FORM);
-      setPhotoSlots(EMPTY_SLOTS);
-      await Promise.all([loadCounts(), loadRecords(selectedDate)]);
-      onSynced();
-      window.requestAnimationFrame(() => firstFieldRef.current?.focus());
-    } catch (saveError) {
-      setError(getErrorMessage(saveError, "Ismeretlen mentési hiba történt."));
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
   const editRecord = (record: DeletionRequest) => {
     setEditingRecord(record);
     setFormValues({
@@ -348,48 +260,44 @@ export default function DeletionRequestTab({
           : ({ kind: "empty" } as PhotoSlot);
       }),
     );
-    setView("add");
     setMessage("");
     setError("");
     window.requestAnimationFrame(() => firstFieldRef.current?.focus());
   };
 
-  const deleteRecord = async () => {
+  const closeEditor = () => {
+    setEditingRecord(null);
+    setFormValues(EMPTY_FORM);
+    setPhotoSlots(EMPTY_SLOTS);
+    setError("");
+  };
+
+  const saveRecord = async (event: FormEvent) => {
+    event.preventDefault();
     if (!editingRecord) return;
-    if (!window.confirm(`Biztosan törlöd ezt a kérelmet: ${editingRecord.lineId}?`)) return;
 
     setIsSaving(true);
     setError("");
-    try {
-      const response = await fetch(`/api/deletion-requests?id=${editingRecord.id}`, {
-        method: "DELETE",
-      });
-      if (!response.ok) throw new Error("A kérelem törlése sikertelen.");
+    setMessage("");
 
-      setEditingRecord(null);
-      setFormValues(EMPTY_FORM);
-      setPhotoSlots(EMPTY_SLOTS);
-      setMessage("A kérelem törölve. A felszabadult Line ID ismét kiosztható.");
-      await Promise.all([loadCounts(), loadRecords(selectedDate)]);
+    try {
+      const response = await fetch(
+        `/api/deletion-requests?id=${editingRecord.id}`,
+        { method: "PUT", body: buildPayload() },
+      );
+
+      if (!response.ok) throw new Error("A kérelem mentése sikertelen.");
+      const data = (await response.json()) as { record: DeletionRequest };
+
+      setMessage(`${data.record.lineId} sikeresen módosítva.`);
+      closeEditor();
+      await loadRecords(workDate);
       onSynced();
-      setView("saved");
-    } catch (deleteError) {
-      setError(getErrorMessage(deleteError, "Ismeretlen törlési hiba történt."));
+    } catch (saveError) {
+      setError(getErrorMessage(saveError, "Ismeretlen mentési hiba történt."));
     } finally {
       setIsSaving(false);
     }
-  };
-
-  const toggleSelected = (id: number) => {
-    setSelectedIds((current) =>
-      current.includes(id)
-        ? current.filter((item) => item !== id)
-        : [...current, id],
-    );
-  };
-
-  const toggleSelectAll = () => {
-    setSelectedIds(allSelected ? [] : records.map((record) => record.id));
   };
 
   const selectedTaskCount = useMemo(() => {
@@ -407,27 +315,11 @@ export default function DeletionRequestTab({
     setMessage("");
 
     try {
-      const response = await fetch("/api/deletion-requests/export", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ids: selectedIds }),
-      });
-      if (!response.ok) throw new Error("A letöltés sikertelen.");
-
-      const archive = await response.blob();
-      const fileName =
-        readFileName(response.headers.get("Content-Disposition")) ??
-        "deletion-requests.zip";
-
-      const url = URL.createObjectURL(archive);
-      const anchor = document.createElement("a");
-      anchor.href = url;
-      anchor.download = fileName;
-      document.body.appendChild(anchor);
-      anchor.click();
-      anchor.remove();
-      URL.revokeObjectURL(url);
-
+      const fileName = await downloadArchive(
+        "/api/deletion-requests/export",
+        selectedIds,
+        "deletion-requests.zip",
+      );
       setMessage(`${fileName} letöltve (${selectedIds.length} kérelem).`);
     } catch (downloadError) {
       setError(getErrorMessage(downloadError, "Ismeretlen letöltési hiba történt."));
@@ -440,38 +332,36 @@ export default function DeletionRequestTab({
     <>
       <nav className="view-switch" aria-label="Deletion request views">
         <button
-          className={view === "add" ? "is-active" : ""}
+          className={editingRecord ? "" : "is-active"}
           type="button"
-          onClick={() => setView("add")}
+          onClick={closeEditor}
         >
-          <span>01</span> ADD REQUEST
+          <span>01</span> SAVED REQUESTS <b>{records.length}</b>
         </button>
-        <button
-          className={view === "saved" ? "is-active" : ""}
-          type="button"
-          onClick={() => setView("saved")}
-        >
-          <span>02</span> SAVED REQUESTS <b>{savedCount}</b>
-        </button>
+        {editingRecord && (
+          <button className="is-active" type="button" aria-current="true">
+            <span>02</span> MODIFY {editingRecord.lineId}
+          </button>
+        )}
       </nav>
 
       {message && <p className="status-message success-message">{message}</p>}
       {error && <p className="status-message error-message">{error}</p>}
 
-      {view === "add" ? (
+      {editingRecord ? (
         <section className="form-panel">
           <div className="panel-heading">
             <div>
-              <p>{editingRecord ? "MODIFY REQUEST" : "NEW DELETION REQUEST"}</p>
-              <h2>{editingRecord?.lineId ?? nextLineId}</h2>
+              <p>MODIFY REQUEST</p>
+              <h2>{editingRecord.lineId}</h2>
             </div>
-            <span>{selectedDate.split("-").join(".")}</span>
+            <span>{formatDateKey(workDate)}</span>
           </div>
 
           <form ref={formRef} onSubmit={saveRecord} onKeyDown={handleScannerEnter}>
             <label className="field field-readonly">
-              <span>LINE ID</span>
-              <input value={editingRecord?.lineId ?? nextLineId} readOnly />
+              <span>LINE ID <small>FROM THE DHG RECORD</small></span>
+              <input value={editingRecord.lineId} readOnly />
             </label>
             <label className="field">
               <span>SOURCE TASK ID</span>
@@ -536,11 +426,11 @@ export default function DeletionRequestTab({
             </div>
 
             <div className="form-actions">
-              {editingRecord && (
-                <button className="delete-button" type="button" disabled={isSaving} onClick={deleteRecord}>DELETE</button>
-              )}
+              <button className="cancel-button" type="button" disabled={isSaving} onClick={closeEditor}>
+                BACK TO LIST
+              </button>
               <button className="save-button" type="submit" disabled={isSaving}>
-                {isSaving ? "SAVING…" : editingRecord ? "SAVE CHANGES" : "SAVE REQUEST"}
+                {isSaving ? "SAVING…" : "SAVE CHANGES"}
                 <svg aria-hidden="true" viewBox="0 0 24 24"><path d="m5 12 4 4L19 6" /></svg>
               </button>
             </div>
@@ -549,35 +439,18 @@ export default function DeletionRequestTab({
       ) : (
         <section className="saved-panel">
           <div className="panel-heading">
-            <div><p>DELETION REQUESTS</p><h2>{selectedDate.split("-").join(".")}</h2></div>
+            <div><p>DELETION REQUESTS</p><h2>{formatDateKey(workDate)}</h2></div>
             <span>{records.length} SAVED</span>
           </div>
 
           {records.length > 0 && (
-            <div className="saved-toolbar">
-              <label className="select-all">
-                <input
-                  ref={selectAllRef}
-                  type="checkbox"
-                  checked={allSelected}
-                  onChange={toggleSelectAll}
-                />
-                <span>SELECT ALL</span>
-              </label>
-              <button
-                className="download-button"
-                type="button"
-                disabled={selectedIds.length === 0 || isDownloading}
-                onClick={downloadSelected}
-              >
-                <svg aria-hidden="true" viewBox="0 0 24 24">
-                  <path d="M12 4v10m0 0 4-4m-4 4-4-4M5 19h14" />
-                </svg>
-                {isDownloading
-                  ? "BUILDING ZIP…"
-                  : `DOWNLOAD ${selectedIds.length ? `(${selectedIds.length})` : ""}`}
-              </button>
-            </div>
+            <SavedToolbar
+              selectedCount={selectedIds.length}
+              allSelected={allSelected}
+              isDownloading={isDownloading}
+              onToggleAll={toggleAll}
+              onDownload={downloadSelected}
+            />
           )}
 
           {selectedTaskCount > 1 && (
@@ -592,8 +465,7 @@ export default function DeletionRequestTab({
             <div className="empty-state">
               <svg aria-hidden="true" viewBox="0 0 48 48"><path d="M14 8h20v32H14zM19 17h10M19 24h10M19 31h6" /></svg>
               <h3>No deletion requests</h3>
-              <p>Create the first deletion request for this work date.</p>
-              <button type="button" onClick={() => setView("add")}>ADD REQUEST</button>
+              <p>Every saved DHG record shows up here with the same Line ID, ready to be modified.</p>
             </div>
           ) : (
             <div className="record-list">
@@ -606,7 +478,7 @@ export default function DeletionRequestTab({
                     <input
                       type="checkbox"
                       checked={selectedIds.includes(record.id)}
-                      onChange={() => toggleSelected(record.id)}
+                      onChange={() => toggle(record.id)}
                     />
                     <span className="visually-hidden">Select {record.lineId}</span>
                   </label>

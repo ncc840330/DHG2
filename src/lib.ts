@@ -1,3 +1,5 @@
+import { useCallback, useEffect, useState } from "react";
+
 export const PROBLEM_OPTIONS = [
   "Item Discrepancy",
   "SN Discrepancy",
@@ -12,22 +14,13 @@ export const PROBLEM_OPTIONS = [
   "Other",
 ];
 
-export const DAY_OFFSETS = Array.from({ length: 15 }, (_, index) => index - 14);
-
 export type View = "add" | "saved";
-
-export type RecordCount = {
-  date: string;
-  count: number;
-};
 
 export type TabProps = {
   isActive: boolean;
-  selectedDate: string;
-  rangeFrom: string;
-  rangeTo: string;
+  workDate: string;
   refreshToken: number;
-  onCounts: (counts: Record<string, number>) => void;
+  onCount: (count: number) => void;
   onSynced: () => void;
 };
 
@@ -45,11 +38,8 @@ export function getDateKey(date: Date) {
   return `${year}-${month}-${day}`;
 }
 
-export function formatShortDate(date: Date) {
-  const year = String(date.getFullYear()).slice(-2);
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  return `${year}.${month}.${day}`;
+export function formatDateKey(dateKey: string) {
+  return dateKey.split("-").join(".");
 }
 
 export function getErrorMessage(error: unknown, fallback: string) {
@@ -58,10 +48,6 @@ export function getErrorMessage(error: unknown, fallback: string) {
 
 export function makeLineId(dateKey: string, sequence: number) {
   return `${dateKey.split("-").join("")}-${String(sequence).padStart(3, "0")}`;
-}
-
-export function toCountMap(counts: RecordCount[]) {
-  return Object.fromEntries(counts.map((item) => [item.date, item.count]));
 }
 
 /**
@@ -92,4 +78,83 @@ export function focusNextControl(
   }
 
   form?.querySelector<HTMLButtonElement>(".save-button")?.focus();
+}
+
+/** Row selection for the saved sheets: pick a few rows, or tick them all. */
+export function useSelection(records: { id: number }[]) {
+  const [selectedIds, setSelectedIds] = useState<number[]>([]);
+  const allSelected = records.length > 0 && selectedIds.length === records.length;
+
+  useEffect(() => {
+    setSelectedIds((current) => {
+      const next = current.filter((id) =>
+        records.some((record) => record.id === id),
+      );
+      return next.length === current.length ? current : next;
+    });
+  }, [records]);
+
+  const toggle = useCallback((id: number) => {
+    setSelectedIds((current) =>
+      current.includes(id)
+        ? current.filter((item) => item !== id)
+        : [...current, id],
+    );
+  }, []);
+
+  const toggleAll = useCallback(() => {
+    setSelectedIds(allSelected ? [] : records.map((record) => record.id));
+  }, [allSelected, records]);
+
+  const clear = useCallback(() => setSelectedIds([]), []);
+
+  return { selectedIds, allSelected, toggle, toggleAll, clear };
+}
+
+function readFileName(header: string | null) {
+  if (!header) return null;
+
+  const encoded = /filename\*=UTF-8''([^;]+)/i.exec(header);
+  if (encoded) {
+    try {
+      return decodeURIComponent(encoded[1]);
+    } catch {
+      // Fall back to the plain filename below.
+    }
+  }
+
+  const plain = /filename="([^"]+)"/i.exec(header);
+  return plain ? plain[1] : null;
+}
+
+/**
+ * Asks the export endpoint for the selected rows and hands the archive to the
+ * browser. Returns the file name so the caller can confirm it on screen.
+ */
+export async function downloadArchive(
+  endpoint: string,
+  ids: number[],
+  fallbackName: string,
+) {
+  const response = await fetch(endpoint, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ids }),
+  });
+  if (!response.ok) throw new Error("A letöltés sikertelen.");
+
+  const archive = await response.blob();
+  const fileName =
+    readFileName(response.headers.get("Content-Disposition")) ?? fallbackName;
+
+  const url = URL.createObjectURL(archive);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = fileName;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  URL.revokeObjectURL(url);
+
+  return fileName;
 }

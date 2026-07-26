@@ -1,9 +1,18 @@
-import { and, asc, eq, gte, lte, sql } from "drizzle-orm";
+import { asc, eq, sql } from "drizzle-orm";
 import { db } from "../../db/index.js";
 import { dhgRecords } from "../../db/schema.js";
 import {
+  discardBlobs,
+  removeDeletionRequest,
+  seedDeletionRequest,
+} from "../shared/deletion-requests.js";
+import {
+  lineIdLockKey,
+  nextLineId,
+  nextLineSequence,
+} from "../shared/line-ids.js";
+import {
   apiError,
-  firstFreeSequence,
   isProblemOption,
   isValidDateKey,
   makeLineId,
@@ -81,32 +90,11 @@ export default async (request: Request) => {
         .where(eq(dhgRecords.recordDate, date))
         .orderBy(asc(dhgRecords.lineSequence));
 
-      const nextLineId = makeLineId(
-        date,
-        firstFreeSequence(records.map((item) => ({ sequence: item.lineSequence }))),
-      );
-
-      return Response.json({ records, nextLineId });
+      return Response.json({
+        records,
+        nextLineId: await nextLineId(db, date),
+      });
     }
-
-    const from = url.searchParams.get("from");
-    const to = url.searchParams.get("to");
-
-    if (!isValidDateKey(from) || !isValidDateKey(to) || from > to) {
-      return apiError("Invalid date range.", 400);
-    }
-
-    const counts = await db
-      .select({
-        date: dhgRecords.recordDate,
-        count: sql<number>`count(*)::int`,
-      })
-      .from(dhgRecords)
-      .where(and(gte(dhgRecords.recordDate, from), lte(dhgRecords.recordDate, to)))
-      .groupBy(dhgRecords.recordDate)
-      .orderBy(dhgRecords.recordDate);
-
-    return Response.json({ counts });
   }
 
   if (request.method === "POST") {
@@ -120,26 +108,29 @@ export default async (request: Request) => {
 
     const record = await db.transaction(async (transaction) => {
       await transaction.execute(
-        sql`select pg_advisory_xact_lock(hashtext(${recordDate}))`,
+        sql`select pg_advisory_xact_lock(hashtext(${lineIdLockKey(recordDate)}))`,
       );
 
-      const usedSequences = await transaction
-        .select({ sequence: dhgRecords.lineSequence })
-        .from(dhgRecords)
-        .where(eq(dhgRecords.recordDate, recordDate))
-        .orderBy(asc(dhgRecords.lineSequence));
-
-      const lineSequence = firstFreeSequence(usedSequences);
+      const lineSequence = await nextLineSequence(transaction, recordDate);
+      const lineId = makeLineId(recordDate, lineSequence);
 
       const [created] = await transaction
         .insert(dhgRecords)
-        .values({
-          recordDate,
-          lineSequence,
-          lineId: makeLineId(recordDate, lineSequence),
-          ...input,
-        })
+        .values({ recordDate, lineSequence, lineId, ...input })
         .returning();
+
+      // The counterpart request is created up front so both sheets always agree
+      // on the Line ID; it is refined later on the deletion request tab.
+      await seedDeletionRequest(transaction, {
+        recordDate,
+        lineSequence,
+        lineId,
+        sourceTaskId: input.sourceTaskId,
+        systemItem: input.systemItem,
+        systemSn: input.systemSn,
+        problemDescription: input.problemDescription,
+        problemOther: input.problemOther,
+      });
 
       return created;
     });
@@ -168,12 +159,22 @@ export default async (request: Request) => {
     const id = parseId(url.searchParams.get("id"));
     if (!id) return apiError("Invalid record id.", 400);
 
-    const [record] = await db
-      .delete(dhgRecords)
-      .where(eq(dhgRecords.id, id))
-      .returning({ id: dhgRecords.id });
+    const orphanedBlobs = await db.transaction(async (transaction) => {
+      const [record] = await transaction
+        .delete(dhgRecords)
+        .where(eq(dhgRecords.id, id))
+        .returning({ lineId: dhgRecords.lineId });
 
-    if (!record) return apiError("Record not found.", 404);
+      if (!record) return null;
+
+      // Deleting the record frees its Line ID, so the counterpart request goes
+      // with it instead of blocking that number from being handed out again.
+      return removeDeletionRequest(transaction, record.lineId);
+    });
+
+    if (!orphanedBlobs) return apiError("Record not found.", 404);
+
+    await discardBlobs(orphanedBlobs);
     return new Response(null, { status: 204 });
   }
 

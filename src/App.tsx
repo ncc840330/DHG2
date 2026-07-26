@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import DeletionRequestTab from "./DeletionRequestTab";
 import DhgTab from "./DhgTab";
-import { DAY_OFFSETS, formatShortDate, getDate, getDateKey } from "./lib";
+import { getDate, getDateKey } from "./lib";
 import "./styles.css";
 
 type Sheet = "dhg" | "deletion";
@@ -12,48 +12,27 @@ const SHEETS: { id: Sheet; label: string }[] = [
 ];
 
 export default function App() {
-  const dates = useMemo(
-    () => DAY_OFFSETS.map((offset) => ({ date: getDate(offset) })),
-    [],
-  );
-  const todayKey = getDateKey(getDate());
-  const firstDateKey = getDateKey(dates[0].date);
+  // Everything is filed against today; there is no work date to pick anymore.
+  const workDate = useMemo(() => getDateKey(getDate()), []);
   const [activeSheet, setActiveSheet] = useState<Sheet>("dhg");
-  const [selectedDate, setSelectedDate] = useState(todayKey);
-  const [counts, setCounts] = useState<Record<Sheet, Record<string, number>>>({
-    dhg: {},
-    deletion: {},
+  const [counts, setCounts] = useState<Record<Sheet, number>>({
+    dhg: 0,
+    deletion: 0,
   });
   const [refreshToken, setRefreshToken] = useState(0);
   const [lastSync, setLastSync] = useState(() => new Date());
-  const todayButtonRef = useRef<HTMLButtonElement>(null);
-  const dateStripRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    const dateStrip = dateStripRef.current;
-    if (dateStrip) dateStrip.scrollLeft = dateStrip.scrollWidth;
-    todayButtonRef.current?.focus({ preventScroll: true });
+  const handleDhgCount = useCallback((count: number) => {
+    setCounts((current) => ({ ...current, dhg: count }));
   }, []);
 
-  const handleDhgCounts = useCallback((next: Record<string, number>) => {
-    setCounts((current) => ({ ...current, dhg: next }));
-  }, []);
-
-  const handleDeletionCounts = useCallback((next: Record<string, number>) => {
-    setCounts((current) => ({ ...current, deletion: next }));
+  const handleDeletionCount = useCallback((count: number) => {
+    setCounts((current) => ({ ...current, deletion: count }));
   }, []);
 
   const handleSynced = useCallback(() => setLastSync(new Date()), []);
 
-  const activeCounts = counts[activeSheet];
-
-  const tabProps = {
-    selectedDate,
-    rangeFrom: firstDateKey,
-    rangeTo: todayKey,
-    refreshToken,
-    onSynced: handleSynced,
-  };
+  const tabProps = { workDate, refreshToken, onSynced: handleSynced };
 
   return (
     <main className="app-shell">
@@ -78,30 +57,6 @@ export default function App() {
         </button>
       </header>
 
-      <section className="date-section" aria-label="Date selector">
-        <div className="section-label"><span>WORK DATE</span><i /></div>
-        <div className="date-strip" ref={dateStripRef}>
-          {dates.map(({ date }) => {
-            const dateKey = getDateKey(date);
-            const isToday = dateKey === todayKey;
-            const isSelected = dateKey === selectedDate;
-            return (
-              <button
-                key={dateKey}
-                ref={isToday ? todayButtonRef : undefined}
-                className={`date-button ${isSelected ? "is-selected" : ""} ${isToday ? "is-today" : ""}`}
-                type="button"
-                aria-pressed={isSelected}
-                onClick={() => setSelectedDate(dateKey)}
-              >
-                <span>{formatShortDate(date)}</span>
-                {(activeCounts[dateKey] ?? 0) > 0 && <b>{activeCounts[dateKey]}</b>}
-              </button>
-            );
-          })}
-        </div>
-      </section>
-
       <div className="workbook">
         <div className="workbook-tabs" role="tablist" aria-label="Worksheets">
           {SHEETS.map((sheet) => (
@@ -116,9 +71,7 @@ export default function App() {
               onClick={() => setActiveSheet(sheet.id)}
             >
               {sheet.label}
-              {(counts[sheet.id][selectedDate] ?? 0) > 0 && (
-                <b>{counts[sheet.id][selectedDate]}</b>
-              )}
+              {counts[sheet.id] > 0 && <b>{counts[sheet.id]}</b>}
             </button>
           ))}
         </div>
@@ -133,7 +86,7 @@ export default function App() {
           <DhgTab
             {...tabProps}
             isActive={activeSheet === "dhg"}
-            onCounts={handleDhgCounts}
+            onCount={handleDhgCount}
           />
         </div>
 
@@ -147,7 +100,7 @@ export default function App() {
           <DeletionRequestTab
             {...tabProps}
             isActive={activeSheet === "deletion"}
-            onCounts={handleDeletionCounts}
+            onCount={handleDeletionCount}
           />
         </div>
       </div>

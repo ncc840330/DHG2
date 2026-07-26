@@ -1,17 +1,21 @@
-import { and, asc, eq, gte, inArray, lte, sql } from "drizzle-orm";
+import { and, asc, eq, inArray } from "drizzle-orm";
 import { db } from "../../db/index.js";
 import { deletionRequestImages, deletionRequests } from "../../db/schema.js";
+import {
+  discardBlobs,
+  loadImages,
+  withImages,
+} from "../shared/deletion-requests.js";
 import {
   ALLOWED_IMAGE_TYPES,
   getImageStore,
   MAX_IMAGE_BYTES,
 } from "../shared/images.js";
+import { nextLineId } from "../shared/line-ids.js";
 import {
   apiError,
-  firstFreeSequence,
   isProblemOption,
   isValidDateKey,
-  makeLineId,
   parseId,
   type ProblemOption,
 } from "../shared/records.js";
@@ -114,40 +118,10 @@ async function uploadImages(intents: SlotIntent[]): Promise<UploadedImage[]> {
   );
 }
 
-async function discardBlobs(blobKeys: string[]) {
-  if (blobKeys.length === 0) return;
-  const store = getImageStore();
-  await Promise.allSettled(blobKeys.map((blobKey) => store.delete(blobKey)));
-}
-
-async function loadImages(requestIds: number[]) {
-  if (requestIds.length === 0) return [];
-
-  return db
-    .select()
-    .from(deletionRequestImages)
-    .where(inArray(deletionRequestImages.requestId, requestIds))
-    .orderBy(asc(deletionRequestImages.slot));
-}
-
-/** Records are sent to the client with their image metadata, never the bytes. */
-async function withImages<T extends { id: number }>(records: T[]) {
-  const images = await loadImages(records.map((record) => record.id));
-
-  return records.map((record) => ({
-    ...record,
-    images: images
-      .filter((image) => image.requestId === record.id)
-      .map(({ id, slot, fileName, contentType, byteSize }) => ({
-        id,
-        slot,
-        fileName,
-        contentType,
-        byteSize,
-      })),
-  }));
-}
-
+/**
+ * Requests are never created here — every DHG record seeds its counterpart with
+ * the same Line ID, so this endpoint only lists and updates what already exists.
+ */
 export default async (request: Request) => {
   const url = new URL(request.url);
 
@@ -163,93 +137,20 @@ export default async (request: Request) => {
         .where(eq(deletionRequests.recordDate, date))
         .orderBy(asc(deletionRequests.lineSequence));
 
-      const nextLineId = makeLineId(
-        date,
-        firstFreeSequence(rows.map((row) => ({ sequence: row.lineSequence }))),
-      );
-
-      return Response.json({ records: await withImages(rows), nextLineId });
+      return Response.json({
+        records: await withImages(rows),
+        nextLineId: await nextLineId(db, date),
+      });
     }
-
-    const from = url.searchParams.get("from");
-    const to = url.searchParams.get("to");
-
-    if (!isValidDateKey(from) || !isValidDateKey(to) || from > to) {
-      return apiError("Invalid date range.", 400);
-    }
-
-    const counts = await db
-      .select({
-        date: deletionRequests.recordDate,
-        count: sql<number>`count(*)::int`,
-      })
-      .from(deletionRequests)
-      .where(
-        and(
-          gte(deletionRequests.recordDate, from),
-          lte(deletionRequests.recordDate, to),
-        ),
-      )
-      .groupBy(deletionRequests.recordDate)
-      .orderBy(deletionRequests.recordDate);
-
-    return Response.json({ counts });
   }
 
-  if (request.method === "POST" || request.method === "PUT") {
+  if (request.method === "PUT") {
     const form = await request.formData().catch(() => null);
     if (!form) return apiError("Expected a multipart form submission.", 400);
 
     const input = validateRequestInput(form);
     const intents = readSlotIntents(form);
     if (!input || !intents) return apiError("Missing or invalid record data.", 400);
-
-    if (request.method === "POST") {
-      const recordDate = formString(form, "recordDate");
-      if (!isValidDateKey(recordDate)) return apiError("Invalid record date.", 400);
-
-      const uploaded = await uploadImages(intents);
-
-      try {
-        const record = await db.transaction(async (transaction) => {
-          await transaction.execute(
-            sql`select pg_advisory_xact_lock(hashtext(${`deletion:${recordDate}`}))`,
-          );
-
-          const usedSequences = await transaction
-            .select({ sequence: deletionRequests.lineSequence })
-            .from(deletionRequests)
-            .where(eq(deletionRequests.recordDate, recordDate))
-            .orderBy(asc(deletionRequests.lineSequence));
-
-          const lineSequence = firstFreeSequence(usedSequences);
-
-          const [created] = await transaction
-            .insert(deletionRequests)
-            .values({
-              recordDate,
-              lineSequence,
-              lineId: makeLineId(recordDate, lineSequence),
-              ...input,
-            })
-            .returning();
-
-          if (uploaded.length > 0) {
-            await transaction.insert(deletionRequestImages).values(
-              uploaded.map((image) => ({ ...image, requestId: created.id })),
-            );
-          }
-
-          return created;
-        });
-
-        const [withImageMeta] = await withImages([record]);
-        return Response.json({ record: withImageMeta }, { status: 201 });
-      } catch (error) {
-        await discardBlobs(uploaded.map((image) => image.blobKey));
-        throw error;
-      }
-    }
 
     const id = parseId(url.searchParams.get("id"));
     if (!id) return apiError("Invalid record id.", 400);
@@ -308,26 +209,9 @@ export default async (request: Request) => {
     }
   }
 
-  if (request.method === "DELETE") {
-    const id = parseId(url.searchParams.get("id"));
-    if (!id) return apiError("Invalid record id.", 400);
-
-    const images = await loadImages([id]);
-
-    const [record] = await db
-      .delete(deletionRequests)
-      .where(eq(deletionRequests.id, id))
-      .returning({ id: deletionRequests.id });
-
-    if (!record) return apiError("Record not found.", 404);
-
-    await discardBlobs(images.map((image) => image.blobKey));
-    return new Response(null, { status: 204 });
-  }
-
   return new Response("Method not allowed", {
     status: 405,
-    headers: { Allow: "GET, POST, PUT, DELETE" },
+    headers: { Allow: "GET, PUT" },
   });
 };
 
