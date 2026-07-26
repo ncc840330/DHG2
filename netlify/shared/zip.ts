@@ -1,9 +1,9 @@
 /**
  * Minimal ZIP writer (store method, no compression).
  *
- * The archive only ever holds an .xlsx and a handful of JPEG/PNG images — all
- * of which are already compressed — so deflating them again would buy nothing
- * and would mean pulling in a compression dependency.
+ * It only ever packs an .xlsx: small XML parts plus the JPEG/PNG photos, which
+ * are already compressed. Deflating them again would buy little and would mean
+ * pulling in a compression dependency.
  */
 
 export type ZipEntry = {

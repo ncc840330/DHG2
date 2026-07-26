@@ -299,60 +299,49 @@ form {
 }
 .field-other { box-shadow: inset 3px 0 0 var(--signal); }
 
-.photo-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px;
-}
+.photo-fields { gap: 9px; }
 
-.photo-slot {
-  display: grid;
-  gap: 8px;
-  padding: 8px;
-  border: 1px dashed #3a4a4e;
-  border-radius: 3px;
-  background: #11191b;
-}
-
-.photo-slot img {
-  width: 100%;
-  height: 118px;
-  border-radius: 2px;
-  background: #0b1113;
-  object-fit: cover;
-}
-
-.photo-empty {
-  display: grid;
-  height: 118px;
-  gap: 6px;
-  place-items: center;
-  color: var(--muted);
-}
-
-.photo-empty svg { width: 26px; fill: none; stroke: currentColor; stroke-width: 1.4; }
-.photo-empty b { font-size: 0.5rem; letter-spacing: 0.12em; }
-
-.photo-actions { display: flex; gap: 6px; }
-
-.photo-actions > * {
-  display: grid;
-  flex: 1;
-  min-height: 32px;
-  place-items: center;
-  border: 1px solid var(--line);
-  border-radius: 2px;
-  background: var(--surface-2);
-  color: var(--ink);
-  cursor: pointer;
-  font-size: 0.54rem;
+/* Photos belong to deletion requests only, so the note has to be unmissable. */
+.photo-warning {
+  margin: 0;
+  color: var(--danger);
+  font-size: 0.66rem;
+  font-style: italic;
   font-weight: 600;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.03em;
 }
 
-.photo-pick { position: relative; overflow: hidden; }
+.photo-field { display: flex; align-items: center; gap: 8px; min-width: 0; }
 
-.photo-pick input {
+.photo-input {
+  position: relative;
+  display: flex;
+  min-width: 0;
+  min-height: 42px;
+  flex: 1;
+  align-items: center;
+  padding: 8px 11px;
+  overflow: hidden;
+  border: 1px solid #3a4a4e;
+  border-radius: 2px;
+  background: #11191b;
+  cursor: pointer;
+}
+
+.photo-input:focus-within { border-color: var(--signal); box-shadow: inset 3px 0 0 var(--signal); }
+
+.photo-input span {
+  overflow: hidden;
+  font-size: 0.78rem;
+  font-style: italic;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.photo-placeholder { color: var(--muted); }
+.photo-name { color: var(--ink); }
+
+.photo-input input {
   position: absolute;
   inset: 0;
   width: 100%;
@@ -364,7 +353,19 @@ form {
   cursor: pointer;
 }
 
-.photo-actions button { border-color: #74483f; color: var(--danger); }
+.photo-clear {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 1px solid #74483f;
+  border-radius: 2px;
+  background: var(--surface-2);
+  color: var(--danger);
+  cursor: pointer;
+  font-size: 0.72rem;
+}
 
 .form-actions {
   display: flex;
@@ -460,16 +461,6 @@ input[type="checkbox"] {
   cursor: not-allowed;
 }
 
-.toolbar-hint {
-  margin: 0;
-  padding: 10px 14px;
-  border-bottom: 1px solid var(--line);
-  background: var(--surface);
-  color: var(--muted);
-  font-size: 0.58rem;
-  line-height: 1.5;
-}
-
 .data-row {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
@@ -509,7 +500,10 @@ input[type="checkbox"] {
 .row-actions { display: flex; align-items: center; gap: 8px; }
 
 .modify-button {
-  border: 0;
+  min-height: 30px;
+  padding: 0 11px;
+  border: 1px solid var(--line);
+  border-radius: 2px;
   background: transparent;
   color: var(--signal);
   cursor: pointer;
@@ -518,7 +512,7 @@ input[type="checkbox"] {
   white-space: nowrap;
 }
 
-.modify-button span { font-size: 1rem; }
+.modify-button:hover { border-color: var(--signal); }
 
 /* Deleting a line is deliberately understated — it opens a confirmation. */
 .row-delete {

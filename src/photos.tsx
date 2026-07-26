@@ -1,10 +1,4 @@
-import {
-  ChangeEvent,
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-} from "react";
+import { ChangeEvent, useCallback, useState } from "react";
 
 export type RecordImage = {
   id: number;
@@ -17,7 +11,7 @@ export type RecordImage = {
 export type PhotoSlot =
   | { kind: "empty" }
   | { kind: "existing"; imageId: number; fileName: string }
-  | { kind: "new"; file: File; previewUrl: string };
+  | { kind: "new"; file: File };
 
 export const PHOTO_SLOTS = [0, 1];
 
@@ -60,18 +54,9 @@ async function prepareImage(file: File) {
   }
 }
 
-/** Slot state, preview bookkeeping and downscaling for a two-photo form. */
+/** Slot state and downscaling for a two-photo form. */
 export function usePhotoSlots(onError: (message: string) => void) {
   const [photoSlots, setPhotoSlots] = useState<PhotoSlot[]>(EMPTY_SLOTS);
-  const previewUrls = useRef<string[]>([]);
-
-  useEffect(
-    () => () => {
-      previewUrls.current.forEach((url) => URL.revokeObjectURL(url));
-      previewUrls.current = [];
-    },
-    [],
-  );
 
   const resetPhotos = useCallback(() => setPhotoSlots(EMPTY_SLOTS), []);
 
@@ -103,11 +88,9 @@ export function usePhotoSlots(onError: (message: string) => void) {
         return;
       }
 
-      const previewUrl = URL.createObjectURL(prepared);
-      previewUrls.current.push(previewUrl);
       setPhotoSlots((current) =>
         current.map((slot, slotIndex) =>
-          slotIndex === index ? { kind: "new", file: prepared, previewUrl } : slot,
+          slotIndex === index ? { kind: "new", file: prepared } : slot,
         ),
       );
     },
@@ -138,62 +121,56 @@ export function appendPhotoSlots(payload: FormData, slots: PhotoSlot[]) {
   });
 }
 
+/**
+ * Two plain upload fields instead of preview tiles — photos are the exception
+ * on this form, so the warning above them is what should catch the eye.
+ */
 export function PhotoFields({
   slots,
-  imagePath,
   onPick,
   onClear,
 }: {
   slots: PhotoSlot[];
-  imagePath: string;
   onPick: (index: number, event: ChangeEvent<HTMLInputElement>) => void;
   onClear: (index: number) => void;
 }) {
   return (
-    <div className="field field-wide">
-      <span>
-        PHOTOS <small>MAX 2 PER LINE ID</small>
-      </span>
-      <div className="photo-grid">
-        {slots.map((slot, index) => {
-          const preview =
-            slot.kind === "new"
-              ? slot.previewUrl
-              : slot.kind === "existing"
-                ? `${imagePath}?id=${slot.imageId}`
-                : null;
+    <div className="field field-wide photo-fields">
+      <p className="photo-warning">Upload only for request!</p>
+      {slots.map((slot, index) => {
+        const fileName =
+          slot.kind === "new"
+            ? slot.file.name
+            : slot.kind === "existing"
+              ? slot.fileName
+              : "";
 
-          return (
-            <div className="photo-slot" key={index}>
-              {preview ? (
-                <img src={preview} alt={`Photo ${index + 1}`} />
-              ) : (
-                <div className="photo-empty">
-                  <svg aria-hidden="true" viewBox="0 0 24 24">
-                    <path d="M4 7h4l2-2h4l2 2h4v12H4zM12 16a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7z" />
-                  </svg>
-                  <b>PHOTO {index + 1}</b>
-                </div>
-              )}
-              <div className="photo-actions">
-                <label className="photo-pick">
-                  {slot.kind === "empty" ? "ADD" : "REPLACE"}
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={(event) => onPick(index, event)}
-                  />
-                </label>
-                {slot.kind !== "empty" && (
-                  <button type="button" onClick={() => onClear(index)}>
-                    REMOVE
-                  </button>
-                )}
-              </div>
-            </div>
-          );
-        })}
-      </div>
+        return (
+          <div className="photo-field" key={index}>
+            <label className="photo-input">
+              <span className={fileName ? "photo-name" : "photo-placeholder"}>
+                {fileName || "upload photo"}
+              </span>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={(event) => onPick(index, event)}
+              />
+            </label>
+            {fileName && (
+              <button
+                className="photo-clear"
+                type="button"
+                onClick={() => onClear(index)}
+                title={`Remove photo ${index + 1}`}
+                aria-label={`Remove photo ${index + 1}`}
+              >
+                ✕
+              </button>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }

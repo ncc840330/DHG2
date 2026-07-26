@@ -34,12 +34,6 @@ export function getDhgImageStore() {
   return getStore(DHG_IMAGE_STORE);
 }
 
-export function imageExtension(contentType: string) {
-  if (contentType === "image/png") return "png";
-  if (contentType === "image/webp") return "webp";
-  return "jpg";
-}
-
 /**
  * Each slot carries its own intent so an update can express "leave the stored
  * image alone", "drop it" and "swap it out" without a separate endpoint.

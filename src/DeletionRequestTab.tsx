@@ -3,7 +3,6 @@ import {
   KeyboardEvent,
   useCallback,
   useEffect,
-  useMemo,
   useRef,
   useState,
 } from "react";
@@ -242,13 +241,6 @@ export default function DeletionRequestTab({
     }
   };
 
-  const selectedTaskCount = useMemo(() => {
-    const tasks = records
-      .filter((record) => selection.selectedIds.includes(record.id))
-      .map((record) => record.sourceTaskId);
-    return new Set(tasks).size;
-  }, [records, selection.selectedIds]);
-
   const downloadSelected = async () => {
     if (selection.selectedIds.length === 0) return;
 
@@ -260,7 +252,7 @@ export default function DeletionRequestTab({
       const fileName = await downloadSelection(
         "/api/deletion-requests/export",
         selection.selectedIds,
-        "deletion-requests.zip",
+        `DeletionRequest_${selectedDate}.xlsx`,
       );
       setMessage(
         `${fileName} letöltve (${selection.selectedIds.length} kérelem).`,
@@ -341,7 +333,6 @@ export default function DeletionRequestTab({
 
             <PhotoFields
               slots={photoSlots}
-              imagePath="/api/deletion-request-image"
               onPick={(index, event) => void pickPhoto(index, event)}
               onClear={clearPhoto}
             />
@@ -372,12 +363,6 @@ export default function DeletionRequestTab({
               onToggleAll={selection.toggleAll}
               onDownload={downloadSelected}
             />
-          )}
-
-          {selectedTaskCount > 1 && (
-            <p className="toolbar-hint">
-              {selectedTaskCount} source task ID selected — each one gets its own ZIP inside the download.
-            </p>
           )}
 
           {isLoading ? (

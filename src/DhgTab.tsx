@@ -251,7 +251,7 @@ export default function DhgTab({
       const fileName = await downloadSelection(
         "/api/dhg-records/export",
         selection.selectedIds,
-        "dhg-records.zip",
+        `DHG_${selectedDate}.xlsx`,
       );
       setMessage(
         `${fileName} letöltve (${selection.selectedIds.length} rekord).`,
@@ -352,7 +352,6 @@ export default function DhgTab({
 
             <PhotoFields
               slots={photoSlots}
-              imagePath="/api/dhg-record-image"
               onPick={(index, event) => void pickPhoto(index, event)}
               onClear={clearPhoto}
             />
