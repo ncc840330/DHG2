@@ -30,13 +30,6 @@ function formatDate(date: Date) {
   return `${year}.${month}.${day}`;
 }
 
-function getDayCaption(offset: number) {
-  if (offset === 0) return "TODAY";
-  return new Intl.DateTimeFormat("en-US", { weekday: "short" })
-    .format(getDate(offset))
-    .toUpperCase();
-}
-
 export default function App() {
   const [syncRevision, setSyncRevision] = useState(0);
   const [lastSync, setLastSync] = useState(() => new Date());
@@ -180,7 +173,7 @@ export default function App() {
         </div>
 
         <div className="date-strip" ref={dateStripRef}>
-          {dates.map(({ date, offset }) => {
+          {dates.map(({ date }) => {
             const dateKey = getDateKey(date);
             const isToday = dateKey === todayKey;
             const isSelected = dateKey === selectedDate;
@@ -196,7 +189,6 @@ export default function App() {
                 onClick={() => setSelectedDate(dateKey)}
               >
                 <span className="date-value">{formatDate(date)}</span>
-                <span className="date-caption">{getDayCaption(offset)}</span>
                 {recordCount > 0 && (
                   <span className="date-records">
                     <span className="record-dot" aria-hidden="true" />
