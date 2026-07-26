@@ -3,8 +3,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 export type RowCell = { label: string; value: string };
 
 /**
- * Selection drives the ZIP download. Rows that disappear — deleted here or on
- * another device — drop out of the selection on the next refresh.
+ * Selection drives the workbook download. Rows that disappear — deleted here or
+ * on another device — drop out of the selection on the next refresh.
  */
 export function useSelection(records: { id: number }[]) {
   const [selectedIds, setSelectedIds] = useState<number[]>([]);
@@ -79,7 +79,7 @@ export function SavedToolbar({
           <path d="M12 4v10m0 0 4-4m-4 4-4-4M5 19h14" />
         </svg>
         {isDownloading
-          ? "BUILDING ZIP…"
+          ? "BUILDING EXCEL…"
           : `DOWNLOAD ${selectedCount ? `(${selectedCount})` : ""}`}
       </button>
     </div>
@@ -119,7 +119,7 @@ export function RecordRow({
 
       <div className="row-actions">
         <button className="modify-button" type="button" onClick={onModify}>
-          MODIFY <span aria-hidden="true">→</span>
+          MODIFY
         </button>
         <button
           className="row-delete"

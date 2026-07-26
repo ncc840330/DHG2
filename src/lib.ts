@@ -81,8 +81,8 @@ function readFileName(header: string | null) {
 }
 
 /**
- * Asks the export endpoint for a ZIP of the selected lines and hands it to the
- * browser. Returns the file name that was saved.
+ * Asks the export endpoint for the workbook of the selected lines and hands it
+ * to the browser. Returns the file name that was saved.
  */
 export async function downloadSelection(
   endpoint: string,

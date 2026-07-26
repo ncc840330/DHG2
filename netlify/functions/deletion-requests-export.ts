@@ -2,22 +2,29 @@ import { asc, inArray } from "drizzle-orm";
 import { db } from "../../db/index.js";
 import { deletionRequestImages, deletionRequests } from "../../db/schema.js";
 import {
-  buildTaskDownload,
+  BLUE_HEADER,
+  buildWorkbookDownload,
   describeProblem,
+  exportFileName,
+  formatSheetDate,
+  GREEN_HEADER,
   readSelection,
-  zipResponse,
+  spreadsheetResponse,
   type ExportColumn,
 } from "../shared/export.js";
 import { getImageStore } from "../shared/images.js";
 import { apiError } from "../shared/records.js";
 
+/** Same layout as the DHG sheet, limited to the fields a request captures. */
 const COLUMNS: ExportColumn[] = [
-  { label: "Line ID", width: 16 },
-  { label: "Source Task ID", width: 20 },
-  { label: "System Item", width: 26 },
-  { label: "System SN", width: 22 },
-  { label: "RFID", width: 22 },
-  { label: "Problem Description", width: 34 },
+  { label: "Line ID", width: 18, fill: GREEN_HEADER },
+  { label: "System item code", width: 16, fill: GREEN_HEADER },
+  { label: "System SN", width: 26, fill: GREEN_HEADER },
+  { label: "RFID", width: 19, fill: GREEN_HEADER },
+  { label: "Problem description", width: 29, fill: GREEN_HEADER },
+  { label: "Date of sending", width: 16, fill: GREEN_HEADER },
+  { label: "Contract", width: 25, fill: BLUE_HEADER },
+  { label: "Source task ID", width: 21, fill: BLUE_HEADER },
 ];
 
 export default async (request: Request) => {
@@ -36,7 +43,7 @@ export default async (request: Request) => {
     .select()
     .from(deletionRequests)
     .where(inArray(deletionRequests.id, selection.ids))
-    .orderBy(asc(deletionRequests.sourceTaskId), asc(deletionRequests.lineId));
+    .orderBy(asc(deletionRequests.recordDate), asc(deletionRequests.lineId));
 
   if (records.length === 0) return apiError("No matching records found.", 404);
 
@@ -51,23 +58,26 @@ export default async (request: Request) => {
     )
     .orderBy(asc(deletionRequestImages.slot));
 
-  const download = await buildTaskDownload({
+  const download = await buildWorkbookDownload({
     store: getImageStore(),
-    sheetName: "Deletion Requests",
+    fileName: exportFileName(
+      "DeletionRequest",
+      records.map((record) => record.recordDate),
+    ),
+    sheetName: "Deletion requests",
     columns: COLUMNS,
-    bundleName: "deletion-requests",
     rows: records.map((record) => ({
       id: record.id,
       lineId: record.lineId,
-      systemSn: record.systemSn,
-      sourceTaskId: record.sourceTaskId,
       cells: [
         record.lineId,
-        record.sourceTaskId,
         record.systemItem,
         record.systemSn,
         record.rfid,
         describeProblem(record),
+        formatSheetDate(record.recordDate),
+        "",
+        record.sourceTaskId,
       ],
     })),
     images: images.map((image) => ({
@@ -78,7 +88,7 @@ export default async (request: Request) => {
     })),
   });
 
-  return zipResponse(download);
+  return spreadsheetResponse(download);
 };
 
 export const config = {

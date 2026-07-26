@@ -2,26 +2,33 @@ import { asc, inArray } from "drizzle-orm";
 import { db } from "../../db/index.js";
 import { dhgRecordImages, dhgRecords } from "../../db/schema.js";
 import {
-  buildTaskDownload,
+  BLUE_HEADER,
+  buildWorkbookDownload,
   describeProblem,
+  exportFileName,
+  formatSheetDate,
+  GREEN_HEADER,
   readSelection,
-  zipResponse,
+  spreadsheetResponse,
   type ExportColumn,
 } from "../shared/export.js";
 import { getDhgImageStore } from "../shared/images.js";
 import { apiError } from "../shared/records.js";
 
+/** Column order, labels and header colours follow the DHG master sheet. */
 const COLUMNS: ExportColumn[] = [
-  { label: "Line ID", width: 16 },
-  { label: "Source Task ID", width: 20 },
-  { label: "System Item", width: 26 },
-  { label: "System SN", width: 22 },
-  { label: "Physical Item", width: 26 },
-  { label: "Physical SN", width: 22 },
-  { label: "RFID", width: 22 },
-  { label: "Problem Description", width: 34 },
-  { label: "Locator", width: 18 },
-  { label: "County", width: 18 },
+  { label: "Line ID", width: 18, fill: GREEN_HEADER },
+  { label: "System item code", width: 16, fill: GREEN_HEADER },
+  { label: "System SN", width: 26, fill: GREEN_HEADER },
+  { label: "Physical item", width: 16, fill: GREEN_HEADER },
+  { label: "Physical SN", width: 26, fill: GREEN_HEADER },
+  { label: "RFID", width: 19, fill: GREEN_HEADER },
+  { label: "Problem description", width: 29, fill: GREEN_HEADER },
+  { label: "Locator", width: 16, fill: GREEN_HEADER },
+  { label: "Date of sending", width: 16, fill: GREEN_HEADER },
+  { label: "Contract", width: 25, fill: BLUE_HEADER },
+  { label: "Country", width: 13, fill: BLUE_HEADER },
+  { label: "Source task ID", width: 21, fill: BLUE_HEADER },
 ];
 
 export default async (request: Request) => {
@@ -40,7 +47,7 @@ export default async (request: Request) => {
     .select()
     .from(dhgRecords)
     .where(inArray(dhgRecords.id, selection.ids))
-    .orderBy(asc(dhgRecords.sourceTaskId), asc(dhgRecords.lineId));
+    .orderBy(asc(dhgRecords.recordDate), asc(dhgRecords.lineId));
 
   if (records.length === 0) return apiError("No matching records found.", 404);
 
@@ -55,19 +62,19 @@ export default async (request: Request) => {
     )
     .orderBy(asc(dhgRecordImages.slot));
 
-  const download = await buildTaskDownload({
+  const download = await buildWorkbookDownload({
     store: getDhgImageStore(),
-    sheetName: "DHG Records",
+    fileName: exportFileName(
+      "DHG",
+      records.map((record) => record.recordDate),
+    ),
+    sheetName: "DHG",
     columns: COLUMNS,
-    bundleName: "dhg-records",
     rows: records.map((record) => ({
       id: record.id,
       lineId: record.lineId,
-      systemSn: record.systemSn,
-      sourceTaskId: record.sourceTaskId,
       cells: [
         record.lineId,
-        record.sourceTaskId,
         record.systemItem,
         record.systemSn,
         record.physicalItem,
@@ -75,7 +82,10 @@ export default async (request: Request) => {
         record.rfid,
         describeProblem(record),
         record.locator,
+        formatSheetDate(record.recordDate),
+        "",
         record.county,
+        record.sourceTaskId,
       ],
     })),
     images: images.map((image) => ({
@@ -86,7 +96,7 @@ export default async (request: Request) => {
     })),
   });
 
-  return zipResponse(download);
+  return spreadsheetResponse(download);
 };
 
 export const config = {
