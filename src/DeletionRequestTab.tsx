@@ -444,14 +444,14 @@ export default function DeletionRequestTab({
           type="button"
           onClick={() => setView("add")}
         >
-          <span>01</span> ADD REQUEST
+          ADD REQUEST
         </button>
         <button
           className={view === "saved" ? "is-active" : ""}
           type="button"
           onClick={() => setView("saved")}
         >
-          <span>02</span> SAVED REQUESTS <b>{savedCount}</b>
+          SAVED REQUESTS <b>{savedCount}</b>
         </button>
       </nav>
 

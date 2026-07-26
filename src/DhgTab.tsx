@@ -214,14 +214,14 @@ export default function DhgTab({
           type="button"
           onClick={() => setView("add")}
         >
-          <span>01</span> ADD RECORD
+          ADD RECORD
         </button>
         <button
           className={view === "saved" ? "is-active" : ""}
           type="button"
           onClick={() => setView("saved")}
         >
-          <span>02</span> SAVED RECORDS <b>{savedCount}</b>
+          SAVED RECORDS <b>{savedCount}</b>
         </button>
       </nav>
 
