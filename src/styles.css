@@ -210,10 +210,9 @@ h1, h2, h3 { font-family: "Barlow Condensed", sans-serif; }
 }
 
 .view-switch button:last-child { border-right: 0; }
-.view-switch button span { color: #5c6c6f; margin-right: 5px; }
 .view-switch button b { margin-left: 5px; color: var(--success); }
 .view-switch button.is-active { background: var(--signal); color: var(--signal-dark); }
-.view-switch button.is-active span, .view-switch button.is-active b { color: var(--signal-dark); }
+.view-switch button.is-active b { color: var(--signal-dark); }
 
 .form-panel, .saved-panel {
   border: 1px solid var(--line);
