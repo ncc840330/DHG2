@@ -24,186 +24,94 @@ const palletPercent = (count: number) =>
 const palletColor = (pct: number) =>
   pct >= 90 ? "#10b981" : pct >= 60 ? "#a3e635" : pct >= 30 ? "#f59e0b" : "#ef4444";
 
-type ThemeName = "dark" | "light";
-
-const buildColors = (mode: ThemeName) => {
-  if (mode === "light") {
-    return {
-      mode,
-      bg: "#f4f5f8",
-      bgInput: "#ffffff",
-      surface: "#ffffff",
-      surfaceAlt: "#eef0f5",
-      surfaceMuted: "#f9fafc",
-      border: "#d8dce4",
-      borderStrong: "#bfc4cf",
-      borderSubtle: "#e2e6ec",
-      text: "#1f2937",
-      textInverse: "#ffffff",
-      muted: "#4b5563",
-      subtle: "#6b7280",
-      ghost: "#9ca3af",
-      veryDim: "#cbd1da",
-      dimAccent: "#9ec5e6",
-      accent: "#d97706",
-      accentText: "#ffffff",
-      accentSurface: "#fff7ed",
-      cyan: "#0891b2",
-      cyanLight: "#0e7490",
-      cyanGhost: "#9ec5e6",
-      purple: "#7c3aed",
-      green: "#059669",
-      greenStrong: "#10b981",
-      red: "#dc2626",
-      blue: "#2563eb",
-      yellow: "#ca8a04",
-      orange2: "#ea580c",
-      violet: "#7c3aed",
-      modalOverlay: "rgba(15,17,23,0.45)",
-      shadow: "0 1px 3px rgba(15,17,23,0.06), 0 4px 12px rgba(15,17,23,0.05)",
-      dotIdle: "#cbd1da",
-      stopIdle: "#9ca3af",
-      pillBg: "#eef0f5",
-      headerSubtle: "#9ca3af",
-    };
-  }
-  return {
-    mode,
-    bg: "#0f1117",
-    bgInput: "#0f1117",
-    surface: "#1a1d27",
-    surfaceAlt: "#1e2130",
-    surfaceMuted: "#1a1d2e",
-    border: "#2a2d3a",
-    borderStrong: "#374151",
-    borderSubtle: "#2a2d3a",
-    text: "#e2e8f0",
-    textInverse: "#0f1117",
-    muted: "#94a3b8",
-    subtle: "#4a5568",
-    ghost: "#374151",
-    veryDim: "#1e2130",
-    dimAccent: "#164e63",
-    accent: "#f59e0b",
-    accentText: "#0f1117",
-    accentSurface: "#1a1d2e",
-    cyan: "#06b6d4",
-    cyanLight: "#67e8f9",
-    cyanGhost: "#164e63",
-    purple: "#a78bfa",
-    green: "#10b981",
-    greenStrong: "#10b981",
-    red: "#ef4444",
-    blue: "#3b82f6",
-    yellow: "#eab308",
-    orange2: "#f97316",
-    violet: "#8b5cf6",
-    modalOverlay: "rgba(0,0,0,0.75)",
-    shadow: "none",
-    dotIdle: "#2a2d3a",
-    stopIdle: "#374151",
-    pillBg: "#2a2d3a",
-    headerSubtle: "#4a5568",
-  };
+// Fixed dark theme — black background, cyan/blue accents (theme switching removed)
+const COLORS = {
+  mode: "dark" as const,
+  bg: "#0a0c10",
+  bgInput: "#0a0c10",
+  surface: "#12151d",
+  surfaceAlt: "#161a24",
+  surfaceMuted: "#12151f",
+  border: "#1f2430",
+  borderStrong: "#2c3341",
+  borderSubtle: "#1f2430",
+  text: "#e2e8f0",
+  textInverse: "#0a0c10",
+  muted: "#94a3b8",
+  subtle: "#4a5568",
+  ghost: "#374151",
+  veryDim: "#161a24",
+  dimAccent: "#164e63",
+  accent: "#22d3ee",
+  accentText: "#0a0c10",
+  accentSurface: "#0e2530",
+  cyan: "#06b6d4",
+  cyanLight: "#67e8f9",
+  cyanGhost: "#164e63",
+  purple: "#a78bfa",
+  green: "#10b981",
+  greenStrong: "#10b981",
+  red: "#ef4444",
+  blue: "#3b82f6",
+  yellow: "#eab308",
+  orange2: "#f97316",
+  violet: "#8b5cf6",
+  modalOverlay: "rgba(0,0,0,0.75)",
+  shadow: "none",
+  dotIdle: "#1f2430",
+  stopIdle: "#374151",
+  pillBg: "#1f2430",
+  headerSubtle: "#4a5568",
 };
 
-type Colors = ReturnType<typeof buildColors>;
+type Colors = typeof COLORS;
 
 const T = {
-  hu: {
-    appSub: "LOGISZTIKAI NYOMKÖVETŐ", live: "ÉLŐ", loading: "Betöltés...",
-    route: "🗺️ Útvonal terv", transferTab: "🔁 Transzfer", fuvarTab: "🚚 Fuvar igény",
-    noData: "Még nincs adat",
-    save: "Mentés", saved: "✓ Mentve",
-    since: "óta", updatedAt: "Frissítve", dailyPlan: "Napi terv",
-    editPlan: "✏️ Szerkesztés", savePlan: "💾 Mentés", cancel: "Mégse",
-    lockStart: "🔒 Terv zárolása", reset: "🔄 Reset", todayRoute: "Mai útvonal",
-    planningTitle: "Szerkesztés", clickWarehouses: "Kattints a raktárakra a sorrendhez:",
-    futurePlan: "Ez a terv a jövő napra van előkészítve.",
-    noPlan: "Még nincs útvonal tervezve erre a napra.",
-    arrived: "Érkezett", loadingBtn: "Rakodás", departed: "Indult",
-    truckLoad: "Kamion rakodottsága", truckStatus: "Kamion állapota",
-    empty: "Üres", full: "Teli", today: "MA", tomorrow: "HOLNAP", stops: "stop",
-    replaceLocation: "Csere helyszín:", insertBefore: "Elé szúr:", insertAfter: "Alá szúr:",
-    fuvarTitle: "Fuvar igények", fuvarCreate: "Fuvar létrehozása",
-    fuvarDraftTitle: "📋 Vázlat – még nem mentve", fuvarSavedTitle: "Mentett fuvarok",
-    fuvarSave: "💾 Véglegesítés", fuvarSaved: "✓ Mentve", fuvarUpdated: "Frissítve",
-    fuvarFrom: "Honnan", fuvarTo: "Hova", fuvarUrgent: "⚡ Sürgős",
-    fuvarTimeFrom: "Időablak ettől", fuvarTimeTo: "Időablak eddig", fuvarAdd: "➕ Hozzáadás",
-    addCargo: "📦 Rakomány", cargoModalTitle: "Rakomány hozzáadása",
-    cargoScan: "Szkennelj vagy írj be egy tételt...", cargoSave: "💾 Mentés",
-    cargoClear: "🗑️ Lista ürítés", cargoUpdated: "Frissítve", cargoEmpty: "Nincs rakomány rögzítve.",
-    transferTitle: "Rakomány transzferek", transferRound: "forduló", transferAddRound: "➕ Új forduló",
-    transferNoRounds: "Nincs forduló rögzítve.", transferLastUpdated: "Utolsó frissítés",
-    transferCategory: "Csoport", transferPickCategory: "Válassz csoportot a szkenneléshez:",
-    transferAddGroup: "➕ Csoport hozzáadása", transferGroupSaved: "Csoport hozzáadva",
-    transferZone: "Zóna (Komárom-Huawei)", transferPickZone: "Kötelező: B1 vagy B4",
-    transferDeleteRound: "Forduló törlése", transferRoundSummary: "tétel",
-    transferCopy: "📋 Másolás Excelbe", transferCopied: "✓ Vágólapra másolva", transferCopyEmpty: "Nincs másolható tétel",
-    palletTitle: "Paletta szám", palletHint: `Hány palettát adsz hozzá most? (${PALLET_FULL_LOAD} = 100%)`,
-    palletLoad: "Rakomány töltöttség", palletRequired: "Add meg a paletta számot a mentéshez",
-    palletStored: "Jelenleg eltárolva", palletNew: "Hozzáadás most", palletTotal: "Új összesen",
-    note: "Megjegyzés", notePlaceholder: "Pár mondatos megjegyzés (opcionális)…",
-    arrivedRound: "Érkezett",
-    s_rakodasravar: "rakodásra vár", s_rakodas: "rakodás alatt", s_szedes: "szedés alatt",
-    s_szedesvar: "szedésre vár", s_indulas_rakodva: "indulásra kész - rakodva",
-    s_indulas_ures: "indulásra kész - üres", ss_varja: "várja", ss_erkezett: "érkezett",
-    ss_rakodas: "rakodás alatt", ss_indult: "indult", ts_uton: "úton",
-    ts_allomásozik: "állomásozik", ts_vár: "beállításra vár",
-    exportTab: "📤 Export", exportTitle: "Adatok exportálása",
-    exportCargo: "📦 Export rakomány", exportRoutePlan: "🗺️ Export útvonalterv",
-    exportCargoDesc: "Rakomány adatok exportálása Excel fájlba (dátum, csoport, rakomány, honnan, hova)",
-    exportRoutePlanDesc: "Útvonalterv adatok exportálása Excel fájlba (dátum, állomások időrendben, érkezési idők)",
-    exportNoData: "Nincs exportálható adat.",
-    exportSuccess: "Exportálás sikeres!",
-  },
-  en: {
-    appSub: "LOGISTICS TRACKER", live: "LIVE", loading: "Loading...",
-    route: "🗺️ Route Plan", transferTab: "🔁 Transfer", fuvarTab: "🚚 Transport Request",
-    noData: "No data yet",
-    save: "Save", saved: "✓ Saved",
-    since: "ago", updatedAt: "Updated", dailyPlan: "Daily plan",
-    editPlan: "✏️ Edit", savePlan: "💾 Save", cancel: "Cancel",
-    lockStart: "🔒 Lock plan", reset: "🔄 Reset", todayRoute: "Today's route",
-    planningTitle: "Edit", clickWarehouses: "Click warehouses to build route:",
-    futurePlan: "This plan is prepared for a future day.",
-    noPlan: "No route planned for this day yet.",
-    arrived: "Arrived", loadingBtn: "Loading", departed: "Departed",
-    truckLoad: "Truck load", truckStatus: "Truck status",
-    empty: "Empty", full: "Loaded", today: "TODAY", tomorrow: "TOMORROW", stops: "stops",
-    replaceLocation: "Replace location:", insertBefore: "Insert before:", insertAfter: "Insert after:",
-    fuvarTitle: "Transport Requests", fuvarCreate: "New request",
-    fuvarDraftTitle: "📋 Draft – not saved yet", fuvarSavedTitle: "Saved requests",
-    fuvarSave: "💾 Save all", fuvarSaved: "✓ Saved", fuvarUpdated: "Updated",
-    fuvarFrom: "From", fuvarTo: "To", fuvarUrgent: "⚡ Urgent",
-    fuvarTimeFrom: "Time from", fuvarTimeTo: "Time to", fuvarAdd: "➕ Add",
-    addCargo: "📦 Cargo", cargoModalTitle: "Add cargo",
-    cargoScan: "Scan or type an item...", cargoSave: "💾 Save",
-    cargoClear: "🗑️ Clear list", cargoUpdated: "Updated", cargoEmpty: "No cargo recorded.",
-    transferTitle: "Cargo transfers", transferRound: "round", transferAddRound: "➕ New round",
-    transferNoRounds: "No round recorded.", transferLastUpdated: "Last update",
-    transferCategory: "Group", transferPickCategory: "Pick a group to scan:",
-    transferAddGroup: "➕ Add group", transferGroupSaved: "Group added",
-    transferZone: "Zone (Komárom-Huawei)", transferPickZone: "Required: B1 or B4",
-    transferDeleteRound: "Delete round", transferRoundSummary: "items",
-    transferCopy: "📋 Copy to Excel", transferCopied: "✓ Copied to clipboard", transferCopyEmpty: "Nothing to copy",
-    palletTitle: "Pallet count", palletHint: `How many pallets are you adding now? (${PALLET_FULL_LOAD} = 100%)`,
-    palletLoad: "Load level", palletRequired: "Pallet count required to save",
-    palletStored: "Currently stored", palletNew: "Adding now", palletTotal: "New total",
-    note: "Note", notePlaceholder: "A short note (optional)…",
-    arrivedRound: "Arrived",
-    s_rakodasravar: "waiting load", s_rakodas: "loading", s_szedes: "picking",
-    s_szedesvar: "waiting pick", s_indulas_rakodva: "ready to go - loaded",
-    s_indulas_ures: "ready to go - empty", ss_varja: "waiting", ss_erkezett: "arrived",
-    ss_rakodas: "loading", ss_indult: "departed", ts_uton: "on the way",
-    ts_allomásozik: "stationed", ts_vár: "pending setup",
-    exportTab: "📤 Export", exportTitle: "Export data",
-    exportCargo: "📦 Export cargo", exportRoutePlan: "🗺️ Export route plan",
-    exportCargoDesc: "Export cargo data to Excel file (date, group, cargo, from, to)",
-    exportRoutePlanDesc: "Export route plan data to Excel file (date, stations in order, arrival times)",
-    exportNoData: "No data to export.",
-    exportSuccess: "Export successful!",
-  },
+  appSub: "DISCREPANCY HANDLING", live: "LIVE", loading: "Loading...",
+  route: "Add DHG", transferTab: "Export DHG", fuvarTab: "Deletion request",
+  noData: "No data yet",
+  save: "Save", saved: "✓ Saved",
+  since: "ago", updatedAt: "Updated", dailyPlan: "Daily plan",
+  editPlan: "✏️ Edit", savePlan: "💾 Save", cancel: "Cancel",
+  lockStart: "🔒 Lock plan", reset: "🔄 Reset", todayRoute: "Today's route",
+  planningTitle: "Edit", clickWarehouses: "Click warehouses to build route:",
+  futurePlan: "This plan is prepared for a future day.",
+  noPlan: "No route planned for this day yet.",
+  arrived: "Arrived", loadingBtn: "Loading", departed: "Departed",
+  truckLoad: "Truck load", truckStatus: "Truck status",
+  empty: "Empty", full: "Loaded", today: "TODAY", tomorrow: "TOMORROW", stops: "stops",
+  replaceLocation: "Replace location:", insertBefore: "Insert before:", insertAfter: "Insert after:",
+  fuvarTitle: "Transport Requests", fuvarCreate: "New request",
+  fuvarDraftTitle: "📋 Draft – not saved yet", fuvarSavedTitle: "Saved requests",
+  fuvarSave: "💾 Save all", fuvarSaved: "✓ Saved", fuvarUpdated: "Updated",
+  fuvarFrom: "From", fuvarTo: "To", fuvarUrgent: "⚡ Urgent",
+  fuvarTimeFrom: "Time from", fuvarTimeTo: "Time to", fuvarAdd: "➕ Add",
+  addCargo: "📦 Cargo", cargoModalTitle: "Add cargo",
+  cargoScan: "Scan or type an item...", cargoSave: "💾 Save",
+  cargoClear: "🗑️ Clear list", cargoUpdated: "Updated", cargoEmpty: "No cargo recorded.",
+  transferTitle: "Cargo transfers", transferRound: "round", transferAddRound: "➕ New round",
+  transferNoRounds: "No round recorded.", transferLastUpdated: "Last update",
+  transferCategory: "Group", transferPickCategory: "Pick a group to scan:",
+  transferAddGroup: "➕ Add group", transferGroupSaved: "Group added",
+  transferZone: "Zone (Komárom-Huawei)", transferPickZone: "Required: B1 or B4",
+  transferDeleteRound: "Delete round", transferRoundSummary: "items",
+  transferCopy: "📋 Copy to Excel", transferCopied: "✓ Copied to clipboard", transferCopyEmpty: "Nothing to copy",
+  palletTitle: "Pallet count", palletHint: `How many pallets are you adding now? (${PALLET_FULL_LOAD} = 100%)`,
+  palletLoad: "Load level", palletRequired: "Pallet count required to save",
+  palletStored: "Currently stored", palletNew: "Adding now", palletTotal: "New total",
+  note: "Note", notePlaceholder: "A short note (optional)…",
+  arrivedRound: "Arrived",
+  s_rakodasravar: "waiting load", s_rakodas: "loading", s_szedes: "picking",
+  s_szedesvar: "waiting pick", s_indulas_rakodva: "ready to go - loaded",
+  s_indulas_ures: "ready to go - empty", ss_varja: "waiting", ss_erkezett: "arrived",
+  ss_rakodas: "loading", ss_indult: "departed", ts_uton: "on the way",
+  ts_allomásozik: "stationed", ts_vár: "pending setup",
+  exportTab: "📤 Export", exportTitle: "Export data",
+  exportCargo: "📦 Export cargo", exportRoutePlan: "🗺️ Export route plan",
+  exportCargoDesc: "Export cargo data to Excel file (date, group, cargo, from, to)",
+  exportRoutePlanDesc: "Export route plan data to Excel file (date, stations in order, arrival times)",
+  exportNoData: "No data to export.",
+  exportSuccess: "Export successful!",
 };
 
 function trStatus(key: string, l: any) {
@@ -378,7 +286,7 @@ function TransferModal({ route, roundIndex, round, onSave, onClose, l, c }: any)
 
   const addItem = (val: string) => {
     const text = val.trim(); if (!text) return;
-    if (allTexts.includes(text)) { alert(`⚠️ Már scannelve: ${text}`); setInputVal(""); setTimeout(() => inputRef.current?.focus(), 50); return; }
+    if (allTexts.includes(text)) { alert(`⚠️ Already scanned: ${text}`); setInputVal(""); setTimeout(() => inputRef.current?.focus(), 50); return; }
     setActiveItems((prev) => [...prev, { text, scannedAt: new Date().toISOString() }]);
     setInputVal(""); setTimeout(() => inputRef.current?.focus(), 50);
   };
@@ -425,7 +333,7 @@ function TransferModal({ route, roundIndex, round, onSave, onClose, l, c }: any)
   };
 
   const titleSuffix = roundIndex != null ? ` ${roundIndex + 1}. ${l.transferRound}` : ` ${l.transferRound}`;
-  const isLight = c.mode === "light";
+  const isLight = false;
 
   return (
     <div style={{ position: "fixed", inset: 0, background: c.modalOverlay, zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
@@ -453,12 +361,12 @@ function TransferModal({ route, roundIndex, round, onSave, onClose, l, c }: any)
 
           {groups.length > 0 && (
             <div>
-              <div style={{ color: c.subtle, fontSize: 10, letterSpacing: 1, textTransform: "uppercase", marginBottom: 6 }}>Mentett csoportok</div>
+              <div style={{ color: c.subtle, fontSize: 10, letterSpacing: 1, textTransform: "uppercase", marginBottom: 6 }}>Saved groups</div>
               {groups.map((g, gIdx) => (
                 <div key={gIdx} style={{ background: c.bgInput, border: `1px solid ${c.border}`, borderRadius: 8, padding: 8, marginBottom: 6 }}>
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
                     <div style={{ color: c.purple, fontSize: 12, fontWeight: 700 }}>📂 {g.category} <span style={{ color: c.subtle, fontWeight: 400 }}>({g.items.length})</span></div>
-                    <button onClick={() => removeGroup(gIdx)} style={{ background: isLight ? "#fee2e2" : "#ef444422", border: `1px solid ${c.red}`, color: c.red, borderRadius: 6, padding: "2px 8px", fontSize: 10, fontWeight: 700, cursor: "pointer" }}>Törlés</button>
+                    <button onClick={() => removeGroup(gIdx)} style={{ background: isLight ? "#fee2e2" : "#ef444422", border: `1px solid ${c.red}`, color: c.red, borderRadius: 6, padding: "2px 8px", fontSize: 10, fontWeight: 700, cursor: "pointer" }}>Delete</button>
                   </div>
                   {g.items.map((it: any, iIdx: number) => (
                     <div key={iIdx} style={{ display: "flex", alignItems: "center", gap: 8, padding: "3px 0" }}>
@@ -486,17 +394,17 @@ function TransferModal({ route, roundIndex, round, onSave, onClose, l, c }: any)
               <>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
                   <div style={{ color: c.purple, fontSize: 12, fontWeight: 700 }}>📂 {activeCategory}</div>
-                  <button onClick={() => { setActiveCategory(null); setActiveItems([]); setInputVal(""); }} style={{ background: "transparent", border: `1px solid ${c.subtle}`, color: c.subtle, borderRadius: 6, padding: "2px 8px", fontSize: 10, cursor: "pointer" }}>Mégse</button>
+                  <button onClick={() => { setActiveCategory(null); setActiveItems([]); setInputVal(""); }} style={{ background: "transparent", border: `1px solid ${c.subtle}`, color: c.subtle, borderRadius: 6, padding: "2px 8px", fontSize: 10, cursor: "pointer" }}>Cancel</button>
                 </div>
                 <input ref={inputRef} value={inputVal} onChange={(e) => setInputVal(e.target.value)} onKeyDown={handleKeyDown} placeholder={l.cargoScan}
                   style={{ width: "100%", background: c.bgInput, border: `1px solid ${c.accent}`, borderRadius: 8, padding: "10px 12px", color: c.text, fontSize: 13, fontFamily: "inherit", boxSizing: "border-box", outline: "none" }} />
-                <div style={{ color: c.subtle, fontSize: 10, marginTop: 6, textAlign: "center" }}>Enter = automatikus hozzáadás</div>
+                <div style={{ color: c.subtle, fontSize: 10, marginTop: 6, textAlign: "center" }}>Enter = add automatically</div>
                 {activeItems.length > 0 && (
                   <div style={{ marginTop: 8 }}>
                     {[...activeItems].reverse().map((item, idx) => (
                       <div key={idx} style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 0", borderBottom: `1px solid ${c.borderSubtle}` }}>
                         <div style={{ flex: 1, color: c.text, fontSize: 12 }}>{item.text}</div>
-                        <button onClick={() => removeActiveItem(activeItems.length - 1 - idx)} style={{ background: isLight ? "#fee2e2" : "#ef444422", border: `1px solid ${c.red}`, color: c.red, cursor: "pointer", fontSize: 10, fontWeight: 700, padding: "2px 6px", borderRadius: 6 }}>Törlés</button>
+                        <button onClick={() => removeActiveItem(activeItems.length - 1 - idx)} style={{ background: isLight ? "#fee2e2" : "#ef444422", border: `1px solid ${c.red}`, color: c.red, cursor: "pointer", fontSize: 10, fontWeight: 700, padding: "2px 6px", borderRadius: 6 }}>Delete</button>
                       </div>
                     ))}
                   </div>
@@ -607,45 +515,45 @@ function FuvarModal({ onClose, onAdd, l, c }: any) {
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
             <div><div style={REQUIRED}>{l.fuvarFrom}</div>
               <select className="select-dark" value={form.from} onChange={(e) => setForm((p) => ({ ...p, from: e.target.value }))}>
-                <option value="">— válassz —</option>{WAREHOUSES.map((w) => <option key={w} value={w}>{w}</option>)}
+                <option value="">— select —</option>{WAREHOUSES.map((w) => <option key={w} value={w}>{w}</option>)}
               </select></div>
             <div><div style={REQUIRED}>{l.fuvarTo}</div>
               <select className="select-dark" value={form.to} onChange={(e) => setForm((p) => ({ ...p, to: e.target.value }))}>
-                <option value="">— válassz —</option>{WAREHOUSES.filter((w) => w !== form.from).map((w) => <option key={w} value={w}>{w}</option>)}
+                <option value="">— select —</option>{WAREHOUSES.filter((w) => w !== form.from).map((w) => <option key={w} value={w}>{w}</option>)}
               </select></div>
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
             {form.via.map((v, i) => (
               <div key={i} style={{ display: "flex", alignItems: "flex-end", gap: 8 }}>
                 <div style={{ flex: 1 }}>
-                  {i === 0 && <div style={OPTIONAL}>Köztes megálló (opcionális)</div>}
+                  {i === 0 && <div style={OPTIONAL}>Stopover (optional)</div>}
                   <select className="select-dark" value={v} onChange={(e) => setVia(i, e.target.value)}>
-                    <option value="">— válassz —</option>{WAREHOUSES.filter((w) => w !== form.from && w !== form.to).map((w) => <option key={w} value={w}>{w}</option>)}
+                    <option value="">— select —</option>{WAREHOUSES.filter((w) => w !== form.from && w !== form.to).map((w) => <option key={w} value={w}>{w}</option>)}
                   </select>
                 </div>
-                <button onClick={() => removeVia(i)} style={{ background: c.mode === "light" ? "#fee2e2" : "#ef444422", border: `1px solid ${c.red}`, color: c.red, borderRadius: 6, padding: "8px 10px", fontSize: 13, cursor: "pointer", marginBottom: 1 }}>×</button>
+                <button onClick={() => removeVia(i)} style={{ background: "#ef444422", border: `1px solid ${c.red}`, color: c.red, borderRadius: 6, padding: "8px 10px", fontSize: 13, cursor: "pointer", marginBottom: 1 }}>×</button>
               </div>
             ))}
-            <button onClick={addVia} style={{ background: "transparent", border: `1px dashed ${c.cyan}`, color: c.cyan, borderRadius: 6, padding: "7px", fontSize: 11, cursor: "pointer", textAlign: "center" }}>+ Köztes megálló hozzáadása</button>
+            <button onClick={addVia} style={{ background: "transparent", border: `1px dashed ${c.cyan}`, color: c.cyan, borderRadius: 6, padding: "7px", fontSize: 11, cursor: "pointer", textAlign: "center" }}>+ Add stopover</button>
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-            <div><div style={OPTIONAL}>{l.fuvarTimeFrom} (opcionális)</div>
+            <div><div style={OPTIONAL}>{l.fuvarTimeFrom} (optional)</div>
               <select className="select-dark" value={form.timeFrom} onChange={(e) => setForm((p) => ({ ...p, timeFrom: e.target.value }))}>
                 <option value="">—</option>{HOURS.map((h) => <option key={h} value={h}>{h}</option>)}
               </select></div>
-            <div><div style={OPTIONAL}>{l.fuvarTimeTo} (opcionális)</div>
+            <div><div style={OPTIONAL}>{l.fuvarTimeTo} (optional)</div>
               <select className="select-dark" value={form.timeTo} onChange={(e) => setForm((p) => ({ ...p, timeTo: e.target.value }))}>
                 <option value="">—</option>{HOURS.filter((h) => !form.timeFrom || h > form.timeFrom).map((h) => <option key={h} value={h}>{h}</option>)}
               </select></div>
           </div>
           <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer" }}>
             <input type="checkbox" checked={form.urgent} onChange={(e) => setForm((p) => ({ ...p, urgent: e.target.checked }))} style={{ accentColor: c.red, width: 16, height: 16 }} />
-            <span style={{ color: c.red, fontSize: 12, fontWeight: 700 }}>{l.fuvarUrgent} (opcionális)</span>
+            <span style={{ color: c.red, fontSize: 12, fontWeight: 700 }}>{l.fuvarUrgent} (optional)</span>
           </label>
           <button onClick={handleAdd} disabled={!canAdd} style={{ background: canAdd ? c.accent : c.surfaceAlt, border: "none", color: canAdd ? c.accentText : c.subtle, borderRadius: 8, padding: "10px", fontSize: 13, fontWeight: 700, cursor: canAdd ? "pointer" : "not-allowed" }}>{l.fuvarAdd}</button>
           {added.length > 0 && (
             <div style={{ borderTop: `1px solid ${c.border}`, paddingTop: 10 }}>
-              <div style={{ color: c.subtle, fontSize: 10, letterSpacing: 1, textTransform: "uppercase", marginBottom: 6 }}>Hozzáadva ({added.length})</div>
+              <div style={{ color: c.subtle, fontSize: 10, letterSpacing: 1, textTransform: "uppercase", marginBottom: 6 }}>Added ({added.length})</div>
               {added.map((item: any, idx) => (
                 <div key={idx} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 0", borderBottom: `1px solid ${c.borderSubtle}` }}>
                   <div style={{ flex: 1 }}>
@@ -663,21 +571,11 @@ function FuvarModal({ onClose, onAdd, l, c }: any) {
         </div>
         <div style={{ padding: "12px 16px", borderTop: `1px solid ${c.border}` }}>
           <button onClick={handleDone} disabled={added.length === 0} style={{ width: "100%", background: added.length > 0 ? c.green : c.surfaceAlt, border: "none", color: added.length > 0 ? "#fff" : c.subtle, borderRadius: 8, padding: "10px", fontSize: 13, fontWeight: 700, cursor: added.length > 0 ? "pointer" : "not-allowed" }}>
-            Vázlathoz adás – {added.length} fuvar →
+            Add to draft – {added.length} request(s) →
           </button>
         </div>
       </div>
     </div>
-  );
-}
-
-function PaintBucketIcon({ color }: { color: string }) {
-  return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M19 11l-8.5 8.5a2.121 2.121 0 0 1-3 0L3 15a2.121 2.121 0 0 1 0-3L11.5 3.5a2.121 2.121 0 0 1 3 0L19 8" />
-      <path d="M5 13l7 7" />
-      <path d="M21 14s-2 2-2 4a2 2 0 0 0 4 0c0-2-2-4-2-4z" fill={color} />
-    </svg>
   );
 }
 
@@ -687,18 +585,7 @@ export default function App() {
   const [pinInput, setPinInput] = useState("");
   const [pinError, setPinError] = useState(false);
 
-  const [theme, setTheme] = useState<ThemeName>(() => {
-    const saved = localStorage.getItem("tt_theme");
-    return saved === "light" ? "light" : "dark";
-  });
-  const c = buildColors(theme);
-  const toggleTheme = () => setTheme((t) => {
-    const next: ThemeName = t === "dark" ? "light" : "dark";
-    localStorage.setItem("tt_theme", next);
-    return next;
-  });
-  const [lang, setLang] = useState("hu");
-  const [showLangMenu, setShowLangMenu] = useState(false);
+  const c = COLORS;
   const [days, setDays] = useState({});
   const [fuvarDay, setFuvarDay] = useState(getTodayKey());
   const [fuvarDraftMap, setFuvarDraftMap] = useState<{ [dk: string]: any[] }>({});
@@ -717,7 +604,7 @@ export default function App() {
   const pushSubRef = useRef<any>(null);
   const midnightRef = useRef<any>(null);
   const todayBtnRef = useRef<HTMLDivElement>(null);
-  const l = T[lang];
+  const l = T;
 
   const syncNow = async () => {
     const d = await fbGet("days"); if (d) setDays(d);
@@ -783,7 +670,7 @@ export default function App() {
     if (!authed) return;
     const load = async () => { await syncNow(); setLoaded(true); };
     load();
-    const iv = setInterval(syncNow, 60000);
+    const iv = setInterval(syncNow, 30000);
     return () => clearInterval(iv);
   }, [authed]);
 
@@ -791,16 +678,16 @@ export default function App() {
     return (
       <div style={{ minHeight: "100vh", background: c.bg, display: "flex", alignItems: "center", justifyContent: "center", padding: 24 }}>
         <div style={{ background: c.surfaceMuted, border: `1px solid ${c.accent}`, borderRadius: 16, padding: 32, width: "100%", maxWidth: 340, textAlign: "center", boxShadow: c.shadow }}>
-          <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 32, color: c.accent, letterSpacing: 4, marginBottom: 4 }}>TATAI TRACKER</div>
-          <div style={{ color: c.subtle, fontSize: 11, letterSpacing: 2, marginBottom: 32 }}>RAKTÁRI LOGISZTIKA</div>
-          <div style={{ color: c.text, fontSize: 13, marginBottom: 12 }}>Add meg a belépési kódot</div>
+          <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 32, color: c.accent, letterSpacing: 4, marginBottom: 4 }}>DHG</div>
+          <div style={{ color: "#ffffff", fontSize: 11, letterSpacing: 2, marginBottom: 32 }}>DISCREPANCY HANDLING</div>
+          <div style={{ color: c.text, fontSize: 13, marginBottom: 12 }}>Enter the access code</div>
           <input type="password" value={pinInput} onChange={e => { setPinInput(e.target.value); setPinError(false); }}
             onKeyDown={e => { if (e.key === "Enter") { if (pinInput === PIN) { localStorage.setItem("tt_auth", PIN); setAuthed(true); } else { setPinError(true); setPinInput(""); } } }}
             placeholder="••••••" autoFocus
             style={{ width: "100%", background: c.bgInput, border: `1px solid ${pinError ? c.red : c.accent}`, borderRadius: 8, padding: "12px", color: c.text, fontSize: 20, textAlign: "center", fontFamily: "inherit", boxSizing: "border-box" as any, outline: "none", letterSpacing: 6, marginBottom: 8 }} />
-          {pinError && <div style={{ color: c.red, fontSize: 12, marginBottom: 8 }}>Helytelen kód</div>}
+          {pinError && <div style={{ color: c.red, fontSize: 12, marginBottom: 8 }}>Incorrect code</div>}
           <button onClick={() => { if (pinInput === PIN) { localStorage.setItem("tt_auth", PIN); setAuthed(true); } else { setPinError(true); setPinInput(""); } }}
-            style={{ width: "100%", background: c.accent, border: "none", color: c.accentText, borderRadius: 8, padding: "12px", fontSize: 14, fontWeight: 700, cursor: "pointer", marginTop: 4 }}>Belépés</button>
+            style={{ width: "100%", background: c.accent, border: "none", color: c.accentText, borderRadius: 8, padding: "12px", fontSize: 14, fontWeight: 700, cursor: "pointer", marginTop: 4 }}>Login</button>
         </div>
       </div>
     );
@@ -864,6 +751,7 @@ export default function App() {
     setFuvarSavedMap(next);
     setFuvarDraftMap((prev) => ({ ...prev, [dk]: [] }));
     await fbSet("fuvarRequests", next);
+    await sendPush(`🗑️ New entry in Deletion request`, `${formatDateLabel(dk)} – ${draft.length} new item(s)`);
   };
   const deleteFuvarItem = async (dk: string, idx: number) => {
     const existing = fuvarSavedMap[dk]?.items || [];
@@ -919,7 +807,6 @@ export default function App() {
     const plan = days[dk] || initialDayPlan();
     if (!plan.plannedRoute || plan.plannedRoute.length === 0) return;
     await saveDayPlan(dk, { ...plan, routeLocked: true, route: plan.plannedRoute.map((w) => ({ warehouse: w, stopStatus: "várja", arrived: null, loading: null, departed: null, truckLoad: null })), status: "beállításra vár" });
-    await sendPush(`📋 Napi terv feltöltve`, `${formatDateLabel(dk)} – ${plan.plannedRoute.length} helyszín`);
   };
   const updateStopStatus = async (dk, index, newSS) => {
     const plan = days[dk] || initialDayPlan(), now = new Date().toISOString();
@@ -934,8 +821,6 @@ export default function App() {
     });
     const warehouse = plan.route[index].warehouse;
     await saveDayPlan(dk, { ...plan, route: newRoute, status: newSS === "indult" ? "úton" : "állomásozik", location: newSS === "indult" ? plan.location : warehouse });
-    if (newSS === "érkezett") await sendPush(`📍 Megérkezett`, warehouse);
-    if (newSS === "indult") await sendPush(`🚛 Elindult`, `${warehouse} → következő helyszín`);
   };
   const revertStopStatus = async (dk, index) => {
     const plan = days[dk] || initialDayPlan();
@@ -976,10 +861,10 @@ export default function App() {
   });
 
   const LABEL = labelStyle(c);
-  const isLight = c.mode === "light";
+  const isLight = false;
 
   return (
-    <div style={{ minHeight: "100vh", background: c.bg, fontFamily: "'DM Mono', monospace", color: c.text }} onClick={() => setShowLangMenu(false)}>
+    <div style={{ minHeight: "100vh", background: c.bg, fontFamily: "'DM Mono', monospace", color: c.text }}>
       {transferModal && (() => {
         const route = TRANSFER_ROUTES[transferModal.routeIdx];
         const rk = transferRouteKey(route);
@@ -1004,47 +889,25 @@ export default function App() {
         .route-line { width: 2px; background: ${c.border}; flex: 1; min-height: 16px; margin: 2px 0; }
         .day-btn { border-radius: 8px; padding: 7px 12px; font-family: inherit; font-size: 12px; font-weight: 700; cursor: pointer; border: 1px solid ${c.border}; background: ${c.surface}; color: ${c.subtle}; text-align: center; }
         .day-btn.selected { border-color: ${c.accent}; background: ${c.accent}; color: ${c.accentText}; }
-        .day-btn.tomorrow-style { border-color: ${c.accent}; background: ${isLight ? "#fff7ed" : "#f59e0b22"}; color: ${c.accent}; }
-        .lang-menu { position: absolute; top: 36px; right: 0; background: ${c.surface}; border: 1px solid ${c.border}; border-radius: 8px; overflow: hidden; z-index: 100; min-width: 110px; box-shadow: ${c.shadow}; }
-        .lang-option { padding: 8px 16px; cursor: pointer; font-size: 12px; font-weight: 700; color: ${c.text}; }
-        .lang-option:hover { background: ${c.surfaceAlt}; }
-        .lang-option.active-lang { color: ${c.accent}; }
-        .theme-toggle { background: transparent; border: 1px solid ${c.border}; border-radius: 8px; padding: 4px 7px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; transition: background 0.15s ease, border-color 0.15s ease; }
-        .theme-toggle:hover { background: ${c.surfaceAlt}; border-color: ${c.accent}; }
+        .day-btn.tomorrow-style { border-color: ${c.accent}; background: #06b6d422; color: ${c.accent}; }
       `}</style>
 
       <div style={{ borderBottom: `1px solid ${c.border}`, background: c.bg, position: "sticky", top: 0, zIndex: 10 }}>
         <div style={{ maxWidth: 680, margin: "0 auto", padding: "12px 16px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <div>
-              <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 26, color: c.accent, letterSpacing: 2 }}>TATAI TRACKER</div>
-              <div style={{ fontSize: 10, color: c.subtle, letterSpacing: 2 }}>{l.appSub}</div>
+              <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 26, color: c.accent, letterSpacing: 2 }}>DHG</div>
+              <div style={{ fontSize: 10, color: "#ffffff", letterSpacing: 2 }}>{l.appSub}</div>
             </div>
-            <button
-              onClick={toggleTheme}
-              className="theme-toggle"
-              title={theme === "dark" ? "Világos téma" : "Sötét téma"}
-              aria-label="Toggle theme"
-            >
-              <PaintBucketIcon color={c.accent} />
-            </button>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
             <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 2 }}>
               <button onClick={syncNow} style={{ background: "transparent", border: `1px solid ${c.border}`, borderRadius: 8, padding: "4px 8px", cursor: "pointer", fontSize: 13, color: c.subtle }}>🔄</button>
-              {lastSync && <div style={{ color: c.cyan, fontSize: 9, whiteSpace: "nowrap" }}>{new Date(lastSync).toLocaleTimeString("hu-HU", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}</div>}
+              {lastSync && <div style={{ color: c.cyan, fontSize: 9, whiteSpace: "nowrap" }}>{new Date(lastSync).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}</div>}
             </div>
             <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
               <div style={{ width: 8, height: 8, borderRadius: "50%", background: c.green }}></div>
               <span style={{ fontSize: 11, color: c.green }}>{l.live}</span>
-            </div>
-            <div style={{ position: "relative" }} onClick={(e) => e.stopPropagation()}>
-              <button onClick={() => setShowLangMenu((p) => !p)} style={{ background: "transparent", border: `1px solid ${c.border}`, borderRadius: 8, padding: "4px 8px", cursor: "pointer", fontSize: 16, color: c.text }}>🌐</button>
-              {showLangMenu && (
-                <div className="lang-menu">
-                  {["hu", "en"].map((ln) => <div key={ln} className={`lang-option ${lang === ln ? "active-lang" : ""}`} onClick={() => { setLang(ln); setShowLangMenu(false); }}>{ln === "hu" ? "🇭🇺 Magyar" : "🇬🇧 English"}</div>)}
-                </div>
-              )}
             </div>
           </div>
         </div>
@@ -1147,7 +1010,7 @@ export default function App() {
                                 <div style={{ marginTop: 6, background: c.bgInput, border: `1px solid ${c.purple}`, borderRadius: 8, padding: 8 }}>
                                   <div style={{ color: c.purple, fontSize: 10, textTransform: "uppercase", letterSpacing: 1, marginBottom: 6 }}>{isInsertingBeforeHere ? l.insertBefore : l.insertAfter}</div>
                                   <select className="select-dark" value={insertingStop.pending || ""} onChange={(e) => setInsertingStop((prev) => ({ ...prev, pending: e.target.value || null }))}>
-                                    <option value="">— válassz helyszínt —</option>{WAREHOUSES.map((ww) => <option key={ww} value={ww}>{ww}</option>)}
+                                    <option value="">— select location —</option>{WAREHOUSES.map((ww) => <option key={ww} value={ww}>{ww}</option>)}
                                   </select>
                                 </div>
                               )}
@@ -1246,7 +1109,7 @@ export default function App() {
                                 <div style={{ marginBottom: 8, background: c.bgInput, border: `1px solid ${c.purple}`, borderRadius: 8, padding: 8 }}>
                                   <div style={{ color: c.purple, fontSize: 10, textTransform: "uppercase", letterSpacing: 1, marginBottom: 6 }}>{isInsertingBefore ? l.insertBefore : l.insertAfter}</div>
                                   <select className="select-dark" value={insertingStop.pending || ""} onChange={(e) => setInsertingStop((prev) => ({ ...prev, pending: e.target.value || null }))} style={{ marginBottom: 0 }}>
-                                    <option value="">— válassz helyszínt —</option>{WAREHOUSES.map((w) => <option key={w} value={w}>{w}</option>)}
+                                    <option value="">— select location —</option>{WAREHOUSES.map((w) => <option key={w} value={w}>{w}</option>)}
                                   </select>
                                 </div>
                               )}
@@ -1430,7 +1293,7 @@ export default function App() {
                   {draft.map((item: any, idx) => (
                     <div key={idx} style={{ display: "flex", alignItems: "center", gap: 8, padding: "7px 0", borderBottom: `1px solid ${c.border}` }}>
                       <div style={{ flex: 1 }}>
-                        <div style={{ color: c.text, fontSize: 13, fontWeight: 700 }}>{item.from}{item.via?.filter(Boolean).map((v, i) => <span key={i}> → <span style={{ color: c.cyan }}>{v}</span></span>)}{" → "}{item.to}{item.urgent && <span style={{ marginLeft: 6, color: c.red, fontSize: 10, fontWeight: 700 }}>⚡ SÜRGŐS</span>}</div>
+                        <div style={{ color: c.text, fontSize: 13, fontWeight: 700 }}>{item.from}{item.via?.filter(Boolean).map((v, i) => <span key={i}> → <span style={{ color: c.cyan }}>{v}</span></span>)}{" → "}{item.to}{item.urgent && <span style={{ marginLeft: 6, color: c.red, fontSize: 10, fontWeight: 700 }}>⚡ URGENT</span>}</div>
                         {(item.timeFrom || item.timeTo) && <div style={{ color: c.subtle, fontSize: 11, marginTop: 2 }}>🕐 {item.timeFrom || "—"} – {item.timeTo || "—"}</div>}
                       </div>
                       <button onClick={() => removeFuvarDraftItem(fuvarDay, idx)} style={{ background: isLight ? "#fee2e2" : "#ef444422", border: `1px solid ${c.red}`, color: c.red, borderRadius: 6, padding: "3px 8px", fontSize: 11, cursor: "pointer" }}>×</button>
@@ -1450,7 +1313,7 @@ export default function App() {
                   {saved.map((item: any, idx) => (
                     <div key={idx} style={{ display: "flex", alignItems: "center", gap: 8, padding: "7px 0", borderBottom: `1px solid ${c.border}` }}>
                       <div style={{ flex: 1 }}>
-                        <div style={{ color: c.text, fontSize: 13, fontWeight: 700 }}>{item.from}{item.via?.filter(Boolean).map((v, i) => <span key={i}> → <span style={{ color: c.cyan }}>{v}</span></span>)}{" → "}{item.to}{item.urgent && <span style={{ marginLeft: 6, color: c.red, fontSize: 10, fontWeight: 700 }}>⚡ SÜRGŐS</span>}</div>
+                        <div style={{ color: c.text, fontSize: 13, fontWeight: 700 }}>{item.from}{item.via?.filter(Boolean).map((v, i) => <span key={i}> → <span style={{ color: c.cyan }}>{v}</span></span>)}{" → "}{item.to}{item.urgent && <span style={{ marginLeft: 6, color: c.red, fontSize: 10, fontWeight: 700 }}>⚡ URGENT</span>}</div>
                         {(item.timeFrom || item.timeTo) && <div style={{ color: c.subtle, fontSize: 11, marginTop: 2 }}>🕐 {item.timeFrom || "—"} – {item.timeTo || "—"}</div>}
                       </div>
                       <button onClick={() => deleteFuvarItem(fuvarDay, idx)} style={{ background: isLight ? "#fee2e2" : "#ef444422", border: `1px solid ${c.red}`, color: c.red, borderRadius: 6, padding: "3px 8px", fontSize: 11, cursor: "pointer" }}>🗑️</button>
