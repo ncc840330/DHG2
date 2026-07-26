@@ -438,6 +438,52 @@ h1 {
     margin-top: 18px;
   }
 
+  .date-section {
+    padding: 12px 0 14px;
+  }
+
+  .date-heading {
+    margin-bottom: 8px;
+  }
+
+  .date-strip {
+    gap: 6px;
+    padding-top: 3px;
+    padding-bottom: 9px;
+  }
+
+  .date-strip::-webkit-scrollbar {
+    height: 6px;
+  }
+
+  .date-button {
+    flex-basis: 68px;
+    min-height: 64px;
+    padding: 7px 8px 6px;
+    border-radius: 9px;
+  }
+
+  .date-value {
+    font-size: 0.96rem;
+  }
+
+  .date-caption {
+    margin-top: 2px;
+    font-size: 0.52rem;
+  }
+
+  .date-records {
+    gap: 4px;
+    margin-top: 4px;
+    font-size: 0.44rem;
+  }
+
+  .record-dot {
+    width: 5px;
+    height: 5px;
+    flex-basis: 5px;
+  }
+
   .record-panel {
     align-items: stretch;
     flex-direction: column;

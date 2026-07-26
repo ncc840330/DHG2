@@ -18,8 +18,8 @@ self.addEventListener('push', event => {
   event.waitUntil(
     self.registration.showNotification(data.title || 'Tatai Tracker', {
       body: data.body || '',
-      icon: '/icons/icon-192.png',
-      badge: '/icons/icon-32.png',
+      icon: '/icon-192.png',
+      badge: '/icon-32.png',
       vibrate: [200, 100, 200],
       data: data
     })
