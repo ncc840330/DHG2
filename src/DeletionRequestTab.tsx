@@ -1,5 +1,4 @@
 import {
-  ChangeEvent,
   FormEvent,
   KeyboardEvent,
   useCallback,
@@ -8,7 +7,9 @@ import {
   useRef,
   useState,
 } from "react";
+import ConfirmDialog from "./ConfirmDialog";
 import {
+  downloadSelection,
   focusNextControl,
   getErrorMessage,
   makeLineId,
@@ -18,14 +19,13 @@ import {
   toCountMap,
   View,
 } from "./lib";
-
-type RequestImage = {
-  id: number;
-  slot: number;
-  fileName: string;
-  contentType: string;
-  byteSize: number;
-};
+import {
+  appendPhotoSlots,
+  PhotoFields,
+  usePhotoSlots,
+} from "./photos";
+import type { RecordImage } from "./photos";
+import { RecordRow, SavedToolbar, useSelection } from "./SavedList";
 
 type DeletionRequest = {
   id: number;
@@ -37,7 +37,7 @@ type DeletionRequest = {
   rfid: string;
   problemDescription: string;
   problemOther: string | null;
-  images: RequestImage[];
+  images: RecordImage[];
 };
 
 type FormValues = {
@@ -49,17 +49,6 @@ type FormValues = {
   problemOther: string | null;
 };
 
-type PhotoSlot =
-  | { kind: "empty" }
-  | { kind: "existing"; imageId: number; fileName: string }
-  | { kind: "new"; file: File; previewUrl: string };
-
-const SLOTS = [0, 1];
-const MAX_IMAGE_EDGE = 1600;
-const MAX_IMAGE_BYTES = 6 * 1024 * 1024;
-const RECOMPRESS_ABOVE_BYTES = 400 * 1024;
-const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"];
-
 const EMPTY_FORM: FormValues = {
   sourceTaskId: "",
   systemItem: "",
@@ -68,63 +57,6 @@ const EMPTY_FORM: FormValues = {
   problemDescription: "",
   problemOther: null,
 };
-
-const EMPTY_SLOTS: PhotoSlot[] = [{ kind: "empty" }, { kind: "empty" }];
-
-/**
- * Photos come straight off a phone camera, so they are scaled down before
- * upload — the archive stays small enough to download over the warehouse wifi.
- */
-async function prepareImage(file: File) {
-  if (file.size <= RECOMPRESS_ABOVE_BYTES && ALLOWED_IMAGE_TYPES.includes(file.type)) {
-    return file;
-  }
-
-  try {
-    const bitmap = await createImageBitmap(file);
-    const scale = Math.min(1, MAX_IMAGE_EDGE / Math.max(bitmap.width, bitmap.height));
-    const canvas = document.createElement("canvas");
-    canvas.width = Math.round(bitmap.width * scale);
-    canvas.height = Math.round(bitmap.height * scale);
-
-    const context = canvas.getContext("2d");
-    if (!context) throw new Error("Canvas is unavailable.");
-    context.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
-    bitmap.close();
-
-    const blob = await new Promise<Blob | null>((resolve) =>
-      canvas.toBlob(resolve, "image/jpeg", 0.78),
-    );
-    if (!blob) throw new Error("Encoding failed.");
-
-    const baseName = file.name.replace(/\.[^.]+$/, "") || "photo";
-    return new File([blob], `${baseName}.jpg`, { type: "image/jpeg" });
-  } catch {
-    return file;
-  }
-}
-
-function readFileName(header: string | null) {
-  if (!header) return null;
-
-  const encoded = /filename\*=UTF-8''([^;]+)/i.exec(header);
-  if (encoded) {
-    try {
-      return decodeURIComponent(encoded[1]);
-    } catch {
-      // Fall back to the plain filename below.
-    }
-  }
-
-  const plain = /filename="([^"]+)"/i.exec(header);
-  return plain ? plain[1] : null;
-}
-
-function slotPreview(slot: PhotoSlot) {
-  if (slot.kind === "new") return slot.previewUrl;
-  if (slot.kind === "existing") return `/api/deletion-request-image?id=${slot.imageId}`;
-  return null;
-}
 
 export default function DeletionRequestTab({
   isActive,
@@ -140,31 +72,20 @@ export default function DeletionRequestTab({
   const [nextLineId, setNextLineId] = useState("");
   const [savedCount, setSavedCount] = useState(0);
   const [formValues, setFormValues] = useState<FormValues>(EMPTY_FORM);
-  const [photoSlots, setPhotoSlots] = useState<PhotoSlot[]>(EMPTY_SLOTS);
   const [editingRecord, setEditingRecord] = useState<DeletionRequest | null>(null);
-  const [selectedIds, setSelectedIds] = useState<number[]>([]);
+  const [pendingDelete, setPendingDelete] = useState<DeletionRequest | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [isDownloading, setIsDownloading] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const formRef = useRef<HTMLFormElement>(null);
   const firstFieldRef = useRef<HTMLInputElement>(null);
-  const selectAllRef = useRef<HTMLInputElement>(null);
-  const previewUrls = useRef<string[]>([]);
 
-  const trackPreview = useCallback((url: string) => {
-    previewUrls.current.push(url);
-    return url;
-  }, []);
-
-  useEffect(
-    () => () => {
-      previewUrls.current.forEach((url) => URL.revokeObjectURL(url));
-      previewUrls.current = [];
-    },
-    [],
-  );
+  const { photoSlots, resetPhotos, loadPhotos, pickPhoto, clearPhoto } =
+    usePhotoSlots(setError);
+  const selection = useSelection(records);
 
   const loadCounts = useCallback(async () => {
     const response = await fetch(
@@ -187,9 +108,6 @@ export default function DeletionRequestTab({
     setRecords(data.records);
     setSavedCount(data.records.length);
     setNextLineId(data.nextLineId ?? makeLineId(date, data.records.length + 1));
-    setSelectedIds((current) =>
-      current.filter((id) => data.records.some((record) => record.id === id)),
-    );
   }, []);
 
   const refreshData = useCallback(async () => {
@@ -217,22 +135,13 @@ export default function DeletionRequestTab({
 
   useEffect(() => {
     setEditingRecord(null);
+    setPendingDelete(null);
     setFormValues(EMPTY_FORM);
-    setPhotoSlots(EMPTY_SLOTS);
+    resetPhotos();
     setNextLineId("");
-    setSelectedIds([]);
     setMessage("");
     setError("");
-  }, [selectedDate]);
-
-  const allSelected = records.length > 0 && selectedIds.length === records.length;
-
-  useEffect(() => {
-    if (selectAllRef.current) {
-      selectAllRef.current.indeterminate =
-        selectedIds.length > 0 && !allSelected;
-    }
-  }, [selectedIds, allSelected]);
+  }, [selectedDate, resetPhotos]);
 
   const updateField = (field: keyof FormValues, value: string) => {
     setFormValues((current) => ({ ...current, [field]: value }));
@@ -242,61 +151,6 @@ export default function DeletionRequestTab({
     focusNextControl(formRef.current, event);
   };
 
-  const pickPhoto = async (index: number, event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    event.target.value = "";
-    if (!file) return;
-
-    setError("");
-    const prepared = await prepareImage(file);
-
-    if (!ALLOWED_IMAGE_TYPES.includes(prepared.type)) {
-      setError("Csak JPEG, PNG vagy WEBP kép tölthető fel.");
-      return;
-    }
-    if (prepared.size > MAX_IMAGE_BYTES) {
-      setError("A kép túl nagy, legfeljebb 6 MB tölthető fel.");
-      return;
-    }
-
-    const previewUrl = trackPreview(URL.createObjectURL(prepared));
-    setPhotoSlots((current) =>
-      current.map((slot, slotIndex) =>
-        slotIndex === index ? { kind: "new", file: prepared, previewUrl } : slot,
-      ),
-    );
-  };
-
-  const clearPhoto = (index: number) => {
-    setPhotoSlots((current) =>
-      current.map((slot, slotIndex) =>
-        slotIndex === index ? { kind: "empty" } : slot,
-      ),
-    );
-  };
-
-  const buildPayload = () => {
-    const payload = new FormData();
-    payload.set("sourceTaskId", formValues.sourceTaskId);
-    payload.set("systemItem", formValues.systemItem);
-    payload.set("systemSn", formValues.systemSn);
-    payload.set("rfid", formValues.rfid);
-    payload.set("problemDescription", formValues.problemDescription);
-    payload.set("problemOther", formValues.problemOther ?? "");
-
-    photoSlots.forEach((slot, index) => {
-      const field = `image${index + 1}`;
-      if (slot.kind === "new") {
-        payload.set(`${field}Action`, "replace");
-        payload.set(field, slot.file, slot.file.name);
-      } else {
-        payload.set(`${field}Action`, slot.kind === "existing" ? "keep" : "empty");
-      }
-    });
-
-    return payload;
-  };
-
   const saveRecord = async (event: FormEvent) => {
     event.preventDefault();
     setIsSaving(true);
@@ -304,7 +158,11 @@ export default function DeletionRequestTab({
     setMessage("");
 
     try {
-      const payload = buildPayload();
+      const payload = new FormData();
+      Object.entries(formValues).forEach(([field, value]) => {
+        payload.set(field, value ?? "");
+      });
+      appendPhotoSlots(payload, photoSlots);
       if (!editingRecord) payload.set("recordDate", selectedDate);
 
       const response = await fetch(
@@ -324,7 +182,7 @@ export default function DeletionRequestTab({
       );
       setEditingRecord(null);
       setFormValues(EMPTY_FORM);
-      setPhotoSlots(EMPTY_SLOTS);
+      resetPhotos();
       await Promise.all([loadCounts(), loadRecords(selectedDate)]);
       onSynced();
       window.requestAnimationFrame(() => firstFieldRef.current?.focus());
@@ -345,14 +203,7 @@ export default function DeletionRequestTab({
       problemDescription: record.problemDescription,
       problemOther: record.problemOther,
     });
-    setPhotoSlots(
-      SLOTS.map((index) => {
-        const image = record.images.find((item) => item.slot === index + 1);
-        return image
-          ? ({ kind: "existing", imageId: image.id, fileName: image.fileName } as PhotoSlot)
-          : ({ kind: "empty" } as PhotoSlot);
-      }),
-    );
+    loadPhotos(record.images);
     setView("add");
     setMessage("");
     setError("");
@@ -360,80 +211,60 @@ export default function DeletionRequestTab({
   };
 
   const deleteRecord = async () => {
-    if (!editingRecord) return;
-    if (!window.confirm(`Biztosan törlöd ezt a kérelmet: ${editingRecord.lineId}?`)) return;
+    const record = pendingDelete;
+    if (!record) return;
 
-    setIsSaving(true);
+    setIsDeleting(true);
     setError("");
     try {
-      const response = await fetch(`/api/deletion-requests?id=${editingRecord.id}`, {
+      const response = await fetch(`/api/deletion-requests?id=${record.id}`, {
         method: "DELETE",
       });
       if (!response.ok) throw new Error("A kérelem törlése sikertelen.");
 
-      setEditingRecord(null);
-      setFormValues(EMPTY_FORM);
-      setPhotoSlots(EMPTY_SLOTS);
-      setMessage("A kérelem törölve. A felszabadult Line ID ismét kiosztható.");
+      setPendingDelete(null);
+      if (editingRecord?.id === record.id) {
+        setEditingRecord(null);
+        setFormValues(EMPTY_FORM);
+        resetPhotos();
+        setView("saved");
+      }
+      setMessage(
+        `${record.lineId} törölve. A felszabadult Line ID ismét kiosztható.`,
+      );
       await Promise.all([loadCounts(), loadRecords(selectedDate)]);
       onSynced();
-      setView("saved");
     } catch (deleteError) {
       setError(getErrorMessage(deleteError, "Ismeretlen törlési hiba történt."));
+      setPendingDelete(null);
     } finally {
-      setIsSaving(false);
+      setIsDeleting(false);
     }
-  };
-
-  const toggleSelected = (id: number) => {
-    setSelectedIds((current) =>
-      current.includes(id)
-        ? current.filter((item) => item !== id)
-        : [...current, id],
-    );
-  };
-
-  const toggleSelectAll = () => {
-    setSelectedIds(allSelected ? [] : records.map((record) => record.id));
   };
 
   const selectedTaskCount = useMemo(() => {
     const tasks = records
-      .filter((record) => selectedIds.includes(record.id))
+      .filter((record) => selection.selectedIds.includes(record.id))
       .map((record) => record.sourceTaskId);
     return new Set(tasks).size;
-  }, [records, selectedIds]);
+  }, [records, selection.selectedIds]);
 
   const downloadSelected = async () => {
-    if (selectedIds.length === 0) return;
+    if (selection.selectedIds.length === 0) return;
 
     setIsDownloading(true);
     setError("");
     setMessage("");
 
     try {
-      const response = await fetch("/api/deletion-requests/export", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ids: selectedIds }),
-      });
-      if (!response.ok) throw new Error("A letöltés sikertelen.");
-
-      const archive = await response.blob();
-      const fileName =
-        readFileName(response.headers.get("Content-Disposition")) ??
-        "deletion-requests.zip";
-
-      const url = URL.createObjectURL(archive);
-      const anchor = document.createElement("a");
-      anchor.href = url;
-      anchor.download = fileName;
-      document.body.appendChild(anchor);
-      anchor.click();
-      anchor.remove();
-      URL.revokeObjectURL(url);
-
-      setMessage(`${fileName} letöltve (${selectedIds.length} kérelem).`);
+      const fileName = await downloadSelection(
+        "/api/deletion-requests/export",
+        selection.selectedIds,
+        "deletion-requests.zip",
+      );
+      setMessage(
+        `${fileName} letöltve (${selection.selectedIds.length} kérelem).`,
+      );
     } catch (downloadError) {
       setError(getErrorMessage(downloadError, "Ismeretlen letöltési hiba történt."));
     } finally {
@@ -508,45 +339,16 @@ export default function DeletionRequestTab({
               </label>
             )}
 
-            <div className="field">
-              <span>PHOTOS <small>MAX 2 PER LINE ID</small></span>
-              <div className="photo-grid">
-                {photoSlots.map((slot, index) => {
-                  const preview = slotPreview(slot);
-                  return (
-                    <div className="photo-slot" key={index}>
-                      {preview ? (
-                        <img src={preview} alt={`Photo ${index + 1}`} />
-                      ) : (
-                        <div className="photo-empty">
-                          <svg aria-hidden="true" viewBox="0 0 24 24">
-                            <path d="M4 7h4l2-2h4l2 2h4v12H4zM12 16a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7z" />
-                          </svg>
-                          <b>PHOTO {index + 1}</b>
-                        </div>
-                      )}
-                      <div className="photo-actions">
-                        <label className="photo-pick">
-                          {slot.kind === "empty" ? "ADD" : "REPLACE"}
-                          <input
-                            type="file"
-                            accept="image/*"
-                            onChange={(event) => void pickPhoto(index, event)}
-                          />
-                        </label>
-                        {slot.kind !== "empty" && (
-                          <button type="button" onClick={() => clearPhoto(index)}>REMOVE</button>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
+            <PhotoFields
+              slots={photoSlots}
+              imagePath="/api/deletion-request-image"
+              onPick={(index, event) => void pickPhoto(index, event)}
+              onClear={clearPhoto}
+            />
 
             <div className="form-actions">
               {editingRecord && (
-                <button className="delete-button" type="button" disabled={isSaving} onClick={deleteRecord}>DELETE</button>
+                <button className="delete-button" type="button" disabled={isSaving} onClick={() => setPendingDelete(editingRecord)}>DELETE</button>
               )}
               <button className="save-button" type="submit" disabled={isSaving}>
                 {isSaving ? "SAVING…" : editingRecord ? "SAVE CHANGES" : "SAVE REQUEST"}
@@ -563,30 +365,13 @@ export default function DeletionRequestTab({
           </div>
 
           {records.length > 0 && (
-            <div className="saved-toolbar">
-              <label className="select-all">
-                <input
-                  ref={selectAllRef}
-                  type="checkbox"
-                  checked={allSelected}
-                  onChange={toggleSelectAll}
-                />
-                <span>SELECT ALL</span>
-              </label>
-              <button
-                className="download-button"
-                type="button"
-                disabled={selectedIds.length === 0 || isDownloading}
-                onClick={downloadSelected}
-              >
-                <svg aria-hidden="true" viewBox="0 0 24 24">
-                  <path d="M12 4v10m0 0 4-4m-4 4-4-4M5 19h14" />
-                </svg>
-                {isDownloading
-                  ? "BUILDING ZIP…"
-                  : `DOWNLOAD ${selectedIds.length ? `(${selectedIds.length})` : ""}`}
-              </button>
-            </div>
+            <SavedToolbar
+              selectedCount={selection.selectedIds.length}
+              allSelected={selection.allSelected}
+              isDownloading={isDownloading}
+              onToggleAll={selection.toggleAll}
+              onDownload={downloadSelected}
+            />
           )}
 
           {selectedTaskCount > 1 && (
@@ -606,33 +391,37 @@ export default function DeletionRequestTab({
           ) : (
             <div className="record-list">
               {records.map((record) => (
-                <article
-                  className={`request-row ${selectedIds.includes(record.id) ? "is-selected" : ""}`}
+                <RecordRow
                   key={record.id}
-                >
-                  <label className="row-select">
-                    <input
-                      type="checkbox"
-                      checked={selectedIds.includes(record.id)}
-                      onChange={() => toggleSelected(record.id)}
-                    />
-                    <span className="visually-hidden">Select {record.lineId}</span>
-                  </label>
-                  <div className="cell-line"><span>LINE ID</span><strong>{record.lineId}</strong></div>
-                  <div className="cell-task"><span>SOURCE TASK ID</span><strong>{record.sourceTaskId}</strong></div>
-                  <div className="cell-item"><span>SYSTEM ITEM</span><strong>{record.systemItem}</strong></div>
-                  <div className="cell-sn"><span>SYSTEM SN</span><strong>{record.systemSn}</strong></div>
-                  <div className="cell-rfid"><span>RFID</span><strong>{record.rfid}</strong></div>
-                  <div className="row-photos">
-                    <span>PHOTOS</span>
-                    <strong>{record.images.length}/2</strong>
-                  </div>
-                  <button type="button" onClick={() => editRecord(record)}>MODIFY <span>→</span></button>
-                </article>
+                  lineId={record.lineId}
+                  isSelected={selection.selectedIds.includes(record.id)}
+                  onToggle={() => selection.toggle(record.id)}
+                  onModify={() => editRecord(record)}
+                  onDelete={() => setPendingDelete(record)}
+                  cells={[
+                    { label: "LINE ID", value: record.lineId },
+                    { label: "SOURCE TASK ID", value: record.sourceTaskId },
+                    { label: "SYSTEM ITEM", value: record.systemItem },
+                    { label: "SYSTEM SN", value: record.systemSn },
+                    { label: "RFID", value: record.rfid },
+                    { label: "PHOTOS", value: `${record.images.length}/2` },
+                  ]}
+                />
               ))}
             </div>
           )}
         </section>
+      )}
+
+      {pendingDelete && (
+        <ConfirmDialog
+          title="Are you sure you want to delete?"
+          message={`${pendingDelete.lineId} is removed for good, photos included. Its Line ID becomes available again.`}
+          busyLabel="DELETING…"
+          isBusy={isDeleting}
+          onConfirm={() => void deleteRecord()}
+          onCancel={() => setPendingDelete(null)}
+        />
       )}
     </>
   );

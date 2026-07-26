@@ -58,6 +58,20 @@ export function firstFreeSequence(usedSequences: { sequence: number }[]) {
   return lineSequence;
 }
 
+/**
+ * Newest line on top: the saved lists are read from the bottom of the shift, so
+ * the row that was just written should not need scrolling for.
+ */
+export function newestFirst<T extends { id: number; createdAt: Date | string }>(
+  rows: T[],
+) {
+  return [...rows].sort((left, right) => {
+    const byDate =
+      new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime();
+    return byDate !== 0 ? byDate : right.id - left.id;
+  });
+}
+
 export function apiError(message: string, status: number) {
   return Response.json({ error: message }, { status });
 }

@@ -1,5 +1,7 @@
 import { FormEvent, KeyboardEvent, useCallback, useEffect, useRef, useState } from "react";
+import ConfirmDialog from "./ConfirmDialog";
 import {
+  downloadSelection,
   focusNextControl,
   getErrorMessage,
   makeLineId,
@@ -9,6 +11,13 @@ import {
   toCountMap,
   View,
 } from "./lib";
+import {
+  appendPhotoSlots,
+  PhotoFields,
+  usePhotoSlots,
+} from "./photos";
+import type { RecordImage } from "./photos";
+import { RecordRow, SavedToolbar, useSelection } from "./SavedList";
 
 type DhgRecord = {
   id: number;
@@ -24,9 +33,13 @@ type DhgRecord = {
   locator: string;
   county: string;
   sourceTaskId: string;
+  images: RecordImage[];
 };
 
-type FormValues = Omit<DhgRecord, "id" | "recordDate" | "lineId">;
+type FormValues = Omit<
+  DhgRecord,
+  "id" | "recordDate" | "lineId" | "images"
+>;
 
 const EMPTY_FORM: FormValues = {
   systemItem: "",
@@ -56,12 +69,19 @@ export default function DhgTab({
   const [savedCount, setSavedCount] = useState(0);
   const [formValues, setFormValues] = useState<FormValues>(EMPTY_FORM);
   const [editingRecord, setEditingRecord] = useState<DhgRecord | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<DhgRecord | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const formRef = useRef<HTMLFormElement>(null);
   const firstFieldRef = useRef<HTMLInputElement>(null);
+
+  const { photoSlots, resetPhotos, loadPhotos, pickPhoto, clearPhoto } =
+    usePhotoSlots(setError);
+  const selection = useSelection(records);
 
   const loadCounts = useCallback(async () => {
     const response = await fetch(
@@ -111,11 +131,13 @@ export default function DhgTab({
 
   useEffect(() => {
     setEditingRecord(null);
+    setPendingDelete(null);
     setFormValues(EMPTY_FORM);
+    resetPhotos();
     setNextLineId("");
     setMessage("");
     setError("");
-  }, [selectedDate]);
+  }, [selectedDate, resetPhotos]);
 
   const updateField = (field: keyof FormValues, value: string) => {
     setFormValues((current) => ({ ...current, [field]: value }));
@@ -132,13 +154,16 @@ export default function DhgTab({
     setMessage("");
 
     try {
+      const payload = new FormData();
+      Object.entries(formValues).forEach(([field, value]) => {
+        payload.set(field, value ?? "");
+      });
+      appendPhotoSlots(payload, photoSlots);
+      if (!editingRecord) payload.set("recordDate", selectedDate);
+
       const response = await fetch(
         editingRecord ? `/api/dhg-records?id=${editingRecord.id}` : "/api/dhg-records",
-        {
-          method: editingRecord ? "PUT" : "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ recordDate: selectedDate, ...formValues }),
-        },
+        { method: editingRecord ? "PUT" : "POST", body: payload },
       );
 
       if (!response.ok) throw new Error("A rekord mentése sikertelen.");
@@ -151,6 +176,7 @@ export default function DhgTab({
       );
       setEditingRecord(null);
       setFormValues(EMPTY_FORM);
+      resetPhotos();
       await Promise.all([loadCounts(), loadRecords(selectedDate)]);
       onSynced();
       window.requestAnimationFrame(() => firstFieldRef.current?.focus());
@@ -175,6 +201,7 @@ export default function DhgTab({
       county: record.county,
       sourceTaskId: record.sourceTaskId,
     });
+    loadPhotos(record.images);
     setView("add");
     setMessage("");
     setError("");
@@ -182,27 +209,57 @@ export default function DhgTab({
   };
 
   const deleteRecord = async () => {
-    if (!editingRecord) return;
-    if (!window.confirm(`Biztosan törlöd ezt a rekordot: ${editingRecord.lineId}?`)) return;
+    const record = pendingDelete;
+    if (!record) return;
 
-    setIsSaving(true);
+    setIsDeleting(true);
     setError("");
     try {
-      const response = await fetch(`/api/dhg-records?id=${editingRecord.id}`, {
+      const response = await fetch(`/api/dhg-records?id=${record.id}`, {
         method: "DELETE",
       });
       if (!response.ok) throw new Error("A rekord törlése sikertelen.");
 
-      setEditingRecord(null);
-      setFormValues(EMPTY_FORM);
-      setMessage("A rekord törölve. A felszabadult Line ID ismét kiosztható.");
+      setPendingDelete(null);
+      if (editingRecord?.id === record.id) {
+        setEditingRecord(null);
+        setFormValues(EMPTY_FORM);
+        resetPhotos();
+        setView("saved");
+      }
+      setMessage(
+        `${record.lineId} törölve. A felszabadult Line ID ismét kiosztható.`,
+      );
       await Promise.all([loadCounts(), loadRecords(selectedDate)]);
       onSynced();
-      setView("saved");
     } catch (deleteError) {
       setError(getErrorMessage(deleteError, "Ismeretlen törlési hiba történt."));
+      setPendingDelete(null);
     } finally {
-      setIsSaving(false);
+      setIsDeleting(false);
+    }
+  };
+
+  const downloadSelected = async () => {
+    if (selection.selectedIds.length === 0) return;
+
+    setIsDownloading(true);
+    setError("");
+    setMessage("");
+
+    try {
+      const fileName = await downloadSelection(
+        "/api/dhg-records/export",
+        selection.selectedIds,
+        "dhg-records.zip",
+      );
+      setMessage(
+        `${fileName} letöltve (${selection.selectedIds.length} rekord).`,
+      );
+    } catch (downloadError) {
+      setError(getErrorMessage(downloadError, "Ismeretlen letöltési hiba történt."));
+    } finally {
+      setIsDownloading(false);
     }
   };
 
@@ -293,9 +350,16 @@ export default function DhgTab({
               <input required value={formValues.sourceTaskId} onChange={(event) => updateField("sourceTaskId", event.target.value)} />
             </label>
 
+            <PhotoFields
+              slots={photoSlots}
+              imagePath="/api/dhg-record-image"
+              onPick={(index, event) => void pickPhoto(index, event)}
+              onClear={clearPhoto}
+            />
+
             <div className="form-actions field-wide">
               {editingRecord && (
-                <button className="delete-button" type="button" disabled={isSaving} onClick={deleteRecord}>DELETE</button>
+                <button className="delete-button" type="button" disabled={isSaving} onClick={() => setPendingDelete(editingRecord)}>DELETE</button>
               )}
               <button className="save-button" type="submit" disabled={isSaving}>
                 {isSaving ? "SAVING…" : editingRecord ? "SAVE CHANGES" : "SAVE RECORD"}
@@ -310,6 +374,17 @@ export default function DhgTab({
             <div><p>DAILY RECORDS</p><h2>{selectedDate.split("-").join(".")}</h2></div>
             <span>{records.length} SAVED</span>
           </div>
+
+          {records.length > 0 && (
+            <SavedToolbar
+              selectedCount={selection.selectedIds.length}
+              allSelected={selection.allSelected}
+              isDownloading={isDownloading}
+              onToggleAll={selection.toggleAll}
+              onDownload={downloadSelected}
+            />
+          )}
+
           {isLoading ? (
             <div className="record-skeleton" aria-label="Loading records"><i /><i /><i /></div>
           ) : records.length === 0 ? (
@@ -322,16 +397,38 @@ export default function DhgTab({
           ) : (
             <div className="record-list">
               {records.map((record) => (
-                <article className="record-row" key={record.id}>
-                  <div><span>LINE ID</span><strong>{record.lineId}</strong></div>
-                  <div><span>SYSTEM ITEM</span><strong>{record.systemItem}</strong></div>
-                  <div><span>SYSTEM SN</span><strong>{record.systemSn}</strong></div>
-                  <button type="button" onClick={() => editRecord(record)}>MODIFY <span>→</span></button>
-                </article>
+                <RecordRow
+                  key={record.id}
+                  lineId={record.lineId}
+                  isSelected={selection.selectedIds.includes(record.id)}
+                  onToggle={() => selection.toggle(record.id)}
+                  onModify={() => editRecord(record)}
+                  onDelete={() => setPendingDelete(record)}
+                  cells={[
+                    { label: "LINE ID", value: record.lineId },
+                    { label: "SOURCE TASK ID", value: record.sourceTaskId },
+                    { label: "SYSTEM ITEM", value: record.systemItem },
+                    { label: "SYSTEM SN", value: record.systemSn },
+                    { label: "PHYSICAL SN", value: record.physicalSn },
+                    { label: "RFID", value: record.rfid },
+                    { label: "PHOTOS", value: `${record.images.length}/2` },
+                  ]}
+                />
               ))}
             </div>
           )}
         </section>
+      )}
+
+      {pendingDelete && (
+        <ConfirmDialog
+          title="Are you sure you want to delete?"
+          message={`${pendingDelete.lineId} is removed for good. Its Line ID becomes available again.`}
+          busyLabel="DELETING…"
+          isBusy={isDeleting}
+          onConfirm={() => void deleteRecord()}
+          onCancel={() => setPendingDelete(null)}
+        />
       )}
     </>
   );

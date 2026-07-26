@@ -1,12 +1,20 @@
-import { and, asc, eq, gte, lte, sql } from "drizzle-orm";
+import { and, asc, eq, gte, inArray, lte, sql } from "drizzle-orm";
 import { db } from "../../db/index.js";
-import { dhgRecords } from "../../db/schema.js";
+import { dhgRecordImages, dhgRecords } from "../../db/schema.js";
+import {
+  discardBlobs,
+  getDhgImageStore,
+  publicImageMeta,
+  readSlotIntents,
+  uploadImages,
+} from "../shared/images.js";
 import {
   apiError,
   firstFreeSequence,
   isProblemOption,
   isValidDateKey,
   makeLineId,
+  newestFirst,
   parseId,
   type ProblemOption,
 } from "../shared/records.js";
@@ -35,35 +43,53 @@ type RecordInput = {
   sourceTaskId: string;
 };
 
-function validateRecordInput(body: unknown): RecordInput | null {
-  if (!body || typeof body !== "object") return null;
-  const input = body as Record<string, unknown>;
-  const normalized = {} as Record<string, string>;
+function formString(form: FormData, key: string) {
+  const value = form.get(key);
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function validateRecordInput(form: FormData): RecordInput | null {
+  const normalized = {} as Record<(typeof REQUIRED_FIELDS)[number], string>;
 
   for (const field of REQUIRED_FIELDS) {
-    const value = input[field];
-    if (typeof value !== "string" || !value.trim()) return null;
-    normalized[field] = value.trim();
+    const value = formString(form, field);
+    if (!value) return null;
+    normalized[field] = value;
   }
 
-  if (!isProblemOption(input.problemDescription)) return null;
+  const problemDescription = formString(form, "problemDescription");
+  const problemOther = formString(form, "problemOther");
 
-  const problemOther =
-    typeof input.problemOther === "string" ? input.problemOther.trim() : "";
-  if (input.problemDescription === "Other" && !problemOther) return null;
+  if (!isProblemOption(problemDescription)) return null;
+  if (problemDescription === "Other" && !problemOther) return null;
 
   return {
-    systemItem: normalized.systemItem,
-    systemSn: normalized.systemSn,
-    physicalItem: normalized.physicalItem,
-    physicalSn: normalized.physicalSn,
-    rfid: normalized.rfid,
-    problemDescription: input.problemDescription,
-    problemOther: input.problemDescription === "Other" ? problemOther : null,
-    locator: normalized.locator,
-    county: normalized.county,
-    sourceTaskId: normalized.sourceTaskId,
+    ...normalized,
+    problemDescription,
+    problemOther: problemDescription === "Other" ? problemOther : null,
   };
+}
+
+async function loadImages(recordIds: number[]) {
+  if (recordIds.length === 0) return [];
+
+  return db
+    .select()
+    .from(dhgRecordImages)
+    .where(inArray(dhgRecordImages.recordId, recordIds))
+    .orderBy(asc(dhgRecordImages.slot));
+}
+
+/** Records are sent to the client with their image metadata, never the bytes. */
+async function withImages<T extends { id: number }>(records: T[]) {
+  const images = await loadImages(records.map((record) => record.id));
+
+  return records.map((record) => ({
+    ...record,
+    images: images
+      .filter((image) => image.recordId === record.id)
+      .map(publicImageMeta),
+  }));
 }
 
 export default async (request: Request) => {
@@ -75,7 +101,7 @@ export default async (request: Request) => {
     if (date) {
       if (!isValidDateKey(date)) return apiError("Invalid record date.", 400);
 
-      const records = await db
+      const rows = await db
         .select()
         .from(dhgRecords)
         .where(eq(dhgRecords.recordDate, date))
@@ -83,10 +109,13 @@ export default async (request: Request) => {
 
       const nextLineId = makeLineId(
         date,
-        firstFreeSequence(records.map((item) => ({ sequence: item.lineSequence }))),
+        firstFreeSequence(rows.map((row) => ({ sequence: row.lineSequence }))),
       );
 
-      return Response.json({ records, nextLineId });
+      return Response.json({
+        records: await withImages(newestFirst(rows)),
+        nextLineId,
+      });
     }
 
     const from = url.searchParams.get("from");
@@ -109,64 +138,125 @@ export default async (request: Request) => {
     return Response.json({ counts });
   }
 
-  if (request.method === "POST") {
-    const body = await request.json().catch(() => null);
-    const recordDate = body?.recordDate;
-    const input = validateRecordInput(body);
+  if (request.method === "POST" || request.method === "PUT") {
+    const form = await request.formData().catch(() => null);
+    if (!form) return apiError("Expected a multipart form submission.", 400);
 
-    if (!isValidDateKey(recordDate) || !input) {
-      return apiError("Missing or invalid record data.", 400);
+    const input = validateRecordInput(form);
+    const intents = readSlotIntents(form);
+    if (!input || !intents) return apiError("Missing or invalid record data.", 400);
+
+    const store = getDhgImageStore();
+
+    if (request.method === "POST") {
+      const recordDate = formString(form, "recordDate");
+      if (!isValidDateKey(recordDate)) return apiError("Invalid record date.", 400);
+
+      const uploaded = await uploadImages(store, intents);
+
+      try {
+        const record = await db.transaction(async (transaction) => {
+          await transaction.execute(
+            sql`select pg_advisory_xact_lock(hashtext(${recordDate}))`,
+          );
+
+          const usedSequences = await transaction
+            .select({ sequence: dhgRecords.lineSequence })
+            .from(dhgRecords)
+            .where(eq(dhgRecords.recordDate, recordDate))
+            .orderBy(asc(dhgRecords.lineSequence));
+
+          const lineSequence = firstFreeSequence(usedSequences);
+
+          const [created] = await transaction
+            .insert(dhgRecords)
+            .values({
+              recordDate,
+              lineSequence,
+              lineId: makeLineId(recordDate, lineSequence),
+              ...input,
+            })
+            .returning();
+
+          if (uploaded.length > 0) {
+            await transaction
+              .insert(dhgRecordImages)
+              .values(uploaded.map((image) => ({ ...image, recordId: created.id })));
+          }
+
+          return created;
+        });
+
+        const [withImageMeta] = await withImages([record]);
+        return Response.json({ record: withImageMeta }, { status: 201 });
+      } catch (error) {
+        await discardBlobs(store, uploaded.map((image) => image.blobKey));
+        throw error;
+      }
     }
 
-    const record = await db.transaction(async (transaction) => {
-      await transaction.execute(
-        sql`select pg_advisory_xact_lock(hashtext(${recordDate}))`,
-      );
-
-      const usedSequences = await transaction
-        .select({ sequence: dhgRecords.lineSequence })
-        .from(dhgRecords)
-        .where(eq(dhgRecords.recordDate, recordDate))
-        .orderBy(asc(dhgRecords.lineSequence));
-
-      const lineSequence = firstFreeSequence(usedSequences);
-
-      const [created] = await transaction
-        .insert(dhgRecords)
-        .values({
-          recordDate,
-          lineSequence,
-          lineId: makeLineId(recordDate, lineSequence),
-          ...input,
-        })
-        .returning();
-
-      return created;
-    });
-
-    return Response.json({ record }, { status: 201 });
-  }
-
-  if (request.method === "PUT") {
     const id = parseId(url.searchParams.get("id"));
-    const body = await request.json().catch(() => null);
-    const input = validateRecordInput(body);
+    if (!id) return apiError("Invalid record id.", 400);
 
-    if (!id || !input) return apiError("Missing or invalid record data.", 400);
+    const existing = await loadImages([id]);
+    const replacedSlots = intents
+      .filter((intent) => intent.action !== "keep")
+      .map((intent) => intent.slot);
+    const droppedBlobs = existing
+      .filter((image) => replacedSlots.includes(image.slot))
+      .map((image) => image.blobKey);
 
-    const [record] = await db
-      .update(dhgRecords)
-      .set({ ...input, updatedAt: new Date() })
-      .where(eq(dhgRecords.id, id))
-      .returning();
+    const uploaded = await uploadImages(store, intents);
 
-    if (!record) return apiError("Record not found.", 404);
-    return Response.json({ record });
+    try {
+      const record = await db.transaction(async (transaction) => {
+        const [updated] = await transaction
+          .update(dhgRecords)
+          .set({ ...input, updatedAt: new Date() })
+          .where(eq(dhgRecords.id, id))
+          .returning();
+
+        if (!updated) return null;
+
+        if (replacedSlots.length > 0) {
+          await transaction
+            .delete(dhgRecordImages)
+            .where(
+              and(
+                eq(dhgRecordImages.recordId, id),
+                inArray(dhgRecordImages.slot, replacedSlots),
+              ),
+            );
+        }
+
+        if (uploaded.length > 0) {
+          await transaction
+            .insert(dhgRecordImages)
+            .values(uploaded.map((image) => ({ ...image, recordId: id })));
+        }
+
+        return updated;
+      });
+
+      if (!record) {
+        await discardBlobs(store, uploaded.map((image) => image.blobKey));
+        return apiError("Record not found.", 404);
+      }
+
+      await discardBlobs(store, droppedBlobs);
+      const [withImageMeta] = await withImages([record]);
+      return Response.json({ record: withImageMeta });
+    } catch (error) {
+      await discardBlobs(store, uploaded.map((image) => image.blobKey));
+      throw error;
+    }
   }
 
   if (request.method === "DELETE") {
     const id = parseId(url.searchParams.get("id"));
     if (!id) return apiError("Invalid record id.", 400);
+
+    const images = await loadImages([id]);
 
     const [record] = await db
       .delete(dhgRecords)
@@ -174,6 +264,11 @@ export default async (request: Request) => {
       .returning({ id: dhgRecords.id });
 
     if (!record) return apiError("Record not found.", 404);
+
+    await discardBlobs(
+      getDhgImageStore(),
+      images.map((image) => image.blobKey),
+    );
     return new Response(null, { status: 204 });
   }
 
