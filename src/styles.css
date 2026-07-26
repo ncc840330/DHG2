@@ -1,4 +1,349 @@
-.App {
-  font-family: sans-serif;
-  text-align: center;
+@import url("https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Manrope:wght@500;600;700&display=swap");
+
+:root {
+  color-scheme: dark;
+  --background: #090c11;
+  --surface: #111720;
+  --surface-strong: #18212d;
+  --border: #283342;
+  --text-default: #ffffff;
+  --accent: #25c9df;
+  --accent-dark: #071318;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  min-height: 100%;
+  background: var(--background);
+}
+
+body {
+  min-width: 320px;
+  min-height: 100vh;
+  margin: 0;
+  background:
+    radial-gradient(circle at 82% -8%, rgba(37, 201, 223, 0.13), transparent 30rem),
+    var(--background);
+  color: var(--text-default);
+  font-family: "Manrope", sans-serif;
+}
+
+button {
+  font: inherit;
+}
+
+.app-shell {
+  width: min(100%, 840px);
+  min-height: 100vh;
+  margin: 0 auto;
+  padding: 28px 20px 48px;
+}
+
+.app-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--border);
+}
+
+.app-kicker {
+  margin: 0 0 2px;
+  color: var(--text-default);
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.22em;
+}
+
+h1 {
+  margin: 0;
+  color: var(--accent);
+  font-family: "Barlow Condensed", sans-serif;
+  font-size: clamp(2.4rem, 10vw, 4.5rem);
+  line-height: 0.82;
+  letter-spacing: 0.03em;
+}
+
+.live-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-default);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.sync-control {
+  display: grid;
+  justify-items: center;
+  gap: 3px;
+}
+
+.sync-button {
+  display: grid;
+  width: 34px;
+  height: 30px;
+  padding: 6px;
+  place-items: center;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-default);
+  cursor: pointer;
+  transition: border-color 160ms ease, background-color 160ms ease, transform 160ms ease;
+}
+
+.sync-button:hover {
+  border-color: var(--accent);
+  background: rgba(37, 201, 223, 0.08);
+  transform: translateY(-1px);
+}
+
+.sync-button:active {
+  transform: translateY(0) rotate(22deg);
+}
+
+.sync-button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
+.sync-button svg {
+  width: 17px;
+  height: 17px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.8;
+}
+
+.sync-time {
+  color: var(--accent);
+  font-family: "Barlow Condensed", sans-serif;
+  font-size: 0.62rem;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.06em;
+}
+
+.live-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 0 5px rgba(37, 201, 223, 0.11);
+}
+
+.tab-bar {
+  display: flex;
+  gap: 8px;
+  margin: 22px 0 30px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.tab-bar::-webkit-scrollbar {
+  display: none;
+}
+
+.tab-button {
+  flex: 0 0 auto;
+  padding: 8px 15px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text-default);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background-color 160ms ease, border-color 160ms ease, transform 160ms ease;
+}
+
+.tab-button:hover {
+  border-color: var(--accent);
+  transform: translateY(-1px);
+}
+
+.tab-button.is-active {
+  border-color: var(--accent);
+  background: var(--surface-strong);
+  color: var(--text-default);
+}
+
+.tab-button:focus-visible,
+.date-button:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 3px;
+}
+
+.date-section {
+  padding: 18px 0 20px;
+}
+
+.date-heading {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+  color: var(--text-default);
+  font-family: "Barlow Condensed", sans-serif;
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+}
+
+.date-heading-line {
+  width: 36px;
+  height: 1px;
+  background: var(--accent);
+}
+
+.date-strip {
+  display: flex;
+  gap: 8px;
+  margin-inline: -20px;
+  padding: 5px 20px 14px;
+  overflow-x: auto;
+  scroll-snap-type: x proximity;
+  scrollbar-color: var(--accent) var(--surface);
+  scrollbar-width: thin;
+}
+
+.date-strip::-webkit-scrollbar {
+  height: 8px;
+}
+
+.date-strip::-webkit-scrollbar-track {
+  border-radius: 999px;
+  background: var(--surface);
+}
+
+.date-strip::-webkit-scrollbar-thumb {
+  border: 2px solid var(--surface);
+  border-radius: 999px;
+  background: var(--accent);
+}
+
+.date-strip::-webkit-scrollbar-thumb:hover {
+  background: #6de7f5;
+}
+
+.date-button {
+  position: relative;
+  flex: 0 0 78px;
+  min-height: 64px;
+  padding: 11px 9px 10px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 11px;
+  background: var(--surface);
+  color: var(--text-default);
+  text-align: left;
+  cursor: pointer;
+  scroll-snap-align: center;
+  transition: background-color 160ms ease, border-color 160ms ease, transform 160ms ease;
+}
+
+.date-button::after {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 2px;
+  background: var(--accent);
+  content: "";
+  opacity: 0;
+  transform: scaleX(0.35);
+  transition: opacity 160ms ease, transform 160ms ease;
+}
+
+.date-button:hover {
+  border-color: #3c4b5f;
+  transform: translateY(-2px);
+}
+
+.date-button.is-selected {
+  border-color: var(--accent);
+  background: var(--surface-strong);
+  color: var(--text-default);
+}
+
+.date-button.is-selected::after {
+  opacity: 1;
+  transform: scaleX(1);
+}
+
+.date-button.is-today,
+.date-button.is-today:hover {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--accent-dark);
+}
+
+.date-button.is-today::after {
+  background: var(--accent-dark);
+  opacity: 0.32;
+  transform: scaleX(1);
+}
+
+.date-button.is-today .date-value,
+.date-button.is-today .date-caption {
+  color: var(--accent-dark);
+}
+
+.date-value,
+.date-caption {
+  display: block;
+  color: var(--text-default);
+}
+
+.date-value {
+  font-family: "Barlow Condensed", sans-serif;
+  font-size: 1.05rem;
+  font-weight: 700;
+  letter-spacing: 0.025em;
+}
+
+.date-caption {
+  margin-top: 6px;
+  font-size: 0.58rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  opacity: 0.72;
+}
+
+@media (max-width: 520px) {
+  .app-shell {
+    padding-top: 22px;
+  }
+
+  .app-kicker {
+    font-size: 0.56rem;
+  }
+
+  .tab-bar {
+    margin-top: 18px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
 }
