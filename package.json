@@ -9,6 +9,7 @@
   ],
   "main": "src/index.tsx",
   "dependencies": {
+    "@netlify/blobs": "^10.7.10",
     "@netlify/database": "^1.1.0",
     "drizzle-orm": "^1.0.0-beta.22",
     "loader-utils": "3.2.1",
