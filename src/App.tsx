@@ -4,6 +4,11 @@ import "./styles.css";
 const TABS = ["Add DHG", "Export DHG", "Deletion request", "Export"];
 const DAY_OFFSETS = Array.from({ length: 15 }, (_, index) => index - 14);
 
+type RecordCount = {
+  date: string;
+  count: number;
+};
+
 function getDate(offset = 0) {
   const date = new Date();
   date.setHours(12, 0, 0, 0);
@@ -35,20 +40,72 @@ function getDayCaption(offset: number) {
 export default function App() {
   const [syncRevision, setSyncRevision] = useState(0);
   const [lastSync, setLastSync] = useState(() => new Date());
-  const dates = DAY_OFFSETS.map((offset) => ({
-    offset,
-    date: getDate(offset),
-  }));
+  const dates = DAY_OFFSETS.map((offset) => ({ offset, date: getDate(offset) }));
   const todayKey = getDateKey(getDate());
+  const firstDateKey = getDateKey(dates[0].date);
   const [activeTab, setActiveTab] = useState(TABS[0]);
   const [selectedDate, setSelectedDate] = useState(todayKey);
+  const [recordCounts, setRecordCounts] = useState<Record<string, number>>({});
+  const [isLoadingRecords, setIsLoadingRecords] = useState(true);
+  const [isSavingRecord, setIsSavingRecord] = useState(false);
+  const [recordError, setRecordError] = useState("");
   const todayButtonRef = useRef<HTMLButtonElement>(null);
   const dateStripRef = useRef<HTMLDivElement>(null);
+
+  const loadRecordCounts = useCallback(async () => {
+    setRecordError("");
+
+    try {
+      const response = await fetch(
+        `/api/dhg-records?from=${firstDateKey}&to=${todayKey}`,
+      );
+
+      if (!response.ok) throw new Error("A rekordok betöltése sikertelen.");
+
+      const data = (await response.json()) as { counts: RecordCount[] };
+      setRecordCounts(
+        Object.fromEntries(data.counts.map((item) => [item.date, item.count])),
+      );
+    } catch (error) {
+      setRecordError(
+        error instanceof Error ? error.message : "Ismeretlen hiba történt.",
+      );
+    } finally {
+      setIsLoadingRecords(false);
+    }
+  }, [firstDateKey, todayKey]);
 
   const syncNow = useCallback(() => {
     setLastSync(new Date());
     setSyncRevision((revision) => revision + 1);
-  }, []);
+    void loadRecordCounts();
+  }, [loadRecordCounts]);
+
+  const addRecord = useCallback(async () => {
+    setIsSavingRecord(true);
+    setRecordError("");
+
+    try {
+      const response = await fetch("/api/dhg-records", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ recordDate: selectedDate }),
+      });
+
+      if (!response.ok) throw new Error("A rekord mentése sikertelen.");
+
+      const data = (await response.json()) as RecordCount;
+      setRecordCounts((current) => ({ ...current, [data.date]: data.count }));
+      setLastSync(new Date());
+      setSyncRevision((revision) => revision + 1);
+    } catch (error) {
+      setRecordError(
+        error instanceof Error ? error.message : "Ismeretlen hiba történt.",
+      );
+    } finally {
+      setIsSavingRecord(false);
+    }
+  }, [selectedDate]);
 
   useEffect(() => {
     const dateStrip = dateStripRef.current;
@@ -62,6 +119,10 @@ export default function App() {
     const syncInterval = window.setInterval(syncNow, 120_000);
     return () => window.clearInterval(syncInterval);
   }, [syncNow]);
+
+  useEffect(() => {
+    void loadRecordCounts();
+  }, [loadRecordCounts]);
 
   return (
     <main className="app-shell">
@@ -123,6 +184,7 @@ export default function App() {
             const dateKey = getDateKey(date);
             const isToday = dateKey === todayKey;
             const isSelected = dateKey === selectedDate;
+            const recordCount = recordCounts[dateKey] ?? 0;
 
             return (
               <button
@@ -135,11 +197,43 @@ export default function App() {
               >
                 <span className="date-value">{formatDate(date)}</span>
                 <span className="date-caption">{getDayCaption(offset)}</span>
+                {recordCount > 0 && (
+                  <span className="date-records">
+                    <span className="record-dot" aria-hidden="true" />
+                    {recordCount} RECORD{recordCount === 1 ? "" : "S"}
+                  </span>
+                )}
               </button>
             );
           })}
         </div>
       </section>
+
+      {activeTab === TABS[0] && (
+        <section className="record-panel" aria-live="polite">
+          <div>
+            <span className="record-panel-label">SELECTED DATE</span>
+            <strong>{selectedDate.split("-").join(".")}</strong>
+            <span className="record-panel-count">
+              {isLoadingRecords
+                ? "RECORDS LOADING"
+                : `${recordCounts[selectedDate] ?? 0} RECORD${
+                    (recordCounts[selectedDate] ?? 0) === 1 ? "" : "S"
+                  }`}
+            </span>
+          </div>
+          <button
+            className="add-record-button"
+            type="button"
+            disabled={isSavingRecord || isLoadingRecords}
+            onClick={addRecord}
+          >
+            {isSavingRecord ? "SAVING…" : "ADD RECORD"}
+          </button>
+        </section>
+      )}
+
+      {recordError && <p className="record-error">{recordError}</p>}
     </main>
   );
 }
