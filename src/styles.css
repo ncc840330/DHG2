@@ -160,7 +160,8 @@ h1 {
 
 .tab-button {
   flex: 0 0 auto;
-  padding: 8px 15px;
+  height: 34px;
+  padding: 0 15px;
   border: 1px solid var(--border);
   border-radius: 999px;
   background: transparent;
@@ -244,9 +245,11 @@ h1 {
 
 .date-button {
   position: relative;
+  display: flex;
+  align-items: center;
   flex: 0 0 78px;
-  min-height: 82px;
-  padding: 11px 9px 10px;
+  height: 34px;
+  padding: 0 9px;
   overflow: hidden;
   border: 1px solid var(--border);
   border-radius: 11px;
@@ -300,13 +303,11 @@ h1 {
   transform: scaleX(1);
 }
 
-.date-button.is-today .date-value,
-.date-button.is-today .date-caption {
+.date-button.is-today .date-value {
   color: var(--accent-dark);
 }
 
-.date-value,
-.date-caption {
+.date-value {
   display: block;
   color: var(--text-default);
 }
@@ -318,24 +319,16 @@ h1 {
   letter-spacing: 0.025em;
 }
 
-.date-caption {
-  margin-top: 6px;
-  font-size: 0.58rem;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  opacity: 0.72;
-}
-
 .date-records {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  margin-top: 8px;
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  display: block;
+  width: 5px;
+  height: 5px;
+  overflow: hidden;
   color: var(--success);
-  font-size: 0.5rem;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  white-space: nowrap;
+  font-size: 0;
 }
 
 .date-button.is-today .date-records {
@@ -343,9 +336,9 @@ h1 {
 }
 
 .record-dot {
-  width: 6px;
-  height: 6px;
-  flex: 0 0 6px;
+  display: block;
+  width: 5px;
+  height: 5px;
   border-radius: 50%;
   background: currentColor;
   box-shadow: 0 0 0 3px rgba(67, 225, 131, 0.12);
@@ -458,8 +451,8 @@ h1 {
 
   .date-button {
     flex-basis: 68px;
-    min-height: 64px;
-    padding: 7px 8px 6px;
+    height: 34px;
+    padding: 0 8px;
     border-radius: 9px;
   }
 
@@ -467,21 +460,14 @@ h1 {
     font-size: 0.96rem;
   }
 
-  .date-caption {
-    margin-top: 2px;
-    font-size: 0.52rem;
-  }
-
   .date-records {
-    gap: 4px;
-    margin-top: 4px;
-    font-size: 0.44rem;
+    top: 4px;
+    right: 4px;
   }
 
   .record-dot {
     width: 5px;
     height: 5px;
-    flex-basis: 5px;
   }
 
   .record-panel {
