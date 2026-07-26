@@ -22,6 +22,7 @@ type RequestInput = {
   sourceTaskId: string;
   systemItem: string;
   systemSn: string;
+  rfid: string;
   problemDescription: ProblemOption;
   problemOther: string | null;
 };
@@ -49,10 +50,11 @@ function validateRequestInput(form: FormData): RequestInput | null {
   const sourceTaskId = formString(form, "sourceTaskId");
   const systemItem = formString(form, "systemItem");
   const systemSn = formString(form, "systemSn");
+  const rfid = formString(form, "rfid");
   const problemDescription = formString(form, "problemDescription");
   const problemOther = formString(form, "problemOther");
 
-  if (!sourceTaskId || !systemItem || !systemSn) return null;
+  if (!sourceTaskId || !systemItem || !systemSn || !rfid) return null;
   if (!isProblemOption(problemDescription)) return null;
   if (problemDescription === "Other" && !problemOther) return null;
 
@@ -60,6 +62,7 @@ function validateRequestInput(form: FormData): RequestInput | null {
     sourceTaskId,
     systemItem,
     systemSn,
+    rfid,
     problemDescription,
     problemOther: problemDescription === "Other" ? problemOther : null,
   };

@@ -49,6 +49,7 @@ export const deletionRequests = pgTable(
     sourceTaskId: text("source_task_id").notNull(),
     systemItem: text("system_item").notNull(),
     systemSn: text("system_sn").notNull(),
+    rfid: text().notNull(),
     problemDescription: text("problem_description").notNull(),
     problemOther: text("problem_other"),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
