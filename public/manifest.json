@@ -1,10 +1,10 @@
 {
-  "name": "Tatai Tracker",
-  "short_name": "TataiTracker",
+  "name": "DHG",
+  "short_name": "DHG",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#0f1117",
-  "theme_color": "#f59e0b",
+  "background_color": "#0a0c10",
+  "theme_color": "#22d3ee",
   "icons": [
     {
       "src": "/icon.svg",
