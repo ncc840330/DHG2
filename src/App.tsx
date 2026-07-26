@@ -8,7 +8,7 @@ type Sheet = "dhg" | "deletion";
 
 const SHEETS: { id: Sheet; label: string }[] = [
   { id: "dhg", label: "ADD DHG" },
-  { id: "deletion", label: "CREATE DELETION REQUEST" },
+  { id: "deletion", label: "DELETION REQUEST" },
 ];
 
 export default function App() {

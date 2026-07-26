@@ -39,6 +39,26 @@ export const dhgRecords = pgTable(
   ],
 );
 
+export const dhgRecordImages = pgTable(
+  "dhg_record_images",
+  {
+    id: serial().primaryKey(),
+    recordId: integer("record_id")
+      .notNull()
+      .references(() => dhgRecords.id, { onDelete: "cascade" }),
+    slot: integer().notNull(),
+    blobKey: text("blob_key").notNull(),
+    contentType: text("content_type").notNull(),
+    fileName: text("file_name").notNull(),
+    byteSize: integer("byte_size").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    index("dhg_record_images_record_id_idx").on(table.recordId),
+    uniqueIndex("dhg_record_images_record_slot_idx").on(table.recordId, table.slot),
+  ],
+);
+
 export const deletionRequests = pgTable(
   "deletion_requests",
   {

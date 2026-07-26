@@ -2,9 +2,11 @@ import { and, asc, eq, gte, inArray, lte, sql } from "drizzle-orm";
 import { db } from "../../db/index.js";
 import { deletionRequestImages, deletionRequests } from "../../db/schema.js";
 import {
-  ALLOWED_IMAGE_TYPES,
+  discardBlobs,
   getImageStore,
-  MAX_IMAGE_BYTES,
+  publicImageMeta,
+  readSlotIntents,
+  uploadImages,
 } from "../shared/images.js";
 import {
   apiError,
@@ -12,11 +14,10 @@ import {
   isProblemOption,
   isValidDateKey,
   makeLineId,
+  newestFirst,
   parseId,
   type ProblemOption,
 } from "../shared/records.js";
-
-const IMAGE_SLOTS = [1, 2] as const;
 
 type RequestInput = {
   sourceTaskId: string;
@@ -25,20 +26,6 @@ type RequestInput = {
   rfid: string;
   problemDescription: ProblemOption;
   problemOther: string | null;
-};
-
-type SlotIntent = {
-  slot: number;
-  action: "keep" | "empty" | "replace";
-  file: File | null;
-};
-
-type UploadedImage = {
-  slot: number;
-  blobKey: string;
-  contentType: string;
-  fileName: string;
-  byteSize: number;
 };
 
 function formString(form: FormData, key: string) {
@@ -68,61 +55,6 @@ function validateRequestInput(form: FormData): RequestInput | null {
   };
 }
 
-/**
- * Each slot carries its own intent so an update can express "leave the stored
- * image alone", "drop it" and "swap it out" without a separate endpoint.
- */
-function readSlotIntents(form: FormData): SlotIntent[] | null {
-  const intents: SlotIntent[] = [];
-
-  for (const slot of IMAGE_SLOTS) {
-    const action = formString(form, `image${slot}Action`) || "empty";
-    const file = form.get(`image${slot}`);
-
-    if (action === "keep" || action === "empty") {
-      intents.push({ slot, action, file: null });
-      continue;
-    }
-
-    if (action !== "replace") return null;
-    if (!(file instanceof File) || file.size === 0) return null;
-    if (!ALLOWED_IMAGE_TYPES.includes(file.type)) return null;
-    if (file.size > MAX_IMAGE_BYTES) return null;
-
-    intents.push({ slot, action, file });
-  }
-
-  return intents;
-}
-
-async function uploadImages(intents: SlotIntent[]): Promise<UploadedImage[]> {
-  const store = getImageStore();
-
-  return Promise.all(
-    intents
-      .filter((intent): intent is SlotIntent & { file: File } => !!intent.file)
-      .map(async ({ slot, file }) => {
-        const blobKey = `${crypto.randomUUID()}-${slot}`;
-        const data = await file.arrayBuffer();
-        await store.set(blobKey, data);
-
-        return {
-          slot,
-          blobKey,
-          contentType: file.type,
-          fileName: file.name || `image-${slot}`,
-          byteSize: data.byteLength,
-        };
-      }),
-  );
-}
-
-async function discardBlobs(blobKeys: string[]) {
-  if (blobKeys.length === 0) return;
-  const store = getImageStore();
-  await Promise.allSettled(blobKeys.map((blobKey) => store.delete(blobKey)));
-}
-
 async function loadImages(requestIds: number[]) {
   if (requestIds.length === 0) return [];
 
@@ -141,13 +73,7 @@ async function withImages<T extends { id: number }>(records: T[]) {
     ...record,
     images: images
       .filter((image) => image.requestId === record.id)
-      .map(({ id, slot, fileName, contentType, byteSize }) => ({
-        id,
-        slot,
-        fileName,
-        contentType,
-        byteSize,
-      })),
+      .map(publicImageMeta),
   }));
 }
 
@@ -171,7 +97,10 @@ export default async (request: Request) => {
         firstFreeSequence(rows.map((row) => ({ sequence: row.lineSequence }))),
       );
 
-      return Response.json({ records: await withImages(rows), nextLineId });
+      return Response.json({
+        records: await withImages(newestFirst(rows)),
+        nextLineId,
+      });
     }
 
     const from = url.searchParams.get("from");
@@ -211,7 +140,7 @@ export default async (request: Request) => {
       const recordDate = formString(form, "recordDate");
       if (!isValidDateKey(recordDate)) return apiError("Invalid record date.", 400);
 
-      const uploaded = await uploadImages(intents);
+      const uploaded = await uploadImages(getImageStore(), intents);
 
       try {
         const record = await db.transaction(async (transaction) => {
@@ -249,7 +178,7 @@ export default async (request: Request) => {
         const [withImageMeta] = await withImages([record]);
         return Response.json({ record: withImageMeta }, { status: 201 });
       } catch (error) {
-        await discardBlobs(uploaded.map((image) => image.blobKey));
+        await discardBlobs(getImageStore(), uploaded.map((image) => image.blobKey));
         throw error;
       }
     }
@@ -265,7 +194,7 @@ export default async (request: Request) => {
       .filter((image) => replacedSlots.includes(image.slot))
       .map((image) => image.blobKey);
 
-    const uploaded = await uploadImages(intents);
+    const uploaded = await uploadImages(getImageStore(), intents);
 
     try {
       const record = await db.transaction(async (transaction) => {
@@ -298,15 +227,15 @@ export default async (request: Request) => {
       });
 
       if (!record) {
-        await discardBlobs(uploaded.map((image) => image.blobKey));
+        await discardBlobs(getImageStore(), uploaded.map((image) => image.blobKey));
         return apiError("Record not found.", 404);
       }
 
-      await discardBlobs(droppedBlobs);
+      await discardBlobs(getImageStore(), droppedBlobs);
       const [withImageMeta] = await withImages([record]);
       return Response.json({ record: withImageMeta });
     } catch (error) {
-      await discardBlobs(uploaded.map((image) => image.blobKey));
+      await discardBlobs(getImageStore(), uploaded.map((image) => image.blobKey));
       throw error;
     }
   }
@@ -324,7 +253,7 @@ export default async (request: Request) => {
 
     if (!record) return apiError("Record not found.", 404);
 
-    await discardBlobs(images.map((image) => image.blobKey));
+    await discardBlobs(getImageStore(), images.map((image) => image.blobKey));
     return new Response(null, { status: 204 });
   }
 

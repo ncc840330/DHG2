@@ -64,6 +64,54 @@ export function toCountMap(counts: RecordCount[]) {
   return Object.fromEntries(counts.map((item) => [item.date, item.count]));
 }
 
+function readFileName(header: string | null) {
+  if (!header) return null;
+
+  const encoded = /filename\*=UTF-8''([^;]+)/i.exec(header);
+  if (encoded) {
+    try {
+      return decodeURIComponent(encoded[1]);
+    } catch {
+      // Fall back to the plain filename below.
+    }
+  }
+
+  const plain = /filename="([^"]+)"/i.exec(header);
+  return plain ? plain[1] : null;
+}
+
+/**
+ * Asks the export endpoint for a ZIP of the selected lines and hands it to the
+ * browser. Returns the file name that was saved.
+ */
+export async function downloadSelection(
+  endpoint: string,
+  ids: number[],
+  fallbackName: string,
+) {
+  const response = await fetch(endpoint, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ids }),
+  });
+  if (!response.ok) throw new Error("A letöltés sikertelen.");
+
+  const archive = await response.blob();
+  const fileName =
+    readFileName(response.headers.get("Content-Disposition")) ?? fallbackName;
+
+  const url = URL.createObjectURL(archive);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = fileName;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  URL.revokeObjectURL(url);
+
+  return fileName;
+}
+
 /**
  * Moves focus to the next control so a barcode scanner's trailing Enter walks
  * down the form instead of submitting it early.
