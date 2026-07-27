@@ -1,0 +1,1 @@
+ALTER TABLE "dhg_records" ALTER COLUMN "county" DROP NOT NULL;

@@ -193,7 +193,7 @@ test("cancel releases the camera and gives the field back", async () => {
 test("a hardware scan is ignored while the viewfinder is open", async () => {
   await renderTab();
 
-  await act(async () => cameraButton("county").click());
+  await act(async () => cameraButton("locator").click());
   await settle();
 
   await act(async () => {
@@ -226,7 +226,7 @@ test("a hardware scan is ignored while the viewfinder is open", async () => {
     );
   });
 
-  expect(field("county").value).toBe("CAM-5");
+  expect(field("locator").value).toBe("CAM-5");
   expect(field("systemItem").value).toBe("WEDGE-1");
 });
 

@@ -101,14 +101,14 @@ const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 test("typed value survives a re-render", async () => {
   await renderTab();
   await act(async () => typeInto(field("systemItem"), "ITEM-1"));
-  await act(async () => typeInto(field("county"), "GYOR"));
+  await act(async () => typeInto(field("locator"), "GYOR"));
   expect(field("systemItem").value).toBe("ITEM-1");
 });
 
 test("driver-injected value survives a re-render", async () => {
   await renderTab();
   await act(async () => injectInto(field("rfid"), "RFID-999"));
-  await act(async () => typeInto(field("county"), "GYOR"));
+  await act(async () => typeInto(field("locator"), "GYOR"));
   expect(field("rfid").value).toBe("RFID-999");
 });
 
@@ -172,7 +172,6 @@ async function fillTextFields() {
     typeInto(field("physicalSn"), "D");
     typeInto(field("rfid"), "E");
     typeInto(field("locator"), "F");
-    typeInto(field("county"), "G");
     typeInto(field("sourceTaskId"), "H");
   });
 }

@@ -42,7 +42,6 @@ type DhgRecord = {
   problemDescription: string;
   problemOther: string | null;
   locator: string;
-  county: string;
   sourceTaskId: string;
   images: RecordImage[];
 };
@@ -61,7 +60,6 @@ const EMPTY_FORM: FormValues = {
   problemDescription: "",
   problemOther: null,
   locator: "",
-  county: "",
   sourceTaskId: "",
 };
 
@@ -280,7 +278,6 @@ export default function DhgTab({
       problemDescription: record.problemDescription,
       problemOther: record.problemOther,
       locator: record.locator,
-      county: record.county,
       sourceTaskId: record.sourceTaskId,
     });
     loadPhotos(record.images);
@@ -396,7 +393,6 @@ export default function DhgTab({
                 value={formValues.systemItem}
                 onValue={setScannedValue}
                 inputRef={firstFieldRef}
-                required
               />
               <ScanField
                 label="SYSTEM SN"
@@ -405,7 +401,6 @@ export default function DhgTab({
                 value={formValues.systemSn}
                 onValue={setScannedValue}
                 options={["Item attribute", "Not available"]}
-                required
               />
               <ScanField
                 label="PHYSICAL ITEM"
@@ -452,13 +447,6 @@ export default function DhgTab({
                 hint="SCAN OR TYPE"
                 name="locator"
                 value={formValues.locator}
-                onValue={setScannedValue}
-                required
-              />
-              <ScanField
-                label="COUNTY"
-                name="county"
-                value={formValues.county}
                 onValue={setScannedValue}
                 required
               />
