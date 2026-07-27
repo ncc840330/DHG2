@@ -16,7 +16,6 @@ const TEXT_FIELDS = [
   "physicalSn",
   "rfid",
   "locator",
-  "county",
   "sourceTaskId",
 ];
 

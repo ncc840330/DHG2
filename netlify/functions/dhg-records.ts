@@ -20,15 +20,15 @@ import {
 } from "../shared/records.js";
 
 const REQUIRED_FIELDS = [
-  "systemItem",
-  "systemSn",
   "physicalItem",
   "physicalSn",
   "rfid",
   "locator",
-  "county",
   "sourceTaskId",
 ] as const;
+
+/** Scanned from the system side when it is available, blank when it is not. */
+const OPTIONAL_FIELDS = ["systemItem", "systemSn"] as const;
 
 type RecordInput = {
   systemItem: string;
@@ -39,7 +39,6 @@ type RecordInput = {
   problemDescription: ProblemOption;
   problemOther: string | null;
   locator: string;
-  county: string;
   sourceTaskId: string;
 };
 
@@ -49,12 +48,19 @@ function formString(form: FormData, key: string) {
 }
 
 function validateRecordInput(form: FormData): RecordInput | null {
-  const normalized = {} as Record<(typeof REQUIRED_FIELDS)[number], string>;
+  const normalized = {} as Record<
+    (typeof REQUIRED_FIELDS)[number] | (typeof OPTIONAL_FIELDS)[number],
+    string
+  >;
 
   for (const field of REQUIRED_FIELDS) {
     const value = formString(form, field);
     if (!value) return null;
     normalized[field] = value;
+  }
+
+  for (const field of OPTIONAL_FIELDS) {
+    normalized[field] = formString(form, field);
   }
 
   const problemDescription = formString(form, "problemDescription");

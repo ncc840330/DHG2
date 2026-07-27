@@ -84,7 +84,7 @@ export default async (request: Request) => {
         record.locator,
         formatSheetDate(record.recordDate),
         "",
-        record.county,
+        record.county ?? "",
         record.sourceTaskId,
       ],
     })),

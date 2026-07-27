@@ -24,7 +24,9 @@ export const dhgRecords = pgTable(
     problemDescription: text("problem_description").notNull(),
     problemOther: text("problem_other"),
     locator: text().notNull(),
-    county: text().notNull(),
+    // The form no longer collects a county. The column stays so records saved
+    // while it was a required field still export their value.
+    county: text(),
     sourceTaskId: text("source_task_id").notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),

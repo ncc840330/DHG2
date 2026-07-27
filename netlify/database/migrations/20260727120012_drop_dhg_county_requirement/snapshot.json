@@ -1,0 +1,940 @@
+{
+  "version": "8",
+  "dialect": "postgres",
+  "id": "ccaaa3ea-384a-4e48-bbd8-fa90a0742f5f",
+  "prevIds": [
+    "b9e27530-8d07-4b06-a77d-6d2ac9670976"
+  ],
+  "ddl": [
+    {
+      "isRlsEnabled": false,
+      "name": "deletion_request_images",
+      "entityType": "tables",
+      "schema": "public"
+    },
+    {
+      "isRlsEnabled": false,
+      "name": "deletion_requests",
+      "entityType": "tables",
+      "schema": "public"
+    },
+    {
+      "isRlsEnabled": false,
+      "name": "dhg_record_images",
+      "entityType": "tables",
+      "schema": "public"
+    },
+    {
+      "isRlsEnabled": false,
+      "name": "dhg_records",
+      "entityType": "tables",
+      "schema": "public"
+    },
+    {
+      "type": "serial",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "id",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "deletion_request_images"
+    },
+    {
+      "type": "integer",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "request_id",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "deletion_request_images"
+    },
+    {
+      "type": "integer",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "slot",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "deletion_request_images"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "blob_key",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "deletion_request_images"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "content_type",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "deletion_request_images"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "file_name",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "deletion_request_images"
+    },
+    {
+      "type": "integer",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "byte_size",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "deletion_request_images"
+    },
+    {
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "now()",
+      "generated": null,
+      "identity": null,
+      "name": "created_at",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "deletion_request_images"
+    },
+    {
+      "type": "serial",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "id",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "deletion_requests"
+    },
+    {
+      "type": "date",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "record_date",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "deletion_requests"
+    },
+    {
+      "type": "integer",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "line_sequence",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "deletion_requests"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "line_id",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "deletion_requests"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "source_task_id",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "deletion_requests"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "system_item",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "deletion_requests"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "system_sn",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "deletion_requests"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "rfid",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "deletion_requests"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "problem_description",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "deletion_requests"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "problem_other",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "deletion_requests"
+    },
+    {
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "now()",
+      "generated": null,
+      "identity": null,
+      "name": "created_at",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "deletion_requests"
+    },
+    {
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "now()",
+      "generated": null,
+      "identity": null,
+      "name": "updated_at",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "deletion_requests"
+    },
+    {
+      "type": "serial",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "id",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "dhg_record_images"
+    },
+    {
+      "type": "integer",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "record_id",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "dhg_record_images"
+    },
+    {
+      "type": "integer",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "slot",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "dhg_record_images"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "blob_key",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "dhg_record_images"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "content_type",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "dhg_record_images"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "file_name",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "dhg_record_images"
+    },
+    {
+      "type": "integer",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "byte_size",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "dhg_record_images"
+    },
+    {
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "now()",
+      "generated": null,
+      "identity": null,
+      "name": "created_at",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "dhg_record_images"
+    },
+    {
+      "type": "serial",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "id",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "dhg_records"
+    },
+    {
+      "type": "date",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "record_date",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "dhg_records"
+    },
+    {
+      "type": "integer",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "line_sequence",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "dhg_records"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "line_id",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "dhg_records"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "system_item",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "dhg_records"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "system_sn",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "dhg_records"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "physical_item",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "dhg_records"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "physical_sn",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "dhg_records"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "rfid",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "dhg_records"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "problem_description",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "dhg_records"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "problem_other",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "dhg_records"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "locator",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "dhg_records"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": false,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "county",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "dhg_records"
+    },
+    {
+      "type": "text",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": null,
+      "generated": null,
+      "identity": null,
+      "name": "source_task_id",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "dhg_records"
+    },
+    {
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "now()",
+      "generated": null,
+      "identity": null,
+      "name": "created_at",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "dhg_records"
+    },
+    {
+      "type": "timestamp with time zone",
+      "typeSchema": null,
+      "notNull": true,
+      "dimensions": 0,
+      "default": "now()",
+      "generated": null,
+      "identity": null,
+      "name": "updated_at",
+      "entityType": "columns",
+      "schema": "public",
+      "table": "dhg_records"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        {
+          "value": "request_id",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "with": "",
+      "method": "btree",
+      "concurrently": false,
+      "name": "deletion_request_images_request_id_idx",
+      "entityType": "indexes",
+      "schema": "public",
+      "table": "deletion_request_images"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        {
+          "value": "request_id",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        },
+        {
+          "value": "slot",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        }
+      ],
+      "isUnique": true,
+      "where": null,
+      "with": "",
+      "method": "btree",
+      "concurrently": false,
+      "name": "deletion_request_images_request_slot_idx",
+      "entityType": "indexes",
+      "schema": "public",
+      "table": "deletion_request_images"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        {
+          "value": "record_date",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "with": "",
+      "method": "btree",
+      "concurrently": false,
+      "name": "deletion_requests_record_date_idx",
+      "entityType": "indexes",
+      "schema": "public",
+      "table": "deletion_requests"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        {
+          "value": "source_task_id",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "with": "",
+      "method": "btree",
+      "concurrently": false,
+      "name": "deletion_requests_source_task_id_idx",
+      "entityType": "indexes",
+      "schema": "public",
+      "table": "deletion_requests"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        {
+          "value": "line_id",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        }
+      ],
+      "isUnique": true,
+      "where": null,
+      "with": "",
+      "method": "btree",
+      "concurrently": false,
+      "name": "deletion_requests_line_id_idx",
+      "entityType": "indexes",
+      "schema": "public",
+      "table": "deletion_requests"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        {
+          "value": "record_date",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        },
+        {
+          "value": "line_sequence",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        }
+      ],
+      "isUnique": true,
+      "where": null,
+      "with": "",
+      "method": "btree",
+      "concurrently": false,
+      "name": "deletion_requests_date_sequence_idx",
+      "entityType": "indexes",
+      "schema": "public",
+      "table": "deletion_requests"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        {
+          "value": "record_id",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "with": "",
+      "method": "btree",
+      "concurrently": false,
+      "name": "dhg_record_images_record_id_idx",
+      "entityType": "indexes",
+      "schema": "public",
+      "table": "dhg_record_images"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        {
+          "value": "record_id",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        },
+        {
+          "value": "slot",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        }
+      ],
+      "isUnique": true,
+      "where": null,
+      "with": "",
+      "method": "btree",
+      "concurrently": false,
+      "name": "dhg_record_images_record_slot_idx",
+      "entityType": "indexes",
+      "schema": "public",
+      "table": "dhg_record_images"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        {
+          "value": "record_date",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "with": "",
+      "method": "btree",
+      "concurrently": false,
+      "name": "dhg_records_record_date_idx",
+      "entityType": "indexes",
+      "schema": "public",
+      "table": "dhg_records"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        {
+          "value": "line_id",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        }
+      ],
+      "isUnique": true,
+      "where": null,
+      "with": "",
+      "method": "btree",
+      "concurrently": false,
+      "name": "dhg_records_line_id_idx",
+      "entityType": "indexes",
+      "schema": "public",
+      "table": "dhg_records"
+    },
+    {
+      "nameExplicit": true,
+      "columns": [
+        {
+          "value": "record_date",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        },
+        {
+          "value": "line_sequence",
+          "isExpression": false,
+          "asc": true,
+          "nullsFirst": false,
+          "opclass": null
+        }
+      ],
+      "isUnique": true,
+      "where": null,
+      "with": "",
+      "method": "btree",
+      "concurrently": false,
+      "name": "dhg_records_date_sequence_idx",
+      "entityType": "indexes",
+      "schema": "public",
+      "table": "dhg_records"
+    },
+    {
+      "nameExplicit": false,
+      "columns": [
+        "request_id"
+      ],
+      "schemaTo": "public",
+      "tableTo": "deletion_requests",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "CASCADE",
+      "name": "deletion_request_images_request_id_deletion_requests_id_fkey",
+      "entityType": "fks",
+      "schema": "public",
+      "table": "deletion_request_images"
+    },
+    {
+      "nameExplicit": false,
+      "columns": [
+        "record_id"
+      ],
+      "schemaTo": "public",
+      "tableTo": "dhg_records",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "CASCADE",
+      "name": "dhg_record_images_record_id_dhg_records_id_fkey",
+      "entityType": "fks",
+      "schema": "public",
+      "table": "dhg_record_images"
+    },
+    {
+      "columns": [
+        "id"
+      ],
+      "nameExplicit": false,
+      "name": "deletion_request_images_pkey",
+      "schema": "public",
+      "table": "deletion_request_images",
+      "entityType": "pks"
+    },
+    {
+      "columns": [
+        "id"
+      ],
+      "nameExplicit": false,
+      "name": "deletion_requests_pkey",
+      "schema": "public",
+      "table": "deletion_requests",
+      "entityType": "pks"
+    },
+    {
+      "columns": [
+        "id"
+      ],
+      "nameExplicit": false,
+      "name": "dhg_record_images_pkey",
+      "schema": "public",
+      "table": "dhg_record_images",
+      "entityType": "pks"
+    },
+    {
+      "columns": [
+        "id"
+      ],
+      "nameExplicit": false,
+      "name": "dhg_records_pkey",
+      "schema": "public",
+      "table": "dhg_records",
+      "entityType": "pks"
+    }
+  ],
+  "renames": []
+}
