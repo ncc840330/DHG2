@@ -224,6 +224,7 @@ test("a scan on the dropdown of a full form changes nothing", async () => {
 test("save button still submits", async () => {
   await renderTab();
   await fillTextFields();
+  await act(async () => selectOption(problemSelect(), "Corrosion"));
   await act(async () => {
     container.querySelector(".save-button").click();
   });

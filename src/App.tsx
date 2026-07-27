@@ -26,6 +26,8 @@ export default function App() {
   });
   const [refreshToken, setRefreshToken] = useState(0);
   const [lastSync, setLastSync] = useState(() => new Date());
+  /** Worksheets still fetching after a SYNC press, so the button can say so. */
+  const [pendingSheets, setPendingSheets] = useState(0);
   const todayButtonRef = useRef<HTMLButtonElement>(null);
   const dateStripRef = useRef<HTMLDivElement>(null);
 
@@ -43,7 +45,19 @@ export default function App() {
     setCounts((current) => ({ ...current, deletion: next }));
   }, []);
 
-  const handleSynced = useCallback(() => setLastSync(new Date()), []);
+  const handleSynced = useCallback((isFresh = true) => {
+    // A refresh that failed leaves the data as stale as it was, so the
+    // timestamp must not move — but the button has to come back either way.
+    if (isFresh) setLastSync(new Date());
+    setPendingSheets((count) => Math.max(0, count - 1));
+  }, []);
+
+  const syncNow = useCallback(() => {
+    setPendingSheets(SHEETS.length);
+    setRefreshToken((token) => token + 1);
+  }, []);
+
+  const isSyncing = pendingSheets > 0;
 
   const activeCounts = counts[activeSheet];
 
@@ -60,17 +74,22 @@ export default function App() {
       <header className="app-header">
         <p className="app-kicker">DISCREPANCY HANDLING</p>
         <button
-          className="sync-button"
+          className={isSyncing ? "sync-button is-syncing" : "sync-button"}
           type="button"
-          onClick={() => setRefreshToken((token) => token + 1)}
+          aria-busy={isSyncing}
+          onClick={syncNow}
         >
           <svg aria-hidden="true" viewBox="0 0 24 24">
             <path d="M20 7v5h-5M4 17v-5h5" />
             <path d="M6.1 9a7 7 0 0 1 11.7-2.1L20 9M4 15l2.2 2.1A7 7 0 0 0 17.9 15" />
           </svg>
-          <span>SYNC</span>
+          <span>{isSyncing ? "SYNCING…" : "SYNC"}</span>
           <time dateTime={lastSync.toISOString()}>
-            {lastSync.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}
+            {lastSync.toLocaleTimeString("en-GB", {
+              hour: "2-digit",
+              minute: "2-digit",
+              second: "2-digit",
+            })}
           </time>
         </button>
       </header>

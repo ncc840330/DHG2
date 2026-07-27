@@ -9,8 +9,10 @@ import ConfirmDialog from "./ConfirmDialog";
 import {
   downloadSelection,
   getErrorMessage,
+  loadJson,
   makeLineId,
   PROBLEM_OPTIONS,
+  readApiError,
   RecordCount,
   TabProps,
   toCountMap,
@@ -22,7 +24,16 @@ import {
   usePhotoSlots,
 } from "./photos";
 import type { RecordImage } from "./photos";
-import { focusNextControl, ScanField, useScannerForm } from "./scan";
+import {
+  CameraScanProvider,
+  clearScanFields,
+  describeField,
+  findMissingFields,
+  focusNextControl,
+  readScanFields,
+  ScanField,
+  useScannerForm,
+} from "./scan";
 import { RecordRow, SavedToolbar, useSelection } from "./SavedList";
 
 type DeletionRequest = {
@@ -80,30 +91,28 @@ export default function DeletionRequestTab({
   const [error, setError] = useState("");
   const formRef = useRef<HTMLFormElement>(null);
   const firstFieldRef = useRef<HTMLInputElement>(null);
-  const saveIntentRef = useRef(false);
+  const statusRef = useRef<HTMLParagraphElement>(null);
 
   const { photoSlots, resetPhotos, loadPhotos, pickPhoto, clearPhoto } =
     usePhotoSlots(setError);
   const selection = useSelection(records);
 
   const loadCounts = useCallback(async () => {
-    const response = await fetch(
+    const data = await loadJson<{ counts: RecordCount[] }>(
       `/api/deletion-requests?from=${rangeFrom}&to=${rangeTo}`,
+      "A napi kérelmek betöltése sikertelen.",
     );
-    if (!response.ok) throw new Error("A napi kérelmek betöltése sikertelen.");
-
-    const data = (await response.json()) as { counts: RecordCount[] };
     onCounts(toCountMap(data.counts));
   }, [rangeFrom, rangeTo, onCounts]);
 
   const loadRecords = useCallback(async (date: string) => {
-    const response = await fetch(`/api/deletion-requests?date=${date}`);
-    if (!response.ok) throw new Error("A mentett kérelmek betöltése sikertelen.");
-
-    const data = (await response.json()) as {
+    const data = await loadJson<{
       records: DeletionRequest[];
       nextLineId?: string;
-    };
+    }>(
+      `/api/deletion-requests?date=${date}`,
+      "A mentett kérelmek betöltése sikertelen.",
+    );
     setRecords(data.records);
     setSavedCount(data.records.length);
     setNextLineId(data.nextLineId ?? makeLineId(date, data.records.length + 1));
@@ -111,20 +120,34 @@ export default function DeletionRequestTab({
 
   const refreshData = useCallback(async () => {
     setError("");
+    let isFresh = true;
     try {
       await Promise.all([loadCounts(), loadRecords(selectedDate)]);
-      onSynced();
     } catch (loadError) {
+      isFresh = false;
       setError(getErrorMessage(loadError, "Ismeretlen betöltési hiba történt."));
     } finally {
       setIsLoading(false);
+      // Reported either way, so a failed refresh cannot leave the SYNC button
+      // spinning for the rest of the shift.
+      onSynced(isFresh);
     }
   }, [loadCounts, loadRecords, selectedDate, onSynced]);
 
   useEffect(() => {
     if (!isActive) return;
     void refreshData();
-  }, [isActive, refreshData, refreshToken]);
+  }, [isActive, refreshData]);
+
+  // SYNC means both worksheets, the hidden one included: the count on the sheet
+  // the operator is not looking at is part of what they pressed the button for.
+  const refreshDataRef = useRef(refreshData);
+  refreshDataRef.current = refreshData;
+  const initialTokenRef = useRef(refreshToken);
+  useEffect(() => {
+    if (refreshToken === initialTokenRef.current) return;
+    void refreshDataRef.current();
+  }, [refreshToken]);
 
   useEffect(() => {
     if (!isActive) return undefined;
@@ -132,15 +155,30 @@ export default function DeletionRequestTab({
     return () => window.clearInterval(interval);
   }, [isActive, refreshData]);
 
+  const resetForm = useCallback(() => {
+    setFormValues(EMPTY_FORM);
+    resetPhotos();
+    // The state reset alone is not enough: React leaves a controlled input
+    // untouched when its value prop did not change, and a barcode the scanner
+    // wrote straight into the DOM never reached state to begin with.
+    clearScanFields(formRef.current);
+  }, [resetPhotos]);
+
   useEffect(() => {
     setEditingRecord(null);
     setPendingDelete(null);
-    setFormValues(EMPTY_FORM);
-    resetPhotos();
+    resetForm();
     setNextLineId("");
     setMessage("");
     setError("");
-  }, [selectedDate, resetPhotos]);
+  }, [selectedDate, resetForm]);
+
+  // The SAVE button is at the bottom of a long form, so the line that says
+  // whether the request was saved would otherwise be off the top of the screen.
+  useEffect(() => {
+    if (!message && !error) return;
+    statusRef.current?.scrollIntoView?.({ block: "nearest" });
+  }, [message, error]);
 
   const updateField = (field: keyof FormValues, value: string) => {
     setFormValues((current) => ({ ...current, [field]: value }));
@@ -160,15 +198,21 @@ export default function DeletionRequestTab({
     isEnabled: isActive && view === "add" && !pendingDelete,
   });
 
-  const saveRecord = async (event: FormEvent) => {
-    event.preventDefault();
+  const saveRecord = async () => {
+    if (isSaving) return;
 
-    // A scanner's trailing Enter can still reach the form on PDAs that report
-    // an unnamed key code, so only the SAVE button is allowed to submit.
-    const wasRequested = saveIntentRef.current;
-    saveIntentRef.current = false;
-    if (!wasRequested) {
-      focusNextControl(formRef.current, document.activeElement as HTMLElement);
+    // The API answers an incomplete request with one flat 400, and a PDA WebView
+    // shows the browser's own validation bubble for a blink at most — so the
+    // form names what is missing itself instead of appearing to do nothing.
+    const missing = findMissingFields(formRef.current);
+    if (missing.length > 0) {
+      setMessage("");
+      setError(
+        `A kérelem nem lett elmentve, hiányzó adat: ${missing
+          .map(describeField)
+          .join(", ")}.`,
+      );
+      missing[0].focus();
       return;
     }
 
@@ -178,8 +222,12 @@ export default function DeletionRequestTab({
 
     try {
       const payload = new FormData();
+      // Whatever is on screen is what gets saved. A value the scanner driver
+      // wrote into the input without firing an event is not in state yet, and
+      // saving state alone would drop the barcode the operator can see.
+      const live = readScanFields(formRef.current);
       Object.entries(formValues).forEach(([field, value]) => {
-        payload.set(field, value ?? "");
+        payload.set(field, live[field] ?? value ?? "");
       });
       appendPhotoSlots(payload, photoSlots);
       if (!editingRecord) payload.set("recordDate", selectedDate);
@@ -191,7 +239,11 @@ export default function DeletionRequestTab({
         { method: editingRecord ? "PUT" : "POST", body: payload },
       );
 
-      if (!response.ok) throw new Error("A kérelem mentése sikertelen.");
+      if (!response.ok) {
+        throw new Error(
+          await readApiError(response, "A kérelem mentése sikertelen."),
+        );
+      }
       const data = (await response.json()) as { record: DeletionRequest };
 
       setMessage(
@@ -200,8 +252,7 @@ export default function DeletionRequestTab({
           : `${data.record.lineId} sikeresen elmentve.`,
       );
       setEditingRecord(null);
-      setFormValues(EMPTY_FORM);
-      resetPhotos();
+      resetForm();
       await Promise.all([loadCounts(), loadRecords(selectedDate)]);
       onSynced();
       window.requestAnimationFrame(() => firstFieldRef.current?.focus());
@@ -210,6 +261,16 @@ export default function DeletionRequestTab({
     } finally {
       setIsSaving(false);
     }
+  };
+
+  /**
+   * Nothing but the SAVE button's own handler saves this form. A scanner's
+   * trailing Enter still reaches the form on PDAs that report an unnamed key
+   * code, and that has to walk down the fields, not submit half a request.
+   */
+  const handleSubmit = (event: FormEvent) => {
+    event.preventDefault();
+    focusNextControl(formRef.current, document.activeElement as HTMLElement);
   };
 
   const editRecord = (record: DeletionRequest) => {
@@ -244,8 +305,7 @@ export default function DeletionRequestTab({
       setPendingDelete(null);
       if (editingRecord?.id === record.id) {
         setEditingRecord(null);
-        setFormValues(EMPTY_FORM);
-        resetPhotos();
+        resetForm();
         setView("saved");
       }
       setMessage(
@@ -303,8 +363,16 @@ export default function DeletionRequestTab({
         </button>
       </nav>
 
-      {message && <p className="status-message success-message">{message}</p>}
-      {error && <p className="status-message error-message">{error}</p>}
+      {message && (
+        <p ref={statusRef} className="status-message success-message">
+          {message}
+        </p>
+      )}
+      {error && (
+        <p ref={statusRef} className="status-message error-message">
+          {error}
+        </p>
+      )}
 
       {view === "add" ? (
         <section className="form-panel">
@@ -316,84 +384,84 @@ export default function DeletionRequestTab({
             <span>{selectedDate.split("-").join(".")}</span>
           </div>
 
-          <form ref={formRef} onSubmit={saveRecord} onKeyDown={scanner.onKeyDown}>
-            <label className="field field-readonly">
-              <span>LINE ID</span>
-              <input value={editingRecord?.lineId ?? nextLineId} readOnly />
-            </label>
-            <ScanField
-              label="SOURCE TASK ID"
-              hint="SCAN OR TYPE"
-              name="sourceTaskId"
-              value={formValues.sourceTaskId}
-              onValue={setScannedValue}
-              inputRef={firstFieldRef}
-              required
-            />
-            <ScanField
-              label="SYSTEM ITEM"
-              name="systemItem"
-              value={formValues.systemItem}
-              onValue={setScannedValue}
-              required
-            />
-            <ScanField
-              label="SYSTEM SN"
-              hint="SCAN OR TYPE"
-              name="systemSn"
-              value={formValues.systemSn}
-              onValue={setScannedValue}
-              required
-            />
-            <ScanField
-              label="RFID"
-              hint="SCAN OR TYPE"
-              name="rfid"
-              value={formValues.rfid}
-              onValue={setScannedValue}
-              required
-            />
-            <label className="field">
-              <span>PROBLEM DESCRIPTION</span>
-              <select name="problemDescription" required value={formValues.problemDescription} onChange={(event) => updateField("problemDescription", event.target.value)}>
-                <option value="" disabled>Select a problem</option>
-                {PROBLEM_OPTIONS.map((option) => <option key={option}>{option}</option>)}
-              </select>
-            </label>
-            {formValues.problemDescription === "Other" && (
+          <CameraScanProvider formRef={formRef} onValue={setScannedValue}>
+            <form ref={formRef} onSubmit={handleSubmit} onKeyDown={scanner.onKeyDown}>
+              <label className="field field-readonly">
+                <span>LINE ID</span>
+                <input value={editingRecord?.lineId ?? nextLineId} readOnly />
+              </label>
               <ScanField
-                label="OTHER PROBLEM DESCRIPTION"
-                className="field-other"
-                name="problemOther"
-                value={formValues.problemOther ?? ""}
+                label="SOURCE TASK ID"
+                hint="SCAN OR TYPE"
+                name="sourceTaskId"
+                value={formValues.sourceTaskId}
+                onValue={setScannedValue}
+                inputRef={firstFieldRef}
+                required
+              />
+              <ScanField
+                label="SYSTEM ITEM"
+                name="systemItem"
+                value={formValues.systemItem}
                 onValue={setScannedValue}
                 required
               />
-            )}
-
-            <PhotoFields
-              slots={photoSlots}
-              onPick={(index, event) => void pickPhoto(index, event)}
-              onClear={clearPhoto}
-            />
-
-            <div className="form-actions">
-              {editingRecord && (
-                <button className="delete-button" type="button" disabled={isSaving} onClick={() => setPendingDelete(editingRecord)}>DELETE</button>
+              <ScanField
+                label="SYSTEM SN"
+                hint="SCAN OR TYPE"
+                name="systemSn"
+                value={formValues.systemSn}
+                onValue={setScannedValue}
+                required
+              />
+              <ScanField
+                label="RFID"
+                hint="SCAN OR TYPE"
+                name="rfid"
+                value={formValues.rfid}
+                onValue={setScannedValue}
+                required
+              />
+              <label className="field">
+                <span>PROBLEM DESCRIPTION</span>
+                <select name="problemDescription" required value={formValues.problemDescription} onChange={(event) => updateField("problemDescription", event.target.value)}>
+                  <option value="" disabled>Select a problem</option>
+                  {PROBLEM_OPTIONS.map((option) => <option key={option}>{option}</option>)}
+                </select>
+              </label>
+              {formValues.problemDescription === "Other" && (
+                <ScanField
+                  label="OTHER PROBLEM DESCRIPTION"
+                  className="field-other"
+                  name="problemOther"
+                  value={formValues.problemOther ?? ""}
+                  onValue={setScannedValue}
+                  required
+                />
               )}
-              <button
-                className="save-button"
-                type="submit"
-                disabled={isSaving}
-                onClick={() => {
-                  saveIntentRef.current = true;
-                }}
-              >
-                {isSaving ? "SAVING…" : editingRecord ? "SAVE CHANGES" : "SAVE REQUEST"}
-                <svg aria-hidden="true" viewBox="0 0 24 24"><path d="m5 12 4 4L19 6" /></svg>
-              </button>
-            </div>
-          </form>
+
+              <PhotoFields
+                slots={photoSlots}
+                onPick={(index, event) => void pickPhoto(index, event)}
+                onClear={clearPhoto}
+              />
+
+              <div className="form-actions">
+                {editingRecord && (
+                  <button className="delete-button" type="button" disabled={isSaving} onClick={() => setPendingDelete(editingRecord)}>DELETE</button>
+                )}
+                <button
+                  className="save-button"
+                  type="button"
+                  disabled={isSaving}
+                  onClick={() => void saveRecord()}
+                >
+                  {isSaving ? "SAVING…" : editingRecord ? "SAVE CHANGES" : "SAVE REQUEST"}
+                  <svg aria-hidden="true" viewBox="0 0 24 24"><path d="m5 12 4 4L19 6" /></svg>
+                </button>
+              </div>
+            </form>
+          </CameraScanProvider>
         </section>
       ) : (
         <section className="saved-panel">
