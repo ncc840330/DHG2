@@ -1,14 +1,16 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import DeletionRequestTab from "./DeletionRequestTab";
 import DhgTab from "./DhgTab";
+import HwCheckRequestTab from "./HwCheckRequestTab";
 import { DAY_OFFSETS, formatShortDate, getDate, getDateKey } from "./lib";
 import "./styles.css";
 
-type Sheet = "dhg" | "deletion";
+type Sheet = "dhg" | "deletion" | "hwCheck";
 
 const SHEETS: { id: Sheet; label: string }[] = [
   { id: "dhg", label: "ADD DHG" },
   { id: "deletion", label: "DELETION REQUEST" },
+  { id: "hwCheck", label: "HW CHECK REQUEST" },
 ];
 
 export default function App() {
@@ -23,6 +25,7 @@ export default function App() {
   const [counts, setCounts] = useState<Record<Sheet, Record<string, number>>>({
     dhg: {},
     deletion: {},
+    hwCheck: {},
   });
   const [refreshToken, setRefreshToken] = useState(0);
   const [lastSync, setLastSync] = useState(() => new Date());
@@ -43,6 +46,10 @@ export default function App() {
 
   const handleDeletionCounts = useCallback((next: Record<string, number>) => {
     setCounts((current) => ({ ...current, deletion: next }));
+  }, []);
+
+  const handleHwCheckCounts = useCallback((next: Record<string, number>) => {
+    setCounts((current) => ({ ...current, hwCheck: next }));
   }, []);
 
   const handleSynced = useCallback((isFresh = true) => {
@@ -163,6 +170,20 @@ export default function App() {
             {...tabProps}
             isActive={activeSheet === "deletion"}
             onCounts={handleDeletionCounts}
+          />
+        </div>
+
+        <div
+          className="workbook-sheet"
+          id="sheet-hwCheck"
+          role="tabpanel"
+          aria-labelledby="tab-hwCheck"
+          hidden={activeSheet !== "hwCheck"}
+        >
+          <HwCheckRequestTab
+            {...tabProps}
+            isActive={activeSheet === "hwCheck"}
+            onCounts={handleHwCheckCounts}
           />
         </div>
       </div>
