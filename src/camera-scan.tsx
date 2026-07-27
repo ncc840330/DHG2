@@ -1,10 +1,17 @@
 import { useEffect, useRef, useState } from "react";
+import { decodeBarcodeImage } from "./barcode-1d";
 
 /**
  * A web page cannot pull the trigger on a PDA's scan engine — that sits behind
  * vendor firmware no browser API can reach. This module is the way in that is
  * left when a device refuses to wedge its barcodes into the page at all: the
- * camera takes the picture and BarcodeDetector reads it.
+ * camera takes the picture and a decoder reads it.
+ *
+ * Which decoder depends on the browser. Chrome on Android has BarcodeDetector,
+ * which is the whole platform's decoder and reads 2D codes as well, so it is
+ * used wherever it exists. Everywhere else — desktop Chrome, Firefox, every iOS
+ * browser — the 1D decoder in `barcode-1d.ts` reads the frames instead, because
+ * a camera button that is missing on half the devices is not a camera button.
  */
 
 type DetectedBarcode = {
@@ -41,6 +48,16 @@ const WANTED_FORMATS = [
 /** Slow enough to leave the decoder room, fast enough to feel instant. */
 const DETECT_INTERVAL_MS = 160;
 
+/**
+ * Frame width the fallback decoder works on. Wide enough that the thinnest bar
+ * of a label held inside the reticle is still a few pixels across, small enough
+ * that a frame is read well inside the interval above.
+ */
+const FALLBACK_FRAME_WIDTH = 960;
+
+/** Reads one frame. Answers with the barcode in it, or "" for keep looking. */
+type FrameReader = (video: HTMLVideoElement) => Promise<string>;
+
 function getBarcodeDetector() {
   if (typeof window === "undefined") return undefined;
   return (window as unknown as { BarcodeDetector?: BarcodeDetectorConstructor })
@@ -48,12 +65,11 @@ function getBarcodeDetector() {
 }
 
 /**
- * Both halves have to be present. A camera button that opens a viewfinder which
- * can never decode anything is worse on a PDA than no button at all, so the
- * caller hides it when this returns false.
+ * A camera is all that is needed now: whatever the browser cannot decode itself,
+ * `barcode-1d.ts` decodes from the frames. Without a camera there is nothing to
+ * aim, and the caller hides the button.
  */
 export function isCameraScanSupported() {
-  if (!getBarcodeDetector()) return false;
   return typeof navigator?.mediaDevices?.getUserMedia === "function";
 }
 
@@ -96,6 +112,79 @@ async function readFrame(
     .sort((left, right) => boxArea(right) - boxArea(left))[0];
 
   return best ? (best.rawValue ?? "").trim() : "";
+}
+
+/** The browser's own decoder, where there is one. It reads 2D codes as well. */
+async function createDetectorReader(): Promise<FrameReader | null> {
+  const detectorConstructor = getBarcodeDetector();
+  if (!detectorConstructor) return null;
+
+  const formats = await pickFormats(detectorConstructor);
+  let detector: BarcodeDetectorInstance;
+  try {
+    detector = new detectorConstructor(
+      formats.length > 0 ? { formats } : undefined,
+    );
+  } catch {
+    // The API is there but the platform never shipped the decoder behind it.
+    return null;
+  }
+
+  return (video) => readFrame(detector, video);
+}
+
+/**
+ * Everywhere else: the frame is copied into a canvas and read by our own 1D
+ * decoder. A barcode has to come back the same from two frames in a row before
+ * it counts — a single misread digit in a serial number would be copied into the
+ * record as if it had been scanned properly.
+ */
+function createCanvasReader(): FrameReader | null {
+  const canvas = document.createElement("canvas");
+  // Not in the DOM's own typings yet, and the frames are read on every tick, so
+  // the hint is worth the cast: without it the browser keeps the canvas on the
+  // GPU and every read copies it back.
+  const options = { willReadFrequently: true } as unknown as
+    CanvasRenderingContext2DSettings;
+
+  let context: CanvasRenderingContext2D | null = null;
+  try {
+    context = canvas.getContext("2d", options);
+  } catch {
+    return null;
+  }
+  if (!context) return null;
+
+  const surface = context;
+  let seen = "";
+
+  return async (video) => {
+    if (video.readyState < 2 || !video.videoWidth || !video.videoHeight) return "";
+
+    const scale = Math.min(1, FALLBACK_FRAME_WIDTH / video.videoWidth);
+    const width = Math.round(video.videoWidth * scale);
+    const height = Math.max(1, Math.round(video.videoHeight * scale));
+    if (canvas.width !== width || canvas.height !== height) {
+      canvas.width = width;
+      canvas.height = height;
+    }
+
+    let frame: ImageData;
+    try {
+      surface.drawImage(video, 0, 0, width, height);
+      frame = surface.getImageData(0, 0, width, height);
+    } catch {
+      return "";
+    }
+
+    const code = decodeBarcodeImage(frame);
+    if (!code) return "";
+    if (code !== seen) {
+      seen = code;
+      return "";
+    }
+    return code;
+  };
 }
 
 function describeCameraError(error: unknown) {
@@ -178,12 +267,6 @@ export function CameraScanOverlay({
     };
 
     const start = async () => {
-      const detectorConstructor = getBarcodeDetector();
-      if (!detectorConstructor) {
-        fail("Ez a böngésző nem tud vonalkódot olvasni a kamerából.");
-        return;
-      }
-
       try {
         stream = await navigator.mediaDevices.getUserMedia({
           video: {
@@ -220,15 +303,10 @@ export function CameraScanOverlay({
         | undefined;
       if (!isStopped && capabilities?.torch) setHasLight(true);
 
-      const formats = await pickFormats(detectorConstructor);
+      const reader = (await createDetectorReader()) ?? createCanvasReader();
       if (isStopped) return;
 
-      let detector: BarcodeDetectorInstance;
-      try {
-        detector = new detectorConstructor(
-          formats.length > 0 ? { formats } : undefined,
-        );
-      } catch {
+      if (!reader) {
         stop();
         fail("Ez a böngésző nem tud vonalkódot olvasni a kamerából.");
         return;
@@ -239,7 +317,7 @@ export function CameraScanOverlay({
       const tick = async () => {
         if (isStopped) return;
 
-        const code = await readFrame(detector, video);
+        const code = await reader(video);
         if (isStopped) return;
 
         if (code) {

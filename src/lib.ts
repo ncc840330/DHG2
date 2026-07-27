@@ -3,16 +3,20 @@
  * refuses a record whose problem description is not on its own list, and a
  * near-miss like "Damaged" for "Damaged item" failed every save silently.
  * problem-options.test.js keeps the two in step.
+ *
+ * The order is the one the operators asked for — most-picked first — so it is
+ * theirs to change, but a spelling is not: it is also the value already stored
+ * on every saved record.
  */
 export const PROBLEM_OPTIONS = [
   "Extra Item",
+  "Not Visible SN",
   "Corrosion",
   "Damaged item",
-  "Item Discrepancy",
-  "SN Discrepancy",
-  "Item not arrived",
   "Burned item",
-  "Not Visible SN",
+  "Item not arrived",
+  "SN Discrepancy",
+  "Item Discrepancy",
   "Empty box",
   "SN upload",
   "Other",

@@ -8,5 +8,6 @@ import { PROBLEM_OPTIONS as CLIENT_OPTIONS } from "./lib";
 import { PROBLEM_OPTIONS as API_OPTIONS } from "../netlify/shared/records";
 
 test("every problem the operator can pick is one the API accepts", () => {
-  expect([...CLIENT_OPTIONS].sort()).toEqual([...API_OPTIONS].sort());
+  // Down to the order, so a reordered dropdown cannot leave half of it behind.
+  expect(CLIENT_OPTIONS).toEqual([...API_OPTIONS]);
 });
