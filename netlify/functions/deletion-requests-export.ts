@@ -68,7 +68,7 @@ export default async (request: Request) => {
     columns: COLUMNS,
     rows: records.map((record) => ({
       id: record.id,
-      lineId: record.lineId,
+      sheetName: record.lineId,
       cells: [
         record.lineId,
         record.systemItem,

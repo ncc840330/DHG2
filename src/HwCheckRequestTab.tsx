@@ -6,7 +6,7 @@ import {
   TEMPLATE_HEADERS,
   WAREHOUSE_CODE,
 } from "./excel";
-import type { TaskRow } from "./excel";
+import type { ImportLine, TaskRow } from "./excel";
 import HwCheckTaskPhotos from "./HwCheckTaskPhotos";
 import { TASK_TYPE_OPTIONS, taskTypeLabel } from "./hw-check";
 import type { HwCheckTask } from "./hw-check";
@@ -25,7 +25,14 @@ import {
  */
 type HwView = "tasks" | "upload";
 
-type ImportedFile = { name: string; rows: TaskRow[]; skippedRows: number };
+type ImportedFile = {
+  name: string;
+  /** The rows as the file listed them, which is what the server is sent. */
+  rows: TaskRow[];
+  /** Those rows split per qty, which is what the operator will photograph. */
+  lines: ImportLine[];
+  skippedRows: number;
+};
 
 const PREVIEW_ROWS = 5;
 
@@ -150,10 +157,15 @@ export default function HwCheckRequestTab({
       setImported({
         name: file.name,
         rows: result.rows,
+        lines: result.lines,
         skippedRows: result.skippedRows,
       });
       setMessage(
-        `${file.name}: ${result.rows.length} sor beolvasva. Ellenőrizd, majd SEND TASK.`,
+        `${file.name}: ${result.rows.length} sor beolvasva${
+          result.lines.length !== result.rows.length
+            ? `, a qty miatt ${result.lines.length} fotósor`
+            : ""
+        }. Ellenőrizd, majd SEND TASK.`,
       );
     } catch (parseError) {
       setImported(null);
@@ -368,8 +380,9 @@ export default function HwCheckRequestTab({
 
                   <p className="import-hint">
                     Oszlopok: {TEMPLATE_HEADERS.join(" · ")}. A Warehouse Code
-                    üresen hagyva {WAREHOUSE_CODE} lesz. Nem tudod a formátumot? A
-                    TEMPLATE gombbal letöltöd.
+                    üresen hagyva {WAREHOUSE_CODE} lesz, és 1-nél nagyobb Qty
+                    esetén minden darab külön sort kap, külön képekkel. Nem tudod
+                    a formátumot? A TEMPLATE gombbal letöltöd.
                   </p>
 
                   {imported && (
@@ -384,6 +397,10 @@ export default function HwCheckRequestTab({
                           <strong>{imported.rows.length}</strong>
                         </div>
                         <div>
+                          <span>PHOTO LINES</span>
+                          <strong>{imported.lines.length}</strong>
+                        </div>
+                        <div>
                           <span>LOCATORS</span>
                           <strong>
                             {
@@ -394,7 +411,7 @@ export default function HwCheckRequestTab({
                         </div>
                         <div>
                           <span>PHOTOS NEEDED</span>
-                          <strong>{imported.rows.length * 2}</strong>
+                          <strong>{imported.lines.length * 2}</strong>
                         </div>
                       </div>
 
@@ -404,24 +421,30 @@ export default function HwCheckRequestTab({
                             {TEMPLATE_HEADERS.map((header) => (
                               <th key={header}>{header}</th>
                             ))}
+                            <th>Piece</th>
                           </tr>
                         </thead>
                         <tbody>
-                          {imported.rows.slice(0, PREVIEW_ROWS).map((row, index) => (
+                          {imported.lines.slice(0, PREVIEW_ROWS).map((line, index) => (
                             <tr key={index}>
-                              <td>{row.item}</td>
-                              <td>{row.sn}</td>
-                              <td>{row.qty}</td>
-                              <td>{row.warehouseCode}</td>
-                              <td>{row.subinvCode}</td>
-                              <td>{row.locator}</td>
+                              <td>{line.item}</td>
+                              <td>{line.sn}</td>
+                              <td>{line.qty}</td>
+                              <td>{line.warehouseCode}</td>
+                              <td>{line.subinvCode}</td>
+                              <td>{line.locator}</td>
+                              <td>
+                                {line.unitCount > 1
+                                  ? `${line.unitIndex}/${line.unitCount}`
+                                  : "—"}
+                              </td>
                             </tr>
                           ))}
                         </tbody>
                       </table>
-                      {imported.rows.length > PREVIEW_ROWS && (
+                      {imported.lines.length > PREVIEW_ROWS && (
                         <p className="import-hint">
-                          …és további {imported.rows.length - PREVIEW_ROWS} sor.
+                          …és további {imported.lines.length - PREVIEW_ROWS} sor.
                         </p>
                       )}
                     </div>

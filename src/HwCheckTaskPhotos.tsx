@@ -381,16 +381,27 @@ export default function HwCheckTaskPhotos({
                       </div>
                       <div>
                         <span>SN</span>
-                        <strong>{line.sn}</strong>
+                        <strong>{line.sn || "—"}</strong>
                       </div>
                       <div>
                         <span>SUBINV CODE</span>
                         <strong>{line.subinvCode || "—"}</strong>
                       </div>
-                      <div>
-                        <span>QTY</span>
-                        <strong>{line.qty}</strong>
-                      </div>
+                      {/* A qty of more than one was split into a line per piece,
+                          so the row says which of them this is. */}
+                      {line.unitCount > 1 ? (
+                        <div>
+                          <span>PIECE</span>
+                          <strong>
+                            {line.unitIndex}/{line.unitCount}
+                          </strong>
+                        </div>
+                      ) : (
+                        <div>
+                          <span>QTY</span>
+                          <strong>{line.qty}</strong>
+                        </div>
+                      )}
                     </div>
 
                     <div className="line-photos">

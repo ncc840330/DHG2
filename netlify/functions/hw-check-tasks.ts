@@ -13,6 +13,7 @@ import {
   publicTask,
   readTaskLines,
   TASK_TYPES,
+  type TaskLineInput,
   type TaskType,
 } from "../shared/hw-check.js";
 import { discardBlobs, getHwCheckImageStore } from "../shared/images.js";
@@ -58,14 +59,7 @@ async function createTask(body: {
   recordDate: string;
   taskType: TaskType;
   sourceFileName: string;
-  lines: {
-    item: string;
-    sn: string;
-    qty: string;
-    warehouseCode: string;
-    subinvCode: string;
-    locator: string;
-  }[];
+  lines: TaskLineInput[];
 }) {
   return db.transaction(async (transaction) => {
     // Two operators pressing SEND TASK on the same second would otherwise both
