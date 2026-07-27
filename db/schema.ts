@@ -88,6 +88,59 @@ export const deletionRequests = pgTable(
   ],
 );
 
+/**
+ * Hardware check requests. A line asks the HW team to look at one item, so it
+ * carries the same identifiers as a deletion request plus the locator the item
+ * is checked at.
+ */
+export const hwCheckTasks = pgTable(
+  "hw_check_tasks",
+  {
+    id: serial().primaryKey(),
+    recordDate: date("record_date").notNull(),
+    lineSequence: integer("line_sequence").notNull(),
+    lineId: text("line_id").notNull(),
+    sourceTaskId: text("source_task_id").notNull(),
+    systemItem: text("system_item").notNull(),
+    systemSn: text("system_sn").notNull(),
+    rfid: text().notNull(),
+    locator: text().notNull(),
+    problemDescription: text("problem_description").notNull(),
+    problemOther: text("problem_other"),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    index("hw_check_tasks_record_date_idx").on(table.recordDate),
+    index("hw_check_tasks_source_task_id_idx").on(table.sourceTaskId),
+    uniqueIndex("hw_check_tasks_line_id_idx").on(table.lineId),
+    uniqueIndex("hw_check_tasks_date_sequence_idx").on(
+      table.recordDate,
+      table.lineSequence,
+    ),
+  ],
+);
+
+export const hwCheckTaskImages = pgTable(
+  "hw_check_task_images",
+  {
+    id: serial().primaryKey(),
+    taskId: integer("task_id")
+      .notNull()
+      .references(() => hwCheckTasks.id, { onDelete: "cascade" }),
+    slot: integer().notNull(),
+    blobKey: text("blob_key").notNull(),
+    contentType: text("content_type").notNull(),
+    fileName: text("file_name").notNull(),
+    byteSize: integer("byte_size").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    index("hw_check_task_images_task_id_idx").on(table.taskId),
+    uniqueIndex("hw_check_task_images_task_slot_idx").on(table.taskId, table.slot),
+  ],
+);
+
 export const deletionRequestImages = pgTable(
   "deletion_request_images",
   {
