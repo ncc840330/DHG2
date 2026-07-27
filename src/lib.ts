@@ -1,10 +1,16 @@
+/**
+ * Must stay spelled exactly as `netlify/shared/records.ts` has them: the API
+ * refuses a record whose problem description is not on its own list, and a
+ * near-miss like "Damaged" for "Damaged item" failed every save silently.
+ * problem-options.test.js keeps the two in step.
+ */
 export const PROBLEM_OPTIONS = [
-  "Extra item",
+  "Extra Item",
   "Corrosion",
-  "Damaged",
-  "Item discrepancy",
-  "SN discrepancy",
-  "Item no arrived",
+  "Damaged item",
+  "Item Discrepancy",
+  "SN Discrepancy",
+  "Item not arrived",
   "Burned item",
   "Not Visible SN",
   "Empty box",
@@ -28,8 +34,21 @@ export type TabProps = {
   rangeTo: string;
   refreshToken: number;
   onCounts: (counts: Record<string, number>) => void;
-  onSynced: () => void;
+  /** A refresh finished. `false` means it failed, so nothing is fresher. */
+  onSynced: (isFresh?: boolean) => void;
 };
+
+/**
+ * Reads a list endpoint. Every one of these requests goes out on the same URL
+ * for the same work date, which entitles the browser to answer a SYNC press
+ * from its own cache without ever asking the server — no-store is what makes
+ * the button mean what it says.
+ */
+export async function loadJson<T>(url: string, errorMessage: string) {
+  const response = await fetch(url, { cache: "no-store" });
+  if (!response.ok) throw new Error(errorMessage);
+  return (await response.json()) as T;
+}
 
 export function getDate(offset = 0) {
   const date = new Date();
@@ -54,6 +73,19 @@ export function formatShortDate(date: Date) {
 
 export function getErrorMessage(error: unknown, fallback: string) {
   return error instanceof Error ? error.message : fallback;
+}
+
+/**
+ * The API says why it refused. Without this the operator only ever sees "save
+ * failed" and has nothing to act on, and neither has whoever they call.
+ */
+export async function readApiError(response: Response, fallback: string) {
+  try {
+    const data = (await response.json()) as { error?: string };
+    return data.error ? `${fallback} (${data.error})` : fallback;
+  } catch {
+    return fallback;
+  }
 }
 
 export function makeLineId(dateKey: string, sequence: number) {

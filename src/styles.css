@@ -83,6 +83,11 @@ h1, h2, h3 { font-family: "Barlow Condensed", sans-serif; }
 .sync-button span { font-size: 0.58rem; font-weight: 600; letter-spacing: 0.12em; }
 .sync-button time { color: var(--muted); font-size: 0.58rem; }
 
+/* The only proof the operator has that a SYNC press was heard. */
+.sync-button.is-syncing svg { animation: sync-spin 0.9s linear infinite; transform-origin: 50% 50%; }
+
+@keyframes sync-spin { to { transform: rotate(360deg); } }
+
 .date-section { padding: 14px 0 12px; }
 
 .date-strip {
@@ -264,7 +269,8 @@ form {
 
 .field-wide { grid-column: 1 / -1; }
 
-.field > span {
+.field > span,
+.field > .field-title {
   color: var(--label);
   font-size: 0.6rem;
   font-weight: 600;
@@ -272,6 +278,33 @@ form {
 }
 
 .field small { color: var(--signal); font-size: 0.48rem; }
+
+/* The camera button rides alongside the input, not below it: on a PDA screen
+   every field that grows a second row costs a scroll. */
+.scan-row { display: flex; gap: 8px; min-width: 0; }
+.scan-row input { min-width: 0; flex: 1; }
+
+.camera-scan-button {
+  display: grid;
+  width: 46px;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 1px solid #3a4a4e;
+  border-radius: 2px;
+  background: var(--surface-2);
+  color: var(--signal);
+  cursor: pointer;
+}
+
+.camera-scan-button svg {
+  width: 21px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-width: 1.7;
+}
+
+.camera-scan-button:active { background: var(--signal); color: var(--signal-dark); }
 
 .field input, .field select {
   width: 100%;
@@ -601,6 +634,114 @@ input[type="checkbox"] {
 .confirm-cancel { border: 1px solid var(--line); background: transparent; color: var(--ink); }
 .confirm-ok { border: 1px solid #74483f; background: var(--danger); color: #2b0f0b; }
 .confirm-actions button:disabled { cursor: wait; opacity: 0.55; }
+
+/* The viewfinder takes the whole screen: it replaces a scan gun, and a gun is
+   not aimed through a 200px preview. */
+.camera-scan {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  outline: 0;
+  background: #05090a;
+  animation: fade-in 140ms ease-out both;
+}
+
+.camera-scan-view { position: relative; overflow: hidden; }
+
+.camera-scan-view video {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: #05090a;
+  object-fit: cover;
+}
+
+.camera-scan-reticle {
+  position: absolute;
+  inset: 50% 10% auto;
+  height: 32%;
+  border: 2px solid var(--signal);
+  border-radius: 4px;
+  /* Everything outside the frame is dimmed, so the eye goes where the decoder
+     is actually looking. */
+  box-shadow: 0 0 0 100vmax rgba(5, 9, 10, 0.55);
+  transform: translateY(-50%);
+}
+
+.camera-scan-reticle::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--danger);
+  opacity: 0.85;
+  animation: scan-sweep 1.5s ease-in-out infinite alternate;
+}
+
+@keyframes scan-sweep { from { top: 6%; } to { top: 94%; } }
+
+.camera-scan-target,
+.camera-scan-hint {
+  position: absolute;
+  left: 16px;
+  right: 16px;
+  margin: 0;
+  text-shadow: 0 1px 5px rgba(0, 0, 0, 0.9);
+}
+
+.camera-scan-target {
+  top: 16px;
+  color: var(--signal);
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+}
+
+.camera-scan-hint {
+  bottom: 16px;
+  color: var(--label);
+  font-size: 0.58rem;
+  letter-spacing: 0.1em;
+  text-align: center;
+}
+
+.camera-scan-error {
+  position: absolute;
+  inset: auto 16px 16px;
+  margin: 0;
+  padding: 11px 12px;
+  border-left: 3px solid var(--danger);
+  background: rgba(23, 33, 36, 0.94);
+  color: var(--danger);
+  font-size: 0.68rem;
+  line-height: 1.5;
+}
+
+.camera-scan-actions {
+  display: flex;
+  gap: 10px;
+  padding: 14px 16px;
+  padding-bottom: calc(14px + env(safe-area-inset-bottom, 0px));
+  border-top: 1px solid var(--line);
+  background: var(--surface-2);
+}
+
+.camera-scan-actions button {
+  min-height: 48px;
+  flex: 1;
+  border-radius: 2px;
+  cursor: pointer;
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+}
+
+.camera-scan-light { border: 1px solid var(--line); background: transparent; color: var(--ink); }
+.camera-scan-light.is-on { border-color: var(--signal); background: var(--signal); color: var(--signal-dark); }
+.camera-scan-cancel { border: 1px solid var(--signal); background: transparent; color: var(--signal); }
 
 @keyframes fade-in { from { opacity: 0; } }
 

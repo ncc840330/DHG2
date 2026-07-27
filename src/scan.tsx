@@ -1,18 +1,26 @@
 import {
+  createContext,
   KeyboardEvent as ReactKeyboardEvent,
   MutableRefObject,
+  ReactNode,
   RefObject,
   useCallback,
+  useContext,
   useEffect,
+  useId,
+  useMemo,
   useRef,
+  useState,
 } from "react";
+import { CameraScanOverlay, isCameraScanSupported } from "./camera-scan";
 
 /**
  * Everything in this module exists for one reason: a warehouse PDA is not a
  * keyboard. Its scanner hands the barcode over in whichever way the vendor's
  * firmware feels like — a keystroke burst, one IME commit, or a direct write to
  * the input value — and each of those breaks a plain controlled React input in
- * a different place. The helpers here accept all three.
+ * a different place. The helpers here accept all three, plus the camera for
+ * devices whose scan engine never reaches the browser at all.
  */
 
 /** Controls a scanner's Enter is allowed to walk through. */
@@ -27,6 +35,13 @@ const UNNAMED_KEYS = ["", "Unidentified", "Process"];
 const HUMAN_KEY_GAP_MS = 60;
 const SCAN_IDLE_MS = 140;
 const MIN_SCAN_LENGTH = 3;
+
+/**
+ * True while the camera viewfinder owns the screen. The hardware wedge has to
+ * stand down for that stretch: its keystrokes would be flushed into a field the
+ * operator cannot see, and the camera is already aimed at one specific field.
+ */
+let isCameraScanOpen = false;
 
 type KeyLike = {
   key?: string;
@@ -78,6 +93,56 @@ function findEmptyField(form: HTMLFormElement) {
   return Array.from(form.querySelectorAll<HTMLInputElement>(SCAN_FIELD_SELECTOR))
     .filter((control): control is HTMLInputElement => control.tagName === "INPUT")
     .find((control) => control.name && control.value.trim() === "");
+}
+
+/** The named controls a scan can land in. */
+function scanFields(form: HTMLFormElement | null) {
+  if (!form) return [];
+  return Array.from(
+    form.querySelectorAll<HTMLInputElement | HTMLSelectElement>(
+      SCAN_FIELD_SELECTOR,
+    ),
+  ).filter((control) => control.name !== "");
+}
+
+/**
+ * What the operator can actually see in the form, keyed by field name. React
+ * state is normally the same thing, but a scanner driver that writes straight
+ * into `input.value` without firing an event leaves state behind — and then the
+ * record would be saved without the barcode that is sitting there on screen.
+ */
+export function readScanFields(form: HTMLFormElement | null) {
+  const values: Record<string, string> = {};
+  scanFields(form).forEach((control) => {
+    values[control.name] = control.value;
+  });
+  return values;
+}
+
+/**
+ * Empties the fields for real. React does not re-sync a controlled input whose
+ * value prop did not change, so a value that never made it into state — the
+ * driver write above — survives an `EMPTY_FORM` reset and stays on screen,
+ * which looks exactly like the SAVE button having done nothing.
+ */
+export function clearScanFields(form: HTMLFormElement | null) {
+  scanFields(form).forEach((control) => {
+    if (control.value !== "") control.value = "";
+  });
+}
+
+/** Required controls the operator has left empty, in the order they appear. */
+export function findMissingFields(form: HTMLFormElement | null) {
+  return scanFields(form).filter(
+    (control) => control.required && control.value.trim() === "",
+  );
+}
+
+/** A control's visible title, so a message can name what is missing. */
+export function describeField(control: HTMLInputElement | HTMLSelectElement) {
+  const label = control.labels?.[0];
+  const title = label?.querySelector("span")?.textContent ?? label?.textContent;
+  return (title ?? control.name).trim();
 }
 
 /** Controls that own their keystrokes: they have a caret to type into. */
@@ -204,6 +269,7 @@ export function useScannerForm({
 
     const handleStrayKey = (event: KeyboardEvent) => {
       if (event.ctrlKey || event.altKey || event.metaKey) return;
+      if (isCameraScanOpen) return;
 
       const active = document.activeElement;
 
@@ -252,6 +318,85 @@ export function useScannerForm({
   return { onKeyDown: handleKeyDown, commitTarget };
 }
 
+type CameraScanRequest = {
+  field: string;
+  label: string;
+  element: HTMLInputElement | null;
+};
+
+type CameraScanControl = {
+  isSupported: boolean;
+  requestScan: (request: CameraScanRequest) => void;
+};
+
+const CameraScanContext = createContext<CameraScanControl | null>(null);
+
+/**
+ * Wraps a form so every ScanField inside it can borrow the camera. Nothing is
+ * rendered until a field asks for it, and on a device where the browser cannot
+ * decode a barcode the fields never ask — the button is not there to be pressed.
+ */
+export function CameraScanProvider({
+  formRef,
+  onValue,
+  children,
+}: {
+  formRef: RefObject<HTMLFormElement>;
+  onValue: (field: string, value: string) => void;
+  children: ReactNode;
+}) {
+  const [isSupported] = useState(isCameraScanSupported);
+  const [request, setRequest] = useState<CameraScanRequest | null>(null);
+  const onValueRef = useRef(onValue);
+  onValueRef.current = onValue;
+
+  const requestScan = useCallback((next: CameraScanRequest) => {
+    isCameraScanOpen = true;
+    setRequest(next);
+  }, []);
+
+  const closeCamera = useCallback(() => {
+    isCameraScanOpen = false;
+    setRequest(null);
+  }, []);
+
+  // Leaving the tab mid-scan must not leave the wedge muted for the next form.
+  useEffect(
+    () => () => {
+      isCameraScanOpen = false;
+    },
+    [],
+  );
+
+  const control = useMemo(
+    () => ({ isSupported, requestScan }),
+    [isSupported, requestScan],
+  );
+
+  return (
+    <CameraScanContext.Provider value={control}>
+      {children}
+      {request && (
+        <CameraScanOverlay
+          label={request.label}
+          onCancel={() => {
+            closeCamera();
+            request.element?.focus();
+          }}
+          onDetect={(code) => {
+            closeCamera();
+            // Painted straight into the DOM first, exactly like a wedge scan,
+            // so the operator sees the hit before React re-renders.
+            if (request.element) request.element.value = code;
+            onValueRef.current(request.field, code);
+            focusNextControl(formRef.current, request.element);
+          }}
+        />
+      )}
+    </CameraScanContext.Provider>
+  );
+}
+
 type ScanFieldProps = {
   label: string;
   name: string;
@@ -270,7 +415,9 @@ type ScanFieldProps = {
  * go, or written straight into `input.value` by the scanner driver. The last
  * two are why the native listeners are here: React matches change events
  * against its own value tracker and drops the ones it did not expect, which is
- * exactly the case where a scan silently disappears.
+ * exactly the case where a scan silently disappears. Inside a CameraScanProvider
+ * the field also grows a camera button, for the devices that hand the browser
+ * nothing at all.
  */
 export function ScanField({
   label,
@@ -286,6 +433,8 @@ export function ScanField({
   const localRef = useRef<HTMLInputElement | null>(null);
   const onValueRef = useRef(onValue);
   onValueRef.current = onValue;
+  const camera = useContext(CameraScanContext);
+  const fieldId = useId();
 
   const setRefs = useCallback(
     (element: HTMLInputElement | null) => {
@@ -320,26 +469,49 @@ export function ScanField({
   const listId = options ? `${name}-options` : undefined;
 
   return (
-    <label className={className ? `field ${className}` : "field"}>
-      <span>
-        {label}
+    <div className={className ? `field ${className}` : "field"}>
+      <label className="field-title" htmlFor={fieldId}>
+        <span>{label}</span>
         {hint && <small>{hint}</small>}
-      </span>
-      <input
-        ref={setRefs}
-        type="text"
-        name={name}
-        value={value}
-        required={required}
-        list={listId}
-        inputMode="text"
-        enterKeyHint="next"
-        autoComplete="off"
-        autoCapitalize="off"
-        autoCorrect="off"
-        spellCheck={false}
-        onChange={(event) => onValue(name, event.target.value)}
-      />
+      </label>
+      <div className="scan-row">
+        <input
+          id={fieldId}
+          ref={setRefs}
+          type="text"
+          name={name}
+          value={value}
+          required={required}
+          list={listId}
+          inputMode="text"
+          enterKeyHint="next"
+          autoComplete="off"
+          autoCapitalize="off"
+          autoCorrect="off"
+          spellCheck={false}
+          onChange={(event) => onValue(name, event.target.value)}
+        />
+        {camera?.isSupported && (
+          <button
+            className="camera-scan-button"
+            type="button"
+            title={`Scan ${label} with the camera`}
+            aria-label={`Scan ${label} with the camera`}
+            onClick={() =>
+              camera.requestScan({
+                field: name,
+                label,
+                element: localRef.current,
+              })
+            }
+          >
+            <svg aria-hidden="true" viewBox="0 0 24 24">
+              <path d="M4 9V5h4M20 9V5h-4M4 15v4h4M20 15v4h-4" />
+              <path d="M3 12h18" />
+            </svg>
+          </button>
+        )}
+      </div>
       {options && (
         <datalist id={listId}>
           {options.map((option) => (
@@ -347,6 +519,6 @@ export function ScanField({
           ))}
         </datalist>
       )}
-    </label>
+    </div>
   );
 }
