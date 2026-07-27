@@ -19,6 +19,12 @@ export type TaskRow = {
   locator: string;
 };
 
+/**
+ * One photographable piece. A row of qty 3 is three pieces, each with its own
+ * photos, so the spreadsheet row and the task line are no longer the same thing.
+ */
+export type ImportLine = TaskRow & { unitIndex: number; unitCount: number };
+
 export const TEMPLATE_HEADERS = [
   "Item",
   "SN",
@@ -53,6 +59,33 @@ function cellText(value: unknown) {
   return String(value).trim();
 }
 
+/** Excel's text number format. */
+const TEXT_FORMAT = "@";
+
+/**
+ * Every cell of the fillable block is created up front in Text format, the empty
+ * ones included. A serial number typed into a General cell is read back as a
+ * number — `4210000123456789` returns as 4.21E+15 and `0012` loses its zeroes —
+ * and the operator only finds that out when the import mangles their file.
+ */
+function textFormatBlock(sheet: XLSX.WorkSheet, rowCount: number) {
+  for (let row = 0; row < rowCount; row += 1) {
+    for (let column = 0; column < TEMPLATE_HEADERS.length; column += 1) {
+      const address = XLSX.utils.encode_cell({ r: row, c: column });
+      const cell = (sheet[address] ?? { t: "s", v: "" }) as XLSX.CellObject;
+      cell.t = "s";
+      cell.v = cellText(cell.v);
+      cell.z = TEXT_FORMAT;
+      sheet[address] = cell;
+    }
+  }
+
+  sheet["!ref"] = XLSX.utils.encode_range({
+    s: { r: 0, c: 0 },
+    e: { r: rowCount - 1, c: TEMPLATE_HEADERS.length - 1 },
+  });
+}
+
 /** Builds the empty task file: the six columns, with the warehouse prefilled. */
 export function downloadTemplate() {
   const sheet = XLSX.utils.aoa_to_sheet([
@@ -67,14 +100,45 @@ export function downloadTemplate() {
     { wch: 16 },
     { wch: 18 },
   ];
+  // The header plus every row a task can hold, so a file filled to the brim is
+  // text all the way down.
+  textFormatBlock(sheet, MAX_TASK_ROWS + 1);
 
   const workbook = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(workbook, sheet, "Photo upload");
-  XLSX.writeFile(workbook, "HWCheck_PhotoUpload_Template.xlsx");
+  // The shared string table writes the 3000 preformatted cells as proper string
+  // cells rather than the inline kind Excel treats as cached formula results.
+  XLSX.writeFile(workbook, "HWCheck_PhotoUpload_Template.xlsx", { bookSST: true });
+}
+
+/**
+ * How many pieces a row is. Anything unreadable counts as one: a row that says
+ * "2 pcs" is two photo lines, a row that says nothing is still one.
+ */
+export function unitCount(qty: string) {
+  const digits = /\d+/.exec(qty);
+  const count = digits ? Number.parseInt(digits[0], 10) : 1;
+  return count > 1 ? Math.min(count, MAX_TASK_ROWS + 1) : 1;
+}
+
+/**
+ * Photos are per piece, not per row: every unit of a qty needs its own two
+ * shots, so a row of qty 3 becomes three task lines that each carry qty 1.
+ */
+export function expandByQty(rows: TaskRow[]): ImportLine[] {
+  return rows.flatMap((row) => {
+    const count = unitCount(row.qty);
+    return Array.from({ length: count }, (_, index) => ({
+      ...row,
+      qty: "1",
+      unitIndex: index + 1,
+      unitCount: count,
+    }));
+  });
 }
 
 export type ParseResult =
-  | { rows: TaskRow[]; skippedRows: number }
+  | { rows: TaskRow[]; lines: ImportLine[]; skippedRows: number }
   | { error: string };
 
 /**
@@ -164,7 +228,9 @@ export async function parseTaskFile(file: File): Promise<ParseResult> {
       continue;
     }
 
-    if (!values.item || !values.sn || !values.locator) {
+    // Either identifier will do — plenty of items carry no serial number — but
+    // something has to name the row, and a locator has to say where to go.
+    if ((!values.item && !values.sn) || !values.locator) {
       invalidRows.push(index + 1);
       continue;
     }
@@ -177,7 +243,7 @@ export async function parseTaskFile(file: File): Promise<ParseResult> {
     const rest =
       invalidRows.length > 5 ? ` és további ${invalidRows.length - 5} sor` : "";
     return {
-      error: `Hiányos sor a fájlban (Item, SN és Locator kötelező): ${listed}${rest}.`,
+      error: `Hiányos sor a fájlban (Item vagy SN, és Locator kötelező): ${listed}${rest}.`,
     };
   }
 
@@ -185,13 +251,15 @@ export async function parseTaskFile(file: File): Promise<ParseResult> {
     return { error: "A fájlban nincs feltölthető sor." };
   }
 
-  if (rows.length > MAX_TASK_ROWS) {
+  const lines = expandByQty(rows);
+
+  if (lines.length > MAX_TASK_ROWS) {
     return {
-      error: `Egy taskba legfeljebb ${MAX_TASK_ROWS} sor kerülhet, a fájlban ${rows.length} van.`,
+      error: `Egy taskba legfeljebb ${MAX_TASK_ROWS} sor kerülhet, a fájl qty-val együtt ${lines.length} sort ad.`,
     };
   }
 
-  return { rows, skippedRows };
+  return { rows, lines, skippedRows };
 }
 
 /** Photo work is walked location by location, so the rows are grouped that way. */

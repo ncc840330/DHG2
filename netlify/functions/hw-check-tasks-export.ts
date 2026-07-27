@@ -19,16 +19,21 @@ import { PHOTOS_PER_LINE } from "../shared/hw-check.js";
 import { getHwCheckImageStore } from "../shared/images.js";
 import { apiError } from "../shared/records.js";
 
-/** The imported grid, given back with the photo count each row reached. */
+/**
+ * The imported grid, given back column for column, with the photo count each
+ * line reached appended — so the download reads like the file the operator
+ * uploaded and can be handed straight back to IMPORT EXCEL.
+ */
 const COLUMNS: ExportColumn[] = [
-  { label: "Task", width: 20, fill: GREEN_HEADER },
   { label: "Item", width: 18, fill: GREEN_HEADER },
   { label: "SN", width: 26, fill: GREEN_HEADER },
   { label: "Qty", width: 8, fill: GREEN_HEADER },
   { label: "Warehouse Code", width: 18, fill: GREEN_HEADER },
   { label: "Subinv Code", width: 16, fill: GREEN_HEADER },
   { label: "Locator", width: 18, fill: GREEN_HEADER },
+  { label: "Piece", width: 8, fill: BLUE_HEADER },
   { label: "Photos", width: 10, fill: BLUE_HEADER },
+  { label: "Task", width: 20, fill: BLUE_HEADER },
   { label: "Date of sending", width: 16, fill: BLUE_HEADER },
 ];
 
@@ -92,18 +97,21 @@ export default async (request: Request) => {
 
       return {
         id: line.id,
-        // Each row's photos land on a tab of their own, named after the task and
-        // the row it came from so the two can be matched up again.
-        lineId: `${task?.taskCode ?? "task"}-${String(line.rowIndex).padStart(3, "0")}`,
+        // The photos of a line land on a tab named after its serial number, the
+        // way the warehouse looks a unit up. Items without an SN are named after
+        // the item instead, and the pieces of one qty share a name, so the
+        // writer numbers the repeats.
+        sheetName: line.sn || line.item,
         cells: [
-          task?.taskCode ?? "",
           line.item,
           line.sn,
           line.qty,
           line.warehouseCode,
           line.subinvCode,
           line.locator,
+          line.unitCount > 1 ? `${line.unitIndex}/${line.unitCount}` : "",
           `${photoCount}/${PHOTOS_PER_LINE}`,
+          task?.taskCode ?? "",
           task ? formatSheetDate(task.recordDate) : "",
         ],
       };

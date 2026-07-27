@@ -7,7 +7,13 @@ import React from "react";
 import { createRoot } from "react-dom/client";
 import { act } from "react-dom/test-utils";
 import * as XLSX from "xlsx";
-import { groupByLocator, parseTaskFile, TEMPLATE_HEADERS } from "./excel";
+import {
+  downloadTemplate,
+  expandByQty,
+  groupByLocator,
+  parseTaskFile,
+  TEMPLATE_HEADERS,
+} from "./excel";
 import HwCheckRequestTab from "./HwCheckRequestTab";
 import HwCheckTaskPhotos from "./HwCheckTaskPhotos";
 
@@ -137,7 +143,7 @@ test("columns are read by header name, wherever the export put them", async () =
   ]);
 });
 
-test("an unphotographable row is named by its spreadsheet row number", async () => {
+test("a row without an SN is still photographable, named by its item", async () => {
   const result = await parseTaskFile(
     workbookFile([
       TEMPLATE_HEADERS,
@@ -146,8 +152,79 @@ test("an unphotographable row is named by its spreadsheet row number", async () 
     ]),
   );
 
+  expect(result.error).toBeUndefined();
+  expect(result.rows.map((row) => [row.item, row.sn])).toEqual([
+    ["ITEM-1", "SN-1"],
+    ["ITEM-2", ""],
+  ]);
+});
+
+test("a row nothing identifies is named by its spreadsheet row number", async () => {
+  const result = await parseTaskFile(
+    workbookFile([
+      TEMPLATE_HEADERS,
+      ["ITEM-1", "SN-1", "1", "", "", "LOC-A"],
+      ["", "", "1", "", "", "LOC-B"],
+    ]),
+  );
+
   expect(result.rows).toBeUndefined();
   expect(result.error).toContain("3");
+});
+
+test("a qty of more than one becomes a photo line per piece", async () => {
+  const result = await parseTaskFile(
+    workbookFile([
+      TEMPLATE_HEADERS,
+      ["ITEM-1", "SN-1", "3", "", "", "LOC-A"],
+      ["ITEM-2", "SN-2", "1", "", "", "LOC-B"],
+    ]),
+  );
+
+  // The rows stay as the file listed them; the server splits them the same way.
+  expect(result.rows).toHaveLength(2);
+  expect(
+    result.lines.map((line) => [line.sn, line.qty, line.unitIndex, line.unitCount]),
+  ).toEqual([
+    ["SN-1", "1", 1, 3],
+    ["SN-1", "1", 2, 3],
+    ["SN-1", "1", 3, 3],
+    ["SN-2", "1", 1, 1],
+  ]);
+});
+
+test("an unreadable qty is one piece, not none", () => {
+  const row = {
+    item: "ITEM-1",
+    sn: "SN-1",
+    qty: "",
+    warehouseCode: "FXN-GYOR",
+    subinvCode: "",
+    locator: "LOC-A",
+  };
+
+  expect(expandByQty([{ ...row, qty: "" }])).toHaveLength(1);
+  expect(expandByQty([{ ...row, qty: "alma" }])).toHaveLength(1);
+  expect(expandByQty([{ ...row, qty: "0" }])).toHaveLength(1);
+  expect(expandByQty([{ ...row, qty: "2 pcs" }])).toHaveLength(2);
+});
+
+test("the template hands out text cells, so a long SN survives typing", () => {
+  const written = [];
+  const write = jest
+    .spyOn(XLSX, "writeFile")
+    .mockImplementation((workbook) => written.push(workbook));
+
+  downloadTemplate();
+
+  const sheet = written[0].Sheets["Photo upload"];
+  // Header, the prefilled row and a blank one well down the grid: all Text.
+  ["A1", "B2", "B300"].forEach((address) => {
+    expect(sheet[address].z).toBe("@");
+    expect(sheet[address].t).toBe("s");
+  });
+  expect(sheet["!ref"]).toBe("A1:F501");
+  write.mockRestore();
 });
 
 test("a file without the expected columns points at the template", async () => {
@@ -229,6 +306,8 @@ test("a photographed row is saved slot by slot and reads as ready", async () => 
     item: "ITEM-1",
     sn: "SN-1",
     qty: "1",
+    unitIndex: 2,
+    unitCount: 3,
     warehouseCode: "FXN-GYOR",
     subinvCode: "SUB-1",
     locator: "LOC-A",
@@ -268,6 +347,8 @@ test("a photographed row is saved slot by slot and reads as ready", async () => 
   });
 
   expect(pick(".locator-name").textContent).toBe("LOC-A");
+  // The line is the second piece of a qty of three, and says so.
+  expect(pick(".line-cells").textContent).toContain("PIECE2/3");
   expect(pick(".line-status").textContent).toContain("0/2");
   expect(findButton("SAVE PHOTOS").disabled).toBe(true);
 

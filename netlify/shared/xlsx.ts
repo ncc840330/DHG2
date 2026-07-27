@@ -2,7 +2,7 @@
  * Minimal XLSX writer.
  *
  * SheetJS can lay out cells but cannot embed pictures, and the export has to
- * carry the uploaded photos on their own Line ID tabs. The OOXML package is
+ * carry the uploaded photos on tabs of their own. The OOXML package is
  * small enough to emit by hand, so the workbook is assembled here and zipped
  * with the store-only writer already used for downloads.
  */
@@ -21,7 +21,7 @@ export type SheetImage = {
   contentType: string;
 };
 
-/** One tab per Line ID that actually has photos. */
+/** One tab per line that actually has photos, named by the export. */
 export type ImageSheet = {
   name: string;
   images: SheetImage[];
@@ -73,7 +73,7 @@ function columnName(index: number) {
 
 /**
  * Excel rejects a few punctuation marks in tab names and caps them at 31
- * characters, so Line IDs are trimmed to fit before they become sheet names.
+ * characters, so a name is trimmed to fit before it becomes a sheet name.
  */
 function sheetName(value: string, fallback: string) {
   const cleaned = value
@@ -327,7 +327,7 @@ function relationships(items: { id: string; type: string; target: string }[]) {
 
 /**
  * Builds the whole package: the data grid on the first tab, then one tab per
- * Line ID carrying its photos.
+ * photographed line carrying its pictures.
  */
 export function buildXlsx(dataSheet: DataSheet, imageSheets: ImageSheet[]) {
   const fills: string[] = [];
@@ -343,10 +343,14 @@ export function buildXlsx(dataSheet: DataSheet, imageSheets: ImageSheet[]) {
   const tabs = imageSheets
     .filter((sheet) => sheet.images.length > 0)
     .map((sheet, index) => {
-      let name = sheetName(sheet.name, `Photos ${index + 1}`);
+      // Two tabs can genuinely want the same name — the pieces of one qty share
+      // a serial number — so repeats are numbered off the original name rather
+      // than off the last attempt, which would stack suffixes.
+      const base = sheetName(sheet.name, `Photos ${index + 1}`);
+      let name = base;
       let attempt = 2;
       while (usedSheetNames.has(name.toLowerCase())) {
-        name = `${name.slice(0, 28)}(${attempt})`;
+        name = `${base.slice(0, 27)} (${attempt})`;
         attempt += 1;
       }
       usedSheetNames.add(name.toLowerCase());

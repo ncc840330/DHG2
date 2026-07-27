@@ -169,7 +169,11 @@ export const hwCheckUploadTasks = pgTable(
   ],
 );
 
-/** One spreadsheet row of a task: the item the photos have to be taken of. */
+/**
+ * One photographable piece of a task: a spreadsheet row of qty 3 becomes three
+ * lines, each numbered with the piece it stands for so the operator knows which
+ * of the three they are shooting.
+ */
 export const hwCheckTaskLines = pgTable(
   "hw_check_task_lines",
   {
@@ -181,6 +185,8 @@ export const hwCheckTaskLines = pgTable(
     item: text().notNull(),
     sn: text().notNull(),
     qty: text().notNull(),
+    unitIndex: integer("unit_index").default(1).notNull(),
+    unitCount: integer("unit_count").default(1).notNull(),
     warehouseCode: text("warehouse_code").notNull(),
     subinvCode: text("subinv_code").notNull(),
     locator: text().notNull(),

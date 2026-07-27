@@ -40,6 +40,9 @@ export type TaskLine = {
   item: string;
   sn: string;
   qty: string;
+  /** Which piece of an imported qty this line is, e.g. 2 of 3. */
+  unitIndex: number;
+  unitCount: number;
   warehouseCode: string;
   subinvCode: string;
   locator: string;

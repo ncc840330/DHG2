@@ -13,10 +13,10 @@ export const BLUE_HEADER = "00B0F0";
 
 export type ExportColumn = SheetColumn;
 
-/** One spreadsheet line plus the Line ID its photo tab is named after. */
+/** One spreadsheet line plus the name of the tab its photos go on. */
 export type ExportRow = {
   id: number;
-  lineId: string;
+  sheetName: string;
   cells: string[];
 };
 
@@ -85,7 +85,8 @@ export function readSelection(rawIds: unknown) {
 
 /**
  * The selection becomes a single workbook: the grid on the first tab, then one
- * tab per Line ID that has photos. Line IDs without photos get no tab.
+ * tab per line that has photos, named the way that export names its tabs. Lines
+ * without photos get no tab.
  */
 export async function buildWorkbookDownload(options: {
   store: ImageStore;
@@ -110,7 +111,7 @@ export async function buildWorkbookDownload(options: {
       loaded.push({ data: new Uint8Array(data), contentType: image.contentType });
     }
 
-    if (loaded.length > 0) imageSheets.push({ name: row.lineId, images: loaded });
+    if (loaded.length > 0) imageSheets.push({ name: row.sheetName, images: loaded });
   }
 
   return {
