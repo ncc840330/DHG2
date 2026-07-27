@@ -1,10 +1,13 @@
 import { asc, inArray } from "drizzle-orm";
 import { db } from "../../db/index.js";
-import { hwCheckTaskImages, hwCheckTasks } from "../../db/schema.js";
+import {
+  hwCheckLineImages,
+  hwCheckTaskLines,
+  hwCheckUploadTasks,
+} from "../../db/schema.js";
 import {
   BLUE_HEADER,
   buildWorkbookDownload,
-  describeProblem,
   exportFileName,
   formatSheetDate,
   GREEN_HEADER,
@@ -12,20 +15,21 @@ import {
   spreadsheetResponse,
   type ExportColumn,
 } from "../shared/export.js";
+import { PHOTOS_PER_LINE } from "../shared/hw-check.js";
 import { getHwCheckImageStore } from "../shared/images.js";
 import { apiError } from "../shared/records.js";
 
-/** Same layout as the deletion request sheet, plus the locator to check at. */
+/** The imported grid, given back with the photo count each row reached. */
 const COLUMNS: ExportColumn[] = [
-  { label: "Line ID", width: 18, fill: GREEN_HEADER },
-  { label: "System item code", width: 16, fill: GREEN_HEADER },
-  { label: "System SN", width: 26, fill: GREEN_HEADER },
-  { label: "RFID", width: 19, fill: GREEN_HEADER },
-  { label: "Locator", width: 16, fill: GREEN_HEADER },
-  { label: "Problem description", width: 29, fill: GREEN_HEADER },
-  { label: "Date of sending", width: 16, fill: GREEN_HEADER },
-  { label: "Contract", width: 25, fill: BLUE_HEADER },
-  { label: "Source task ID", width: 21, fill: BLUE_HEADER },
+  { label: "Task", width: 20, fill: GREEN_HEADER },
+  { label: "Item", width: 18, fill: GREEN_HEADER },
+  { label: "SN", width: 26, fill: GREEN_HEADER },
+  { label: "Qty", width: 8, fill: GREEN_HEADER },
+  { label: "Warehouse Code", width: 18, fill: GREEN_HEADER },
+  { label: "Subinv Code", width: 16, fill: GREEN_HEADER },
+  { label: "Locator", width: 18, fill: GREEN_HEADER },
+  { label: "Photos", width: 10, fill: BLUE_HEADER },
+  { label: "Date of sending", width: 16, fill: BLUE_HEADER },
 ];
 
 export default async (request: Request) => {
@@ -40,50 +44,72 @@ export default async (request: Request) => {
   const selection = readSelection((body as { ids?: unknown })?.ids);
   if ("error" in selection) return apiError(selection.error, selection.status);
 
-  const records = await db
+  const tasks = await db
     .select()
-    .from(hwCheckTasks)
-    .where(inArray(hwCheckTasks.id, selection.ids))
-    .orderBy(asc(hwCheckTasks.recordDate), asc(hwCheckTasks.lineId));
+    .from(hwCheckUploadTasks)
+    .where(inArray(hwCheckUploadTasks.id, selection.ids))
+    .orderBy(asc(hwCheckUploadTasks.recordDate), asc(hwCheckUploadTasks.taskCode));
 
-  if (records.length === 0) return apiError("No matching records found.", 404);
+  if (tasks.length === 0) return apiError("No matching tasks found.", 404);
 
-  const images = await db
+  const lines = await db
     .select()
-    .from(hwCheckTaskImages)
+    .from(hwCheckTaskLines)
     .where(
       inArray(
-        hwCheckTaskImages.taskId,
-        records.map((record) => record.id),
+        hwCheckTaskLines.taskId,
+        tasks.map((task) => task.id),
       ),
     )
-    .orderBy(asc(hwCheckTaskImages.slot));
+    .orderBy(asc(hwCheckTaskLines.taskId), asc(hwCheckTaskLines.rowIndex));
+
+  const images = lines.length
+    ? await db
+        .select()
+        .from(hwCheckLineImages)
+        .where(
+          inArray(
+            hwCheckLineImages.lineId,
+            lines.map((line) => line.id),
+          ),
+        )
+        .orderBy(asc(hwCheckLineImages.slot))
+    : [];
+
+  const byTaskId = new Map(tasks.map((task) => [task.id, task]));
 
   const download = await buildWorkbookDownload({
     store: getHwCheckImageStore(),
     fileName: exportFileName(
-      "HWCheckRequest",
-      records.map((record) => record.recordDate),
+      "HWCheckTask",
+      tasks.map((task) => task.recordDate),
     ),
-    sheetName: "HW check requests",
+    sheetName: "HW check tasks",
     columns: COLUMNS,
-    rows: records.map((record) => ({
-      id: record.id,
-      lineId: record.lineId,
-      cells: [
-        record.lineId,
-        record.systemItem,
-        record.systemSn,
-        record.rfid,
-        record.locator,
-        describeProblem(record),
-        formatSheetDate(record.recordDate),
-        "",
-        record.sourceTaskId,
-      ],
-    })),
+    rows: lines.map((line) => {
+      const task = byTaskId.get(line.taskId);
+      const photoCount = images.filter((image) => image.lineId === line.id).length;
+
+      return {
+        id: line.id,
+        // Each row's photos land on a tab of their own, named after the task and
+        // the row it came from so the two can be matched up again.
+        lineId: `${task?.taskCode ?? "task"}-${String(line.rowIndex).padStart(3, "0")}`,
+        cells: [
+          task?.taskCode ?? "",
+          line.item,
+          line.sn,
+          line.qty,
+          line.warehouseCode,
+          line.subinvCode,
+          line.locator,
+          `${photoCount}/${PHOTOS_PER_LINE}`,
+          task ? formatSheetDate(task.recordDate) : "",
+        ],
+      };
+    }),
     images: images.map((image) => ({
-      ownerId: image.taskId,
+      ownerId: image.lineId,
       slot: image.slot,
       blobKey: image.blobKey,
       contentType: image.contentType,

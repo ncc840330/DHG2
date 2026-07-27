@@ -54,6 +54,25 @@ async function prepareImage(file: File) {
   }
 }
 
+/**
+ * Downscales and checks one picked file. Shared with the HW check tasks, where
+ * photos are picked per task line instead of per form.
+ */
+export async function preparePhotoUpload(
+  file: File,
+): Promise<{ file: File; error?: undefined } | { file?: undefined; error: string }> {
+  const prepared = await prepareImage(file);
+
+  if (!ALLOWED_IMAGE_TYPES.includes(prepared.type)) {
+    return { error: "Csak JPEG, PNG vagy WEBP kép tölthető fel." };
+  }
+  if (prepared.size > MAX_IMAGE_BYTES) {
+    return { error: "A kép túl nagy, legfeljebb 6 MB tölthető fel." };
+  }
+
+  return { file: prepared };
+}
+
 /** Slot state and downscaling for a two-photo form. */
 export function usePhotoSlots(onError: (message: string) => void) {
   const [photoSlots, setPhotoSlots] = useState<PhotoSlot[]>(EMPTY_SLOTS);
@@ -77,20 +96,15 @@ export function usePhotoSlots(onError: (message: string) => void) {
       event.target.value = "";
       if (!file) return;
 
-      const prepared = await prepareImage(file);
-
-      if (!ALLOWED_IMAGE_TYPES.includes(prepared.type)) {
-        onError("Csak JPEG, PNG vagy WEBP kép tölthető fel.");
-        return;
-      }
-      if (prepared.size > MAX_IMAGE_BYTES) {
-        onError("A kép túl nagy, legfeljebb 6 MB tölthető fel.");
+      const prepared = await preparePhotoUpload(file);
+      if (prepared.error) {
+        onError(prepared.error);
         return;
       }
 
       setPhotoSlots((current) =>
         current.map((slot, slotIndex) =>
-          slotIndex === index ? { kind: "new", file: prepared } : slot,
+          slotIndex === index ? { kind: "new", file: prepared.file } : slot,
         ),
       );
     },
