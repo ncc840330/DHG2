@@ -111,33 +111,3 @@ export async function downloadSelection(
 
   return fileName;
 }
-
-/**
- * Moves focus to the next control so a barcode scanner's trailing Enter walks
- * down the form instead of submitting it early.
- */
-export function focusNextControl(
-  form: HTMLFormElement | null,
-  event: { key: string; shiftKey: boolean; target: EventTarget | null; preventDefault: () => void },
-) {
-  if (event.key !== "Enter" || event.shiftKey) return;
-  const target = event.target as HTMLElement;
-  if (target.tagName === "BUTTON") return;
-
-  const controls = Array.from(
-    form?.querySelectorAll<HTMLElement>(
-      "input:not([disabled]):not([readonly]):not([type=file]):not([type=checkbox]), select:not([disabled])",
-    ) ?? [],
-  );
-  const currentIndex = controls.indexOf(target);
-  if (currentIndex < 0) return;
-
-  event.preventDefault();
-  const nextControl = controls[currentIndex + 1];
-  if (nextControl) {
-    nextControl.focus();
-    return;
-  }
-
-  form?.querySelector<HTMLButtonElement>(".save-button")?.focus();
-}

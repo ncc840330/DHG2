@@ -1,8 +1,7 @@
-import { FormEvent, KeyboardEvent, useCallback, useEffect, useRef, useState } from "react";
+import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
 import ConfirmDialog from "./ConfirmDialog";
 import {
   downloadSelection,
-  focusNextControl,
   getErrorMessage,
   makeLineId,
   PROBLEM_OPTIONS,
@@ -17,6 +16,7 @@ import {
   usePhotoSlots,
 } from "./photos";
 import type { RecordImage } from "./photos";
+import { focusNextControl, ScanField, useScannerForm } from "./scan";
 import { RecordRow, SavedToolbar, useSelection } from "./SavedList";
 
 type DhgRecord = {
@@ -78,6 +78,7 @@ export default function DhgTab({
   const [error, setError] = useState("");
   const formRef = useRef<HTMLFormElement>(null);
   const firstFieldRef = useRef<HTMLInputElement>(null);
+  const saveIntentRef = useRef(false);
 
   const { photoSlots, resetPhotos, loadPhotos, pickPhoto, clearPhoto } =
     usePhotoSlots(setError);
@@ -143,12 +144,32 @@ export default function DhgTab({
     setFormValues((current) => ({ ...current, [field]: value }));
   };
 
-  const handleScannerEnter = (event: KeyboardEvent<HTMLFormElement>) => {
-    focusNextControl(formRef.current, event);
-  };
+  const setScannedValue = useCallback((field: string, value: string) => {
+    setFormValues((current) =>
+      current[field as keyof FormValues] === value
+        ? current
+        : { ...current, [field]: value },
+    );
+  }, []);
+
+  const scanner = useScannerForm({
+    formRef,
+    onValue: setScannedValue,
+    isEnabled: isActive && view === "add" && !pendingDelete,
+  });
 
   const saveRecord = async (event: FormEvent) => {
     event.preventDefault();
+
+    // A scanner's trailing Enter can still reach the form on PDAs that report
+    // an unnamed key code, so only the SAVE button is allowed to submit.
+    const wasRequested = saveIntentRef.current;
+    saveIntentRef.current = false;
+    if (!wasRequested) {
+      focusNextControl(formRef.current, document.activeElement as HTMLElement);
+      return;
+    }
+
     setIsSaving(true);
     setError("");
     setMessage("");
@@ -295,60 +316,92 @@ export default function DhgTab({
             <span>{selectedDate.split("-").join(".")}</span>
           </div>
 
-          <form ref={formRef} onSubmit={saveRecord} onKeyDown={handleScannerEnter}>
+          <form ref={formRef} onSubmit={saveRecord} onKeyDown={scanner.onKeyDown}>
             <label className="field field-readonly">
               <span>LINE ID</span>
               <input value={editingRecord?.lineId ?? nextLineId} readOnly />
             </label>
-            <label className="field">
-              <span>SYSTEM ITEM</span>
-              <input ref={firstFieldRef} required value={formValues.systemItem} onChange={(event) => updateField("systemItem", event.target.value)} />
-            </label>
-            <label className="field">
-              <span>SYSTEM SN <small>SCAN OR SELECT</small></span>
-              <input required list="system-sn-options" autoComplete="off" value={formValues.systemSn} onChange={(event) => updateField("systemSn", event.target.value)} />
-              <datalist id="system-sn-options">
-                <option value="Item attribute" />
-                <option value="Not available" />
-              </datalist>
-            </label>
-            <label className="field">
-              <span>PHYSICAL ITEM</span>
-              <input required value={formValues.physicalItem} onChange={(event) => updateField("physicalItem", event.target.value)} />
-            </label>
-            <label className="field">
-              <span>PHYSICAL SN</span>
-              <input required value={formValues.physicalSn} onChange={(event) => updateField("physicalSn", event.target.value)} />
-            </label>
-            <label className="field">
-              <span>RFID</span>
-              <input required value={formValues.rfid} onChange={(event) => updateField("rfid", event.target.value)} />
-            </label>
+            <ScanField
+              label="SYSTEM ITEM"
+              name="systemItem"
+              value={formValues.systemItem}
+              onValue={setScannedValue}
+              inputRef={firstFieldRef}
+              required
+            />
+            <ScanField
+              label="SYSTEM SN"
+              hint="SCAN OR SELECT"
+              name="systemSn"
+              value={formValues.systemSn}
+              onValue={setScannedValue}
+              options={["Item attribute", "Not available"]}
+              required
+            />
+            <ScanField
+              label="PHYSICAL ITEM"
+              name="physicalItem"
+              value={formValues.physicalItem}
+              onValue={setScannedValue}
+              required
+            />
+            <ScanField
+              label="PHYSICAL SN"
+              hint="SCAN OR TYPE"
+              name="physicalSn"
+              value={formValues.physicalSn}
+              onValue={setScannedValue}
+              required
+            />
+            <ScanField
+              label="RFID"
+              hint="SCAN OR TYPE"
+              name="rfid"
+              value={formValues.rfid}
+              onValue={setScannedValue}
+              required
+            />
             <label className="field field-wide">
               <span>PROBLEM DESCRIPTION</span>
-              <select required value={formValues.problemDescription} onChange={(event) => updateField("problemDescription", event.target.value)}>
+              <select name="problemDescription" required value={formValues.problemDescription} onChange={(event) => updateField("problemDescription", event.target.value)}>
                 <option value="" disabled>Select a problem</option>
                 {PROBLEM_OPTIONS.map((option) => <option key={option}>{option}</option>)}
               </select>
             </label>
             {formValues.problemDescription === "Other" && (
-              <label className="field field-wide field-other">
-                <span>OTHER PROBLEM DESCRIPTION</span>
-                <input required value={formValues.problemOther ?? ""} onChange={(event) => updateField("problemOther", event.target.value)} />
-              </label>
+              <ScanField
+                label="OTHER PROBLEM DESCRIPTION"
+                className="field-wide field-other"
+                name="problemOther"
+                value={formValues.problemOther ?? ""}
+                onValue={setScannedValue}
+                required
+              />
             )}
-            <label className="field">
-              <span>LOCATOR</span>
-              <input required value={formValues.locator} onChange={(event) => updateField("locator", event.target.value)} />
-            </label>
-            <label className="field">
-              <span>COUNTY</span>
-              <input required value={formValues.county} onChange={(event) => updateField("county", event.target.value)} />
-            </label>
-            <label className="field field-wide">
-              <span>SOURCE TASK ID</span>
-              <input required value={formValues.sourceTaskId} onChange={(event) => updateField("sourceTaskId", event.target.value)} />
-            </label>
+            <ScanField
+              label="LOCATOR"
+              hint="SCAN OR TYPE"
+              name="locator"
+              value={formValues.locator}
+              onValue={setScannedValue}
+              required
+            />
+            <ScanField
+              label="COUNTY"
+              name="county"
+              value={formValues.county}
+              onValue={setScannedValue}
+              required
+            />
+            <ScanField
+              label="SOURCE TASK ID"
+              className="field-wide"
+              hint="SCAN OR TYPE"
+              name="sourceTaskId"
+              value={formValues.sourceTaskId}
+              onValue={setScannedValue}
+              required
+            />
 
             <PhotoFields
               slots={photoSlots}
@@ -360,7 +413,14 @@ export default function DhgTab({
               {editingRecord && (
                 <button className="delete-button" type="button" disabled={isSaving} onClick={() => setPendingDelete(editingRecord)}>DELETE</button>
               )}
-              <button className="save-button" type="submit" disabled={isSaving}>
+              <button
+                className="save-button"
+                type="submit"
+                disabled={isSaving}
+                onClick={() => {
+                  saveIntentRef.current = true;
+                }}
+              >
                 {isSaving ? "SAVING…" : editingRecord ? "SAVE CHANGES" : "SAVE RECORD"}
                 <svg aria-hidden="true" viewBox="0 0 24 24"><path d="m5 12 4 4L19 6" /></svg>
               </button>

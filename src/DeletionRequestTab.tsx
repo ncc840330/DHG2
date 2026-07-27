@@ -1,6 +1,5 @@
 import {
   FormEvent,
-  KeyboardEvent,
   useCallback,
   useEffect,
   useRef,
@@ -9,7 +8,6 @@ import {
 import ConfirmDialog from "./ConfirmDialog";
 import {
   downloadSelection,
-  focusNextControl,
   getErrorMessage,
   makeLineId,
   PROBLEM_OPTIONS,
@@ -24,6 +22,7 @@ import {
   usePhotoSlots,
 } from "./photos";
 import type { RecordImage } from "./photos";
+import { focusNextControl, ScanField, useScannerForm } from "./scan";
 import { RecordRow, SavedToolbar, useSelection } from "./SavedList";
 
 type DeletionRequest = {
@@ -81,6 +80,7 @@ export default function DeletionRequestTab({
   const [error, setError] = useState("");
   const formRef = useRef<HTMLFormElement>(null);
   const firstFieldRef = useRef<HTMLInputElement>(null);
+  const saveIntentRef = useRef(false);
 
   const { photoSlots, resetPhotos, loadPhotos, pickPhoto, clearPhoto } =
     usePhotoSlots(setError);
@@ -146,12 +146,32 @@ export default function DeletionRequestTab({
     setFormValues((current) => ({ ...current, [field]: value }));
   };
 
-  const handleScannerEnter = (event: KeyboardEvent<HTMLFormElement>) => {
-    focusNextControl(formRef.current, event);
-  };
+  const setScannedValue = useCallback((field: string, value: string) => {
+    setFormValues((current) =>
+      current[field as keyof FormValues] === value
+        ? current
+        : { ...current, [field]: value },
+    );
+  }, []);
+
+  const scanner = useScannerForm({
+    formRef,
+    onValue: setScannedValue,
+    isEnabled: isActive && view === "add" && !pendingDelete,
+  });
 
   const saveRecord = async (event: FormEvent) => {
     event.preventDefault();
+
+    // A scanner's trailing Enter can still reach the form on PDAs that report
+    // an unnamed key code, so only the SAVE button is allowed to submit.
+    const wasRequested = saveIntentRef.current;
+    saveIntentRef.current = false;
+    if (!wasRequested) {
+      focusNextControl(formRef.current, document.activeElement as HTMLElement);
+      return;
+    }
+
     setIsSaving(true);
     setError("");
     setMessage("");
@@ -296,39 +316,59 @@ export default function DeletionRequestTab({
             <span>{selectedDate.split("-").join(".")}</span>
           </div>
 
-          <form ref={formRef} onSubmit={saveRecord} onKeyDown={handleScannerEnter}>
+          <form ref={formRef} onSubmit={saveRecord} onKeyDown={scanner.onKeyDown}>
             <label className="field field-readonly">
               <span>LINE ID</span>
               <input value={editingRecord?.lineId ?? nextLineId} readOnly />
             </label>
-            <label className="field">
-              <span>SOURCE TASK ID</span>
-              <input ref={firstFieldRef} required value={formValues.sourceTaskId} onChange={(event) => updateField("sourceTaskId", event.target.value)} />
-            </label>
-            <label className="field">
-              <span>SYSTEM ITEM</span>
-              <input required value={formValues.systemItem} onChange={(event) => updateField("systemItem", event.target.value)} />
-            </label>
-            <label className="field">
-              <span>SYSTEM SN <small>SCAN OR TYPE</small></span>
-              <input required autoComplete="off" value={formValues.systemSn} onChange={(event) => updateField("systemSn", event.target.value)} />
-            </label>
-            <label className="field">
-              <span>RFID <small>SCAN OR TYPE</small></span>
-              <input required autoComplete="off" value={formValues.rfid} onChange={(event) => updateField("rfid", event.target.value)} />
-            </label>
+            <ScanField
+              label="SOURCE TASK ID"
+              hint="SCAN OR TYPE"
+              name="sourceTaskId"
+              value={formValues.sourceTaskId}
+              onValue={setScannedValue}
+              inputRef={firstFieldRef}
+              required
+            />
+            <ScanField
+              label="SYSTEM ITEM"
+              name="systemItem"
+              value={formValues.systemItem}
+              onValue={setScannedValue}
+              required
+            />
+            <ScanField
+              label="SYSTEM SN"
+              hint="SCAN OR TYPE"
+              name="systemSn"
+              value={formValues.systemSn}
+              onValue={setScannedValue}
+              required
+            />
+            <ScanField
+              label="RFID"
+              hint="SCAN OR TYPE"
+              name="rfid"
+              value={formValues.rfid}
+              onValue={setScannedValue}
+              required
+            />
             <label className="field">
               <span>PROBLEM DESCRIPTION</span>
-              <select required value={formValues.problemDescription} onChange={(event) => updateField("problemDescription", event.target.value)}>
+              <select name="problemDescription" required value={formValues.problemDescription} onChange={(event) => updateField("problemDescription", event.target.value)}>
                 <option value="" disabled>Select a problem</option>
                 {PROBLEM_OPTIONS.map((option) => <option key={option}>{option}</option>)}
               </select>
             </label>
             {formValues.problemDescription === "Other" && (
-              <label className="field field-other">
-                <span>OTHER PROBLEM DESCRIPTION</span>
-                <input required value={formValues.problemOther ?? ""} onChange={(event) => updateField("problemOther", event.target.value)} />
-              </label>
+              <ScanField
+                label="OTHER PROBLEM DESCRIPTION"
+                className="field-other"
+                name="problemOther"
+                value={formValues.problemOther ?? ""}
+                onValue={setScannedValue}
+                required
+              />
             )}
 
             <PhotoFields
@@ -341,7 +381,14 @@ export default function DeletionRequestTab({
               {editingRecord && (
                 <button className="delete-button" type="button" disabled={isSaving} onClick={() => setPendingDelete(editingRecord)}>DELETE</button>
               )}
-              <button className="save-button" type="submit" disabled={isSaving}>
+              <button
+                className="save-button"
+                type="submit"
+                disabled={isSaving}
+                onClick={() => {
+                  saveIntentRef.current = true;
+                }}
+              >
                 {isSaving ? "SAVING…" : editingRecord ? "SAVE CHANGES" : "SAVE REQUEST"}
                 <svg aria-hidden="true" viewBox="0 0 24 24"><path d="m5 12 4 4L19 6" /></svg>
               </button>
