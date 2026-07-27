@@ -89,9 +89,9 @@ export const deletionRequests = pgTable(
 );
 
 /**
- * Hardware check requests. A line asks the HW team to look at one item, so it
- * carries the same identifiers as a deletion request plus the locator the item
- * is checked at.
+ * Legacy hardware check requests, one typed-in line each. The worksheet now
+ * creates tasks from an imported spreadsheet instead (see hwCheckUploadTasks),
+ * so nothing writes here any more — the table stays for the lines already saved.
  */
 export const hwCheckTasks = pgTable(
   "hw_check_tasks",
@@ -138,6 +138,78 @@ export const hwCheckTaskImages = pgTable(
   (table) => [
     index("hw_check_task_images_task_id_idx").on(table.taskId),
     uniqueIndex("hw_check_task_images_task_slot_idx").on(table.taskId, table.slot),
+  ],
+);
+
+/**
+ * One hardware check task per imported spreadsheet. The task type decides what
+ * the operator has to do with the lines and how the task is numbered, e.g.
+ * `Photo.20260727.01` for the photo upload work.
+ */
+export const hwCheckUploadTasks = pgTable(
+  "hw_check_upload_tasks",
+  {
+    id: serial().primaryKey(),
+    recordDate: date("record_date").notNull(),
+    taskType: text("task_type").notNull(),
+    taskSequence: integer("task_sequence").notNull(),
+    taskCode: text("task_code").notNull(),
+    sourceFileName: text("source_file_name").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    index("hw_check_upload_tasks_record_date_idx").on(table.recordDate),
+    uniqueIndex("hw_check_upload_tasks_task_code_idx").on(table.taskCode),
+    uniqueIndex("hw_check_upload_tasks_type_sequence_idx").on(
+      table.recordDate,
+      table.taskType,
+      table.taskSequence,
+    ),
+  ],
+);
+
+/** One spreadsheet row of a task: the item the photos have to be taken of. */
+export const hwCheckTaskLines = pgTable(
+  "hw_check_task_lines",
+  {
+    id: serial().primaryKey(),
+    taskId: integer("task_id")
+      .notNull()
+      .references(() => hwCheckUploadTasks.id, { onDelete: "cascade" }),
+    rowIndex: integer("row_index").notNull(),
+    item: text().notNull(),
+    sn: text().notNull(),
+    qty: text().notNull(),
+    warehouseCode: text("warehouse_code").notNull(),
+    subinvCode: text("subinv_code").notNull(),
+    locator: text().notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    index("hw_check_task_lines_task_id_idx").on(table.taskId),
+    uniqueIndex("hw_check_task_lines_task_row_idx").on(table.taskId, table.rowIndex),
+  ],
+);
+
+/** Two photos per line; the line counts as done once both slots are filled. */
+export const hwCheckLineImages = pgTable(
+  "hw_check_line_images",
+  {
+    id: serial().primaryKey(),
+    lineId: integer("line_id")
+      .notNull()
+      .references(() => hwCheckTaskLines.id, { onDelete: "cascade" }),
+    slot: integer().notNull(),
+    blobKey: text("blob_key").notNull(),
+    contentType: text("content_type").notNull(),
+    fileName: text("file_name").notNull(),
+    byteSize: integer("byte_size").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [
+    index("hw_check_line_images_line_id_idx").on(table.lineId),
+    uniqueIndex("hw_check_line_images_line_slot_idx").on(table.lineId, table.slot),
   ],
 );
 

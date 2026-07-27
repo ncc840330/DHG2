@@ -1,89 +1,126 @@
-import { and, asc, eq, gte, inArray, lte, sql } from "drizzle-orm";
+import { and, asc, eq, gte, lte, sql } from "drizzle-orm";
 import { db } from "../../db/index.js";
-import { hwCheckTaskImages, hwCheckTasks } from "../../db/schema.js";
 import {
-  discardBlobs,
-  getHwCheckImageStore,
-  publicImageMeta,
-  readSlotIntents,
-  uploadImages,
-} from "../shared/images.js";
+  hwCheckLineImages,
+  hwCheckTaskLines,
+  hwCheckUploadTasks,
+} from "../../db/schema.js";
+import {
+  isActiveTaskType,
+  loadTaskDetail,
+  loadTaskProgress,
+  makeTaskCode,
+  publicTask,
+  readTaskLines,
+  TASK_TYPES,
+  type TaskType,
+} from "../shared/hw-check.js";
+import { discardBlobs, getHwCheckImageStore } from "../shared/images.js";
 import {
   apiError,
   firstFreeSequence,
-  isProblemOption,
   isValidDateKey,
-  makeLineId,
   newestFirst,
   parseId,
-  type ProblemOption,
 } from "../shared/records.js";
 
-type TaskInput = {
-  sourceTaskId: string;
-  systemItem: string;
-  systemSn: string;
-  rfid: string;
-  locator: string;
-  problemDescription: ProblemOption;
-  problemOther: string | null;
-};
+const MAX_FILE_NAME_LENGTH = 160;
 
-function formString(form: FormData, key: string) {
-  const value = form.get(key);
-  return typeof value === "string" ? value.trim() : "";
+/** The code the next import of each live task type will be filed under. */
+async function nextTaskCodes(recordDate: string) {
+  const rows = await db
+    .select({
+      taskType: hwCheckUploadTasks.taskType,
+      taskSequence: hwCheckUploadTasks.taskSequence,
+    })
+    .from(hwCheckUploadTasks)
+    .where(eq(hwCheckUploadTasks.recordDate, recordDate))
+    .orderBy(asc(hwCheckUploadTasks.taskSequence));
+
+  const codes: Record<string, string> = {};
+
+  for (const [taskType, definition] of Object.entries(TASK_TYPES)) {
+    if (!definition.isActive) continue;
+    const used = rows
+      .filter((row) => row.taskType === taskType)
+      .map((row) => ({ sequence: row.taskSequence }));
+    codes[taskType] = makeTaskCode(
+      taskType as TaskType,
+      recordDate,
+      firstFreeSequence(used),
+    );
+  }
+
+  return codes;
 }
 
-function validateTaskInput(form: FormData): TaskInput | null {
-  const sourceTaskId = formString(form, "sourceTaskId");
-  const systemItem = formString(form, "systemItem");
-  const systemSn = formString(form, "systemSn");
-  const rfid = formString(form, "rfid");
-  const locator = formString(form, "locator");
-  const problemDescription = formString(form, "problemDescription");
-  const problemOther = formString(form, "problemOther");
+async function createTask(body: {
+  recordDate: string;
+  taskType: TaskType;
+  sourceFileName: string;
+  lines: {
+    item: string;
+    sn: string;
+    qty: string;
+    warehouseCode: string;
+    subinvCode: string;
+    locator: string;
+  }[];
+}) {
+  return db.transaction(async (transaction) => {
+    // Two operators pressing SEND TASK on the same second would otherwise both
+    // read the same free sequence and fight over the task code.
+    await transaction.execute(
+      sql`select pg_advisory_xact_lock(hashtext(${`hw-check-task:${body.recordDate}:${body.taskType}`}))`,
+    );
 
-  if (!sourceTaskId || !systemItem || !systemSn || !rfid || !locator) return null;
-  if (!isProblemOption(problemDescription)) return null;
-  if (problemDescription === "Other" && !problemOther) return null;
+    const used = await transaction
+      .select({ sequence: hwCheckUploadTasks.taskSequence })
+      .from(hwCheckUploadTasks)
+      .where(
+        and(
+          eq(hwCheckUploadTasks.recordDate, body.recordDate),
+          eq(hwCheckUploadTasks.taskType, body.taskType),
+        ),
+      )
+      .orderBy(asc(hwCheckUploadTasks.taskSequence));
 
-  return {
-    sourceTaskId,
-    systemItem,
-    systemSn,
-    rfid,
-    locator,
-    problemDescription,
-    problemOther: problemDescription === "Other" ? problemOther : null,
-  };
-}
+    const taskSequence = firstFreeSequence(used);
 
-async function loadImages(taskIds: number[]) {
-  if (taskIds.length === 0) return [];
+    const [task] = await transaction
+      .insert(hwCheckUploadTasks)
+      .values({
+        recordDate: body.recordDate,
+        taskType: body.taskType,
+        taskSequence,
+        taskCode: makeTaskCode(body.taskType, body.recordDate, taskSequence),
+        sourceFileName: body.sourceFileName,
+      })
+      .returning();
 
-  return db
-    .select()
-    .from(hwCheckTaskImages)
-    .where(inArray(hwCheckTaskImages.taskId, taskIds))
-    .orderBy(asc(hwCheckTaskImages.slot));
-}
+    await transaction.insert(hwCheckTaskLines).values(
+      body.lines.map((line, index) => ({
+        ...line,
+        taskId: task.id,
+        rowIndex: index + 1,
+      })),
+    );
 
-/** Tasks are sent to the client with their image metadata, never the bytes. */
-async function withImages<T extends { id: number }>(tasks: T[]) {
-  const images = await loadImages(tasks.map((task) => task.id));
-
-  return tasks.map((task) => ({
-    ...task,
-    images: images
-      .filter((image) => image.taskId === task.id)
-      .map(publicImageMeta),
-  }));
+    return task;
+  });
 }
 
 export default async (request: Request) => {
   const url = new URL(request.url);
 
   if (request.method === "GET") {
+    const id = parseId(url.searchParams.get("id"));
+    if (id) {
+      const task = await loadTaskDetail(id);
+      if (!task) return apiError("Task not found.", 404);
+      return Response.json({ task });
+    }
+
     const date = url.searchParams.get("date");
 
     if (date) {
@@ -91,18 +128,15 @@ export default async (request: Request) => {
 
       const rows = await db
         .select()
-        .from(hwCheckTasks)
-        .where(eq(hwCheckTasks.recordDate, date))
-        .orderBy(asc(hwCheckTasks.lineSequence));
+        .from(hwCheckUploadTasks)
+        .where(eq(hwCheckUploadTasks.recordDate, date))
+        .orderBy(asc(hwCheckUploadTasks.taskSequence));
 
-      const nextLineId = makeLineId(
-        date,
-        firstFreeSequence(rows.map((row) => ({ sequence: row.lineSequence }))),
-      );
+      const progress = await loadTaskProgress(rows.map((row) => row.id));
 
       return Response.json({
-        records: await withImages(newestFirst(rows)),
-        nextLineId,
+        tasks: newestFirst(rows).map((task) => publicTask(task, progress)),
+        nextTaskCodes: await nextTaskCodes(date),
       });
     }
 
@@ -115,155 +149,79 @@ export default async (request: Request) => {
 
     const counts = await db
       .select({
-        date: hwCheckTasks.recordDate,
+        date: hwCheckUploadTasks.recordDate,
         count: sql<number>`count(*)::int`,
       })
-      .from(hwCheckTasks)
+      .from(hwCheckUploadTasks)
       .where(
         and(
-          gte(hwCheckTasks.recordDate, from),
-          lte(hwCheckTasks.recordDate, to),
+          gte(hwCheckUploadTasks.recordDate, from),
+          lte(hwCheckUploadTasks.recordDate, to),
         ),
       )
-      .groupBy(hwCheckTasks.recordDate)
-      .orderBy(hwCheckTasks.recordDate);
+      .groupBy(hwCheckUploadTasks.recordDate)
+      .orderBy(hwCheckUploadTasks.recordDate);
 
     return Response.json({ counts });
   }
 
-  if (request.method === "POST" || request.method === "PUT") {
-    const form = await request.formData().catch(() => null);
-    if (!form) return apiError("Expected a multipart form submission.", 400);
+  if (request.method === "POST") {
+    const body = (await request.json().catch(() => null)) as {
+      recordDate?: unknown;
+      taskType?: unknown;
+      fileName?: unknown;
+      rows?: unknown;
+    } | null;
+    if (!body) return apiError("Expected a JSON body.", 400);
 
-    const input = validateTaskInput(form);
-    const intents = readSlotIntents(form);
-    if (!input || !intents) return apiError("Missing or invalid record data.", 400);
-
-    if (request.method === "POST") {
-      const recordDate = formString(form, "recordDate");
-      if (!isValidDateKey(recordDate)) return apiError("Invalid record date.", 400);
-
-      const uploaded = await uploadImages(getHwCheckImageStore(), intents);
-
-      try {
-        const record = await db.transaction(async (transaction) => {
-          await transaction.execute(
-            sql`select pg_advisory_xact_lock(hashtext(${`hw-check:${recordDate}`}))`,
-          );
-
-          const usedSequences = await transaction
-            .select({ sequence: hwCheckTasks.lineSequence })
-            .from(hwCheckTasks)
-            .where(eq(hwCheckTasks.recordDate, recordDate))
-            .orderBy(asc(hwCheckTasks.lineSequence));
-
-          const lineSequence = firstFreeSequence(usedSequences);
-
-          const [created] = await transaction
-            .insert(hwCheckTasks)
-            .values({
-              recordDate,
-              lineSequence,
-              lineId: makeLineId(recordDate, lineSequence),
-              ...input,
-            })
-            .returning();
-
-          if (uploaded.length > 0) {
-            await transaction.insert(hwCheckTaskImages).values(
-              uploaded.map((image) => ({ ...image, taskId: created.id })),
-            );
-          }
-
-          return created;
-        });
-
-        const [withImageMeta] = await withImages([record]);
-        return Response.json({ record: withImageMeta }, { status: 201 });
-      } catch (error) {
-        await discardBlobs(
-          getHwCheckImageStore(),
-          uploaded.map((image) => image.blobKey),
-        );
-        throw error;
-      }
+    if (!isValidDateKey(body.recordDate)) {
+      return apiError("Invalid record date.", 400);
+    }
+    if (!isActiveTaskType(body.taskType)) {
+      return apiError("Pick a task type that is already available.", 400);
     }
 
-    const id = parseId(url.searchParams.get("id"));
-    if (!id) return apiError("Invalid record id.", 400);
+    const selection = readTaskLines(body.rows);
+    if ("error" in selection) return apiError(selection.error, selection.status);
 
-    const existing = await loadImages([id]);
-    const replacedSlots = intents
-      .filter((intent) => intent.action !== "keep")
-      .map((intent) => intent.slot);
-    const droppedBlobs = existing
-      .filter((image) => replacedSlots.includes(image.slot))
-      .map((image) => image.blobKey);
+    const sourceFileName =
+      typeof body.fileName === "string"
+        ? body.fileName.trim().slice(0, MAX_FILE_NAME_LENGTH)
+        : "";
+    if (!sourceFileName) return apiError("The imported file has no name.", 400);
 
-    const uploaded = await uploadImages(getHwCheckImageStore(), intents);
+    const task = await createTask({
+      recordDate: body.recordDate,
+      taskType: body.taskType,
+      sourceFileName,
+      lines: selection.lines,
+    });
 
-    try {
-      const record = await db.transaction(async (transaction) => {
-        const [updated] = await transaction
-          .update(hwCheckTasks)
-          .set({ ...input, updatedAt: new Date() })
-          .where(eq(hwCheckTasks.id, id))
-          .returning();
-
-        if (!updated) return null;
-
-        if (replacedSlots.length > 0) {
-          await transaction
-            .delete(hwCheckTaskImages)
-            .where(
-              and(
-                eq(hwCheckTaskImages.taskId, id),
-                inArray(hwCheckTaskImages.slot, replacedSlots),
-              ),
-            );
-        }
-
-        if (uploaded.length > 0) {
-          await transaction
-            .insert(hwCheckTaskImages)
-            .values(uploaded.map((image) => ({ ...image, taskId: id })));
-        }
-
-        return updated;
-      });
-
-      if (!record) {
-        await discardBlobs(
-          getHwCheckImageStore(),
-          uploaded.map((image) => image.blobKey),
-        );
-        return apiError("Record not found.", 404);
-      }
-
-      await discardBlobs(getHwCheckImageStore(), droppedBlobs);
-      const [withImageMeta] = await withImages([record]);
-      return Response.json({ record: withImageMeta });
-    } catch (error) {
-      await discardBlobs(
-        getHwCheckImageStore(),
-        uploaded.map((image) => image.blobKey),
-      );
-      throw error;
-    }
+    const progress = await loadTaskProgress([task.id]);
+    return Response.json({ task: publicTask(task, progress) }, { status: 201 });
   }
 
   if (request.method === "DELETE") {
     const id = parseId(url.searchParams.get("id"));
-    if (!id) return apiError("Invalid record id.", 400);
+    if (!id) return apiError("Invalid task id.", 400);
 
-    const images = await loadImages([id]);
+    // Read the blob keys first: the cascade takes the image rows with the task,
+    // and an orphaned photo in the store can never be found again.
+    const images = await db
+      .select({ blobKey: hwCheckLineImages.blobKey })
+      .from(hwCheckLineImages)
+      .innerJoin(
+        hwCheckTaskLines,
+        eq(hwCheckTaskLines.id, hwCheckLineImages.lineId),
+      )
+      .where(eq(hwCheckTaskLines.taskId, id));
 
-    const [record] = await db
-      .delete(hwCheckTasks)
-      .where(eq(hwCheckTasks.id, id))
-      .returning({ id: hwCheckTasks.id });
+    const [task] = await db
+      .delete(hwCheckUploadTasks)
+      .where(eq(hwCheckUploadTasks.id, id))
+      .returning({ id: hwCheckUploadTasks.id });
 
-    if (!record) return apiError("Record not found.", 404);
+    if (!task) return apiError("Task not found.", 404);
 
     await discardBlobs(
       getHwCheckImageStore(),
@@ -274,7 +232,7 @@ export default async (request: Request) => {
 
   return new Response("Method not allowed", {
     status: 405,
-    headers: { Allow: "GET, POST, PUT, DELETE" },
+    headers: { Allow: "GET, POST, DELETE" },
   });
 };
 

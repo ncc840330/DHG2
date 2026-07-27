@@ -1,65 +1,33 @@
-import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
+import { ChangeEvent, useCallback, useEffect, useRef, useState } from "react";
 import ConfirmDialog from "./ConfirmDialog";
 import {
-  downloadSelection,
+  downloadTemplate,
+  parseTaskFile,
+  TEMPLATE_HEADERS,
+  WAREHOUSE_CODE,
+} from "./excel";
+import type { TaskRow } from "./excel";
+import HwCheckTaskPhotos from "./HwCheckTaskPhotos";
+import { TASK_TYPE_OPTIONS, taskTypeLabel } from "./hw-check";
+import type { HwCheckTask } from "./hw-check";
+import {
   getErrorMessage,
   loadJson,
-  makeLineId,
-  PROBLEM_OPTIONS,
   readApiError,
   RecordCount,
   TabProps,
   toCountMap,
 } from "./lib";
-import { appendPhotoSlots, PhotoFields, usePhotoSlots } from "./photos";
-import type { RecordImage } from "./photos";
-import {
-  CameraScanProvider,
-  clearScanFields,
-  describeField,
-  findMissingFields,
-  focusNextControl,
-  readScanFields,
-  ScanField,
-  useScannerForm,
-} from "./scan";
-import { RecordRow, SavedToolbar, useSelection } from "./SavedList";
 
 /**
- * The TASKS list is what the operator reads, UPLOAD TASK is what they fill in —
- * the same pair as ADD RECORD / SAVED RECORDS on the other worksheets, with the
- * list first because a HW check starts from the tasks already on the day.
+ * A HW check task is imported, not typed: TASKS is the day's work with how far
+ * each task has got, UPLOAD TASK is where a spreadsheet becomes the next task.
  */
 type HwView = "tasks" | "upload";
 
-type HwCheckTask = {
-  id: number;
-  recordDate: string;
-  lineId: string;
-  sourceTaskId: string;
-  systemItem: string;
-  systemSn: string;
-  rfid: string;
-  locator: string;
-  problemDescription: string;
-  problemOther: string | null;
-  images: RecordImage[];
-};
+type ImportedFile = { name: string; rows: TaskRow[]; skippedRows: number };
 
-type FormValues = Omit<
-  HwCheckTask,
-  "id" | "recordDate" | "lineId" | "images"
->;
-
-const EMPTY_FORM: FormValues = {
-  sourceTaskId: "",
-  systemItem: "",
-  systemSn: "",
-  rfid: "",
-  locator: "",
-  problemDescription: "",
-  problemOther: null,
-};
+const PREVIEW_ROWS = 5;
 
 export default function HwCheckRequestTab({
   isActive,
@@ -71,52 +39,46 @@ export default function HwCheckRequestTab({
   onSynced,
 }: TabProps) {
   const [view, setView] = useState<HwView>("tasks");
-  const [records, setRecords] = useState<HwCheckTask[]>([]);
-  const [nextLineId, setNextLineId] = useState("");
-  const [savedCount, setSavedCount] = useState(0);
-  const [formValues, setFormValues] = useState<FormValues>(EMPTY_FORM);
-  const [editingRecord, setEditingRecord] = useState<HwCheckTask | null>(null);
+  const [openTaskId, setOpenTaskId] = useState<number | null>(null);
+  const [tasks, setTasks] = useState<HwCheckTask[]>([]);
+  const [nextTaskCodes, setNextTaskCodes] = useState<Record<string, string>>({});
+  const [isCreating, setIsCreating] = useState(false);
+  const [taskType, setTaskType] = useState("");
+  const [imported, setImported] = useState<ImportedFile | null>(null);
+  const [isParsing, setIsParsing] = useState(false);
+  const [isSending, setIsSending] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<HwCheckTask | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
-  const [isDownloading, setIsDownloading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
-  const formRef = useRef<HTMLFormElement>(null);
-  const firstFieldRef = useRef<HTMLInputElement>(null);
   const statusRef = useRef<HTMLParagraphElement>(null);
-
-  const { photoSlots, resetPhotos, loadPhotos, pickPhoto, clearPhoto } =
-    usePhotoSlots(setError);
-  const selection = useSelection(records);
 
   const loadCounts = useCallback(async () => {
     const data = await loadJson<{ counts: RecordCount[] }>(
       `/api/hw-check-tasks?from=${rangeFrom}&to=${rangeTo}`,
       "A napi HW check taskok betöltése sikertelen.",
     );
-    onCounts(toCountMap(data.counts));
+    onCounts(toCountMap(data.counts ?? []));
   }, [rangeFrom, rangeTo, onCounts]);
 
-  const loadRecords = useCallback(async (date: string) => {
+  const loadTasks = useCallback(async (date: string) => {
     const data = await loadJson<{
-      records: HwCheckTask[];
-      nextLineId?: string;
+      tasks?: HwCheckTask[];
+      nextTaskCodes?: Record<string, string>;
     }>(
       `/api/hw-check-tasks?date=${date}`,
-      "A mentett HW check taskok betöltése sikertelen.",
+      "A HW check taskok betöltése sikertelen.",
     );
-    setRecords(data.records);
-    setSavedCount(data.records.length);
-    setNextLineId(data.nextLineId ?? makeLineId(date, data.records.length + 1));
+    setTasks(data.tasks ?? []);
+    setNextTaskCodes(data.nextTaskCodes ?? {});
   }, []);
 
   const refreshData = useCallback(async () => {
     setError("");
     let isFresh = true;
     try {
-      await Promise.all([loadCounts(), loadRecords(selectedDate)]);
+      await Promise.all([loadCounts(), loadTasks(selectedDate)]);
     } catch (loadError) {
       isFresh = false;
       setError(getErrorMessage(loadError, "Ismeretlen betöltési hiba történt."));
@@ -126,7 +88,7 @@ export default function HwCheckRequestTab({
       // spinning for the rest of the shift.
       onSynced(isFresh);
     }
-  }, [loadCounts, loadRecords, selectedDate, onSynced]);
+  }, [loadCounts, loadTasks, selectedDate, onSynced]);
 
   useEffect(() => {
     if (!isActive) return;
@@ -149,164 +111,126 @@ export default function HwCheckRequestTab({
     return () => window.clearInterval(interval);
   }, [isActive, refreshData]);
 
-  const resetForm = useCallback(() => {
-    setFormValues(EMPTY_FORM);
-    resetPhotos();
-    // The state reset alone is not enough: React leaves a controlled input
-    // untouched when its value prop did not change, and a barcode the scanner
-    // wrote straight into the DOM never reached state to begin with.
-    clearScanFields(formRef.current);
-  }, [resetPhotos]);
+  const resetCreateForm = useCallback(() => {
+    setIsCreating(false);
+    setTaskType("");
+    setImported(null);
+  }, []);
 
   useEffect(() => {
-    setEditingRecord(null);
+    setOpenTaskId(null);
     setPendingDelete(null);
-    resetForm();
-    setNextLineId("");
+    resetCreateForm();
     setMessage("");
     setError("");
-  }, [selectedDate, resetForm]);
+  }, [selectedDate, resetCreateForm]);
 
-  // The SAVE button is at the bottom of a long form, so the line that says
-  // whether the task was saved would otherwise be off the top of the screen.
   useEffect(() => {
     if (!message && !error) return;
     statusRef.current?.scrollIntoView?.({ block: "nearest" });
   }, [message, error]);
 
-  const updateField = (field: keyof FormValues, value: string) => {
-    setFormValues((current) => ({ ...current, [field]: value }));
+  const importFile = async (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+
+    setIsParsing(true);
+    setMessage("");
+    setError("");
+
+    try {
+      const result = await parseTaskFile(file);
+      if ("error" in result) {
+        setImported(null);
+        setError(result.error);
+        return;
+      }
+
+      setImported({
+        name: file.name,
+        rows: result.rows,
+        skippedRows: result.skippedRows,
+      });
+      setMessage(
+        `${file.name}: ${result.rows.length} sor beolvasva. Ellenőrizd, majd SEND TASK.`,
+      );
+    } catch (parseError) {
+      setImported(null);
+      setError(getErrorMessage(parseError, "A fájl beolvasása sikertelen."));
+    } finally {
+      setIsParsing(false);
+    }
   };
 
-  const setScannedValue = useCallback((field: string, value: string) => {
-    setFormValues((current) =>
-      current[field as keyof FormValues] === value
-        ? current
-        : { ...current, [field]: value },
-    );
-  }, []);
+  const sendTask = async () => {
+    if (isSending) return;
 
-  const scanner = useScannerForm({
-    formRef,
-    onValue: setScannedValue,
-    isEnabled: isActive && view === "upload" && !pendingDelete,
-  });
-
-  const saveRecord = async () => {
-    if (isSaving) return;
-
-    // The API answers an incomplete task with one flat 400, and a PDA WebView
-    // shows the browser's own validation bubble for a blink at most — so the
-    // form names what is missing itself instead of appearing to do nothing.
-    const missing = findMissingFields(formRef.current);
-    if (missing.length > 0) {
+    if (!taskType) {
       setMessage("");
-      setError(
-        `A task nem lett elmentve, hiányzó adat: ${missing
-          .map(describeField)
-          .join(", ")}.`,
-      );
-      missing[0].focus();
+      setError("Válaszd ki a task típusát.");
+      return;
+    }
+    if (!imported) {
+      setMessage("");
+      setError("Előbb töltsd fel az excel fájlt az IMPORT EXCEL gombbal.");
       return;
     }
 
-    setIsSaving(true);
+    setIsSending(true);
     setError("");
     setMessage("");
 
     try {
-      const payload = new FormData();
-      // Whatever is on screen is what gets saved. A value the scanner driver
-      // wrote into the input without firing an event is not in state yet, and
-      // saving state alone would drop the barcode the operator can see.
-      const live = readScanFields(formRef.current);
-      Object.entries(formValues).forEach(([field, value]) => {
-        payload.set(field, live[field] ?? value ?? "");
+      const response = await fetch("/api/hw-check-tasks", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          recordDate: selectedDate,
+          taskType,
+          fileName: imported.name,
+          rows: imported.rows,
+        }),
       });
-      appendPhotoSlots(payload, photoSlots);
-      if (!editingRecord) payload.set("recordDate", selectedDate);
-
-      const response = await fetch(
-        editingRecord
-          ? `/api/hw-check-tasks?id=${editingRecord.id}`
-          : "/api/hw-check-tasks",
-        { method: editingRecord ? "PUT" : "POST", body: payload },
-      );
 
       if (!response.ok) {
         throw new Error(
-          await readApiError(response, "A task mentése sikertelen."),
+          await readApiError(response, "A task létrehozása sikertelen."),
         );
       }
-      const data = (await response.json()) as { record: HwCheckTask };
+      const data = (await response.json()) as { task: HwCheckTask };
 
+      resetCreateForm();
       setMessage(
-        editingRecord
-          ? `${data.record.lineId} sikeresen módosítva.`
-          : `${data.record.lineId} sikeresen elmentve.`,
+        `${data.task.taskCode} létrehozva, ${data.task.lineCount} sorral. Nyisd meg a TASKS alatt a képek feltöltéséhez.`,
       );
-      setEditingRecord(null);
-      resetForm();
-      await Promise.all([loadCounts(), loadRecords(selectedDate)]);
+      setView("tasks");
+      await Promise.all([loadCounts(), loadTasks(selectedDate)]);
       onSynced();
-      window.requestAnimationFrame(() => firstFieldRef.current?.focus());
-    } catch (saveError) {
-      setError(getErrorMessage(saveError, "Ismeretlen mentési hiba történt."));
+    } catch (sendError) {
+      setError(getErrorMessage(sendError, "Ismeretlen hiba történt."));
     } finally {
-      setIsSaving(false);
+      setIsSending(false);
     }
   };
 
-  /**
-   * Nothing but the SAVE button's own handler saves this form. A scanner's
-   * trailing Enter still reaches the form on PDAs that report an unnamed key
-   * code, and that has to walk down the fields, not submit half a task.
-   */
-  const handleSubmit = (event: FormEvent) => {
-    event.preventDefault();
-    focusNextControl(formRef.current, document.activeElement as HTMLElement);
-  };
-
-  const editRecord = (record: HwCheckTask) => {
-    setEditingRecord(record);
-    setFormValues({
-      sourceTaskId: record.sourceTaskId,
-      systemItem: record.systemItem,
-      systemSn: record.systemSn,
-      rfid: record.rfid,
-      locator: record.locator,
-      problemDescription: record.problemDescription,
-      problemOther: record.problemOther,
-    });
-    loadPhotos(record.images);
-    setView("upload");
-    setMessage("");
-    setError("");
-    window.requestAnimationFrame(() => firstFieldRef.current?.focus());
-  };
-
-  const deleteRecord = async () => {
-    const record = pendingDelete;
-    if (!record) return;
+  const deleteTask = async () => {
+    const task = pendingDelete;
+    if (!task) return;
 
     setIsDeleting(true);
     setError("");
+
     try {
-      const response = await fetch(`/api/hw-check-tasks?id=${record.id}`, {
+      const response = await fetch(`/api/hw-check-tasks?id=${task.id}`, {
         method: "DELETE",
       });
       if (!response.ok) throw new Error("A task törlése sikertelen.");
 
       setPendingDelete(null);
-      if (editingRecord?.id === record.id) {
-        setEditingRecord(null);
-        resetForm();
-        setView("tasks");
-      }
-      setMessage(
-        `${record.lineId} törölve. A felszabadult Line ID ismét kiosztható.`,
-      );
-      await Promise.all([loadCounts(), loadRecords(selectedDate)]);
+      if (openTaskId === task.id) setOpenTaskId(null);
+      setMessage(`${task.taskCode} törölve, a képeivel együtt.`);
+      await Promise.all([loadCounts(), loadTasks(selectedDate)]);
       onSynced();
     } catch (deleteError) {
       setError(getErrorMessage(deleteError, "Ismeretlen törlési hiba történt."));
@@ -316,26 +240,12 @@ export default function HwCheckRequestTab({
     }
   };
 
-  const downloadSelected = async () => {
-    if (selection.selectedIds.length === 0) return;
-
-    setIsDownloading(true);
-    setError("");
-    setMessage("");
-
-    try {
-      const fileName = await downloadSelection(
-        "/api/hw-check-tasks/export",
-        selection.selectedIds,
-        `HWCheckRequest_${selectedDate}.xlsx`,
-      );
-      setMessage(`${fileName} letöltve (${selection.selectedIds.length} task).`);
-    } catch (downloadError) {
-      setError(getErrorMessage(downloadError, "Ismeretlen letöltési hiba történt."));
-    } finally {
-      setIsDownloading(false);
-    }
+  const showTasks = () => {
+    setOpenTaskId(null);
+    setView("tasks");
   };
+
+  const nextCode = nextTaskCodes[taskType];
 
   return (
     <>
@@ -343,14 +253,17 @@ export default function HwCheckRequestTab({
         <button
           className={view === "tasks" ? "is-active" : ""}
           type="button"
-          onClick={() => setView("tasks")}
+          onClick={showTasks}
         >
-          TASKS <b>{savedCount}</b>
+          TASKS <b>{tasks.length}</b>
         </button>
         <button
           className={view === "upload" ? "is-active" : ""}
           type="button"
-          onClick={() => setView("upload")}
+          onClick={() => {
+            setOpenTaskId(null);
+            setView("upload");
+          }}
         >
           UPLOAD TASK
         </button>
@@ -371,142 +284,197 @@ export default function HwCheckRequestTab({
         <section className="form-panel">
           <div className="panel-heading">
             <div>
-              <p>{editingRecord ? "MODIFY TASK" : "NEW HW CHECK TASK"}</p>
-              <h2>{editingRecord?.lineId ?? nextLineId}</h2>
+              <p>NEW HW CHECK TASK</p>
+              <h2>{nextCode ?? "CREATE TASK"}</h2>
             </div>
             <span>{selectedDate.split("-").join(".")}</span>
           </div>
 
-          <CameraScanProvider formRef={formRef} onValue={setScannedValue}>
-            <form ref={formRef} onSubmit={handleSubmit} onKeyDown={scanner.onKeyDown}>
-              <label className="field field-readonly">
-                <span>LINE ID</span>
-                <input value={editingRecord?.lineId ?? nextLineId} readOnly />
-              </label>
-              <ScanField
-                label="SOURCE TASK ID"
-                hint="SCAN OR TYPE"
-                name="sourceTaskId"
-                value={formValues.sourceTaskId}
-                onValue={setScannedValue}
-                inputRef={firstFieldRef}
-                required
-              />
-              <ScanField
-                label="SYSTEM ITEM"
-                name="systemItem"
-                value={formValues.systemItem}
-                onValue={setScannedValue}
-                required
-              />
-              <ScanField
-                label="SYSTEM SN"
-                hint="SCAN OR TYPE"
-                name="systemSn"
-                value={formValues.systemSn}
-                onValue={setScannedValue}
-                required
-              />
-              <ScanField
-                label="RFID"
-                hint="SCAN OR TYPE"
-                name="rfid"
-                value={formValues.rfid}
-                onValue={setScannedValue}
-                required
-              />
-              <label className="field">
-                <span>PROBLEM DESCRIPTION</span>
+          {!isCreating ? (
+            <div className="create-task-intro">
+              <p>
+                A task egy feltöltött fájl. Nyomd meg a CREATE TASK gombot, válaszd
+                ki a típusát, majd importáld hozzá az excelt.
+              </p>
+              <button
+                className="create-task-button"
+                type="button"
+                onClick={() => {
+                  setIsCreating(true);
+                  setMessage("");
+                  setError("");
+                }}
+              >
+                <svg aria-hidden="true" viewBox="0 0 24 24">
+                  <path d="M12 5v14M5 12h14" />
+                </svg>
+                CREATE TASK
+              </button>
+            </div>
+          ) : (
+            <div className="create-task-form">
+              <label className="field field-wide">
+                <span>TASK TYPE</span>
                 <select
-                  name="problemDescription"
+                  name="taskType"
                   required
-                  value={formValues.problemDescription}
-                  onChange={(event) =>
-                    updateField("problemDescription", event.target.value)
-                  }
+                  value={taskType}
+                  onChange={(event) => {
+                    setTaskType(event.target.value);
+                    setImported(null);
+                    setMessage("");
+                    setError("");
+                  }}
                 >
                   <option value="" disabled>
-                    Select a problem
+                    Select a task type
                   </option>
-                  {PROBLEM_OPTIONS.map((option) => (
-                    <option key={option}>{option}</option>
+                  {TASK_TYPE_OPTIONS.map((option) => (
+                    <option
+                      key={option.value}
+                      value={option.value}
+                      disabled={!option.isActive}
+                    >
+                      {option.isActive
+                        ? option.label
+                        : `${option.label} — coming soon`}
+                    </option>
                   ))}
                 </select>
               </label>
-              {formValues.problemDescription === "Other" && (
-                <ScanField
-                  label="OTHER PROBLEM DESCRIPTION"
-                  className="field-other"
-                  name="problemOther"
-                  value={formValues.problemOther ?? ""}
-                  onValue={setScannedValue}
-                  required
-                />
-              )}
-              <ScanField
-                label="LOCATOR"
-                hint="SCAN OR TYPE"
-                name="locator"
-                value={formValues.locator}
-                onValue={setScannedValue}
-                required
-              />
 
-              <PhotoFields
-                slots={photoSlots}
-                onPick={(index, event) => void pickPhoto(index, event)}
-                onClear={clearPhoto}
-              />
+              {taskType === "photo-upload" && (
+                <>
+                  <div className="import-row">
+                    <button
+                      className="template-button"
+                      type="button"
+                      onClick={downloadTemplate}
+                    >
+                      <svg aria-hidden="true" viewBox="0 0 24 24">
+                        <path d="M12 4v10m0 0 4-4m-4 4-4-4M5 19h14" />
+                      </svg>
+                      TEMPLATE
+                    </button>
+                    <label className="import-button">
+                      <span>{isParsing ? "READING…" : "IMPORT EXCEL"}</span>
+                      <input
+                        type="file"
+                        accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
+                        onChange={(event) => void importFile(event)}
+                      />
+                    </label>
+                  </div>
+
+                  <p className="import-hint">
+                    Oszlopok: {TEMPLATE_HEADERS.join(" · ")}. A Warehouse Code
+                    üresen hagyva {WAREHOUSE_CODE} lesz. Nem tudod a formátumot? A
+                    TEMPLATE gombbal letöltöd.
+                  </p>
+
+                  {imported && (
+                    <div className="import-preview">
+                      <div className="import-summary">
+                        <div>
+                          <span>FILE</span>
+                          <strong>{imported.name}</strong>
+                        </div>
+                        <div>
+                          <span>ROWS</span>
+                          <strong>{imported.rows.length}</strong>
+                        </div>
+                        <div>
+                          <span>LOCATORS</span>
+                          <strong>
+                            {
+                              new Set(imported.rows.map((row) => row.locator))
+                                .size
+                            }
+                          </strong>
+                        </div>
+                        <div>
+                          <span>PHOTOS NEEDED</span>
+                          <strong>{imported.rows.length * 2}</strong>
+                        </div>
+                      </div>
+
+                      <table className="import-table">
+                        <thead>
+                          <tr>
+                            {TEMPLATE_HEADERS.map((header) => (
+                              <th key={header}>{header}</th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {imported.rows.slice(0, PREVIEW_ROWS).map((row, index) => (
+                            <tr key={index}>
+                              <td>{row.item}</td>
+                              <td>{row.sn}</td>
+                              <td>{row.qty}</td>
+                              <td>{row.warehouseCode}</td>
+                              <td>{row.subinvCode}</td>
+                              <td>{row.locator}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                      {imported.rows.length > PREVIEW_ROWS && (
+                        <p className="import-hint">
+                          …és további {imported.rows.length - PREVIEW_ROWS} sor.
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </>
+              )}
 
               <div className="form-actions">
-                {editingRecord && (
-                  <button
-                    className="delete-button"
-                    type="button"
-                    disabled={isSaving}
-                    onClick={() => setPendingDelete(editingRecord)}
-                  >
-                    DELETE
-                  </button>
-                )}
+                <button
+                  className="delete-button"
+                  type="button"
+                  disabled={isSending}
+                  onClick={() => {
+                    resetCreateForm();
+                    setMessage("");
+                    setError("");
+                  }}
+                >
+                  CANCEL
+                </button>
                 <button
                   className="save-button"
                   type="button"
-                  disabled={isSaving}
-                  onClick={() => void saveRecord()}
+                  disabled={isSending || !taskType || !imported}
+                  onClick={() => void sendTask()}
                 >
-                  {isSaving
-                    ? "SAVING…"
-                    : editingRecord
-                      ? "SAVE CHANGES"
-                      : "SAVE TASK"}
+                  {isSending ? "SENDING…" : "SEND TASK"}
                   <svg aria-hidden="true" viewBox="0 0 24 24">
                     <path d="m5 12 4 4L19 6" />
                   </svg>
                 </button>
               </div>
-            </form>
-          </CameraScanProvider>
+            </div>
+          )}
         </section>
+      ) : openTaskId ? (
+        <HwCheckTaskPhotos
+          taskId={openTaskId}
+          onClose={showTasks}
+          onChanged={() => {
+            void loadCounts().catch(() => undefined);
+            void loadTasks(selectedDate).catch(() => undefined);
+          }}
+        />
       ) : (
         <section className="saved-panel">
           <div className="panel-heading">
             <div>
-              <p>HW CHECK TASKS</p>
+              <p>HW CHECK REQUEST TASKS</p>
               <h2>{selectedDate.split("-").join(".")}</h2>
             </div>
-            <span>{records.length} SAVED</span>
+            <span>{tasks.length} TASK</span>
           </div>
-
-          {records.length > 0 && (
-            <SavedToolbar
-              selectedCount={selection.selectedIds.length}
-              allSelected={selection.allSelected}
-              isDownloading={isDownloading}
-              onToggleAll={selection.toggleAll}
-              onDownload={downloadSelected}
-            />
-          )}
 
           {isLoading ? (
             <div className="record-skeleton" aria-label="Loading tasks">
@@ -514,37 +482,80 @@ export default function HwCheckRequestTab({
               <i />
               <i />
             </div>
-          ) : records.length === 0 ? (
+          ) : tasks.length === 0 ? (
             <div className="empty-state">
               <svg aria-hidden="true" viewBox="0 0 48 48">
                 <path d="M14 8h20v32H14zM19 17h10M19 24h10M19 31h6" />
               </svg>
               <h3>No HW check tasks</h3>
               <p>
-                Switch to UPLOAD TASK to create the first hardware check request
-                for this work date.
+                Switch to UPLOAD TASK, press CREATE TASK and import the photo
+                upload file for this work date.
               </p>
             </div>
           ) : (
-            <div className="record-list">
-              {records.map((record) => (
-                <RecordRow
-                  key={record.id}
-                  lineId={record.lineId}
-                  isSelected={selection.selectedIds.includes(record.id)}
-                  onToggle={() => selection.toggle(record.id)}
-                  onModify={() => editRecord(record)}
-                  onDelete={() => setPendingDelete(record)}
-                  cells={[
-                    { label: "LINE ID", value: record.lineId },
-                    { label: "SOURCE TASK ID", value: record.sourceTaskId },
-                    { label: "SYSTEM ITEM", value: record.systemItem },
-                    { label: "SYSTEM SN", value: record.systemSn },
-                    { label: "RFID", value: record.rfid },
-                    { label: "LOCATOR", value: record.locator },
-                    { label: "PHOTOS", value: `${record.images.length}/2` },
-                  ]}
-                />
+            <div className="task-list">
+              {tasks.map((task) => (
+                <article
+                  className={`task-card ${task.isComplete ? "is-complete" : ""}`}
+                  key={task.id}
+                >
+                  <button
+                    className="task-open"
+                    type="button"
+                    onClick={() => setOpenTaskId(task.id)}
+                  >
+                    <span className="task-code">
+                      {task.taskCode}
+                      {task.isComplete && (
+                        <svg className="ready-check" aria-hidden="true" viewBox="0 0 24 24">
+                          <path d="m5 12 4 4L19 6" />
+                        </svg>
+                      )}
+                    </span>
+                    <span className="task-meta">
+                      {taskTypeLabel(task.taskType)} · {task.sourceFileName}
+                    </span>
+                    <span className="task-bar" aria-hidden="true">
+                      <i
+                        style={{
+                          width: `${
+                            task.lineCount
+                              ? Math.round(
+                                  (task.completedLines / task.lineCount) * 100,
+                                )
+                              : 0
+                          }%`,
+                        }}
+                      />
+                    </span>
+                    <span className="task-counts">
+                      {task.completedLines}/{task.lineCount} ROWS READY ·{" "}
+                      {task.photoCount} PHOTOS
+                    </span>
+                  </button>
+
+                  <div className="task-actions">
+                    <button
+                      className="modify-button"
+                      type="button"
+                      onClick={() => setOpenTaskId(task.id)}
+                    >
+                      OPEN
+                    </button>
+                    <button
+                      className="row-delete"
+                      type="button"
+                      onClick={() => setPendingDelete(task)}
+                      title={`Delete ${task.taskCode}`}
+                      aria-label={`Delete ${task.taskCode}`}
+                    >
+                      <svg aria-hidden="true" viewBox="0 0 24 24">
+                        <path d="M5 8h14M10 8V5.5h4V8m-7 0 .9 11.5h8.2L17 8M10.6 11v5.6m2.8-5.6v5.6" />
+                      </svg>
+                    </button>
+                  </div>
+                </article>
               ))}
             </div>
           )}
@@ -554,10 +565,10 @@ export default function HwCheckRequestTab({
       {pendingDelete && (
         <ConfirmDialog
           title="Are you sure you want to delete?"
-          message={`${pendingDelete.lineId} is removed for good, photos included. Its Line ID becomes available again.`}
+          message={`${pendingDelete.taskCode} is removed for good, with all ${pendingDelete.photoCount} uploaded photos.`}
           busyLabel="DELETING…"
           isBusy={isDeleting}
-          onConfirm={() => void deleteRecord()}
+          onConfirm={() => void deleteTask()}
           onCancel={() => setPendingDelete(null)}
         />
       )}
