@@ -388,11 +388,20 @@ export default function DhgTab({
                 <input value={editingRecord?.lineId ?? nextLineId} readOnly />
               </label>
               <ScanField
+                label="SOURCE TASK ID"
+                className="field-wide"
+                hint="SCAN OR TYPE"
+                name="sourceTaskId"
+                value={formValues.sourceTaskId}
+                onValue={setScannedValue}
+                inputRef={firstFieldRef}
+                required
+              />
+              <ScanField
                 label="SYSTEM ITEM"
                 name="systemItem"
                 value={formValues.systemItem}
                 onValue={setScannedValue}
-                inputRef={firstFieldRef}
               />
               <ScanField
                 label="SYSTEM SN"
@@ -450,15 +459,6 @@ export default function DhgTab({
                 onValue={setScannedValue}
                 required
               />
-              <ScanField
-                label="SOURCE TASK ID"
-                className="field-wide"
-                hint="SCAN OR TYPE"
-                name="sourceTaskId"
-                value={formValues.sourceTaskId}
-                onValue={setScannedValue}
-                required
-              />
 
               <PhotoFields
                 slots={photoSlots}
@@ -506,8 +506,7 @@ export default function DhgTab({
             <div className="empty-state">
               <svg aria-hidden="true" viewBox="0 0 48 48"><path d="M14 8h20v32H14zM19 17h10M19 24h10M19 31h6" /></svg>
               <h3>No saved records</h3>
-              <p>Create the first discrepancy record for this work date.</p>
-              <button type="button" onClick={() => setView("add")}>ADD RECORD</button>
+              <p>Switch to ADD RECORD to create the first discrepancy record for this work date.</p>
             </div>
           ) : (
             <div className="record-list">

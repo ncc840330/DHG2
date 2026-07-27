@@ -6,6 +6,7 @@
 import React from "react";
 import { createRoot } from "react-dom/client";
 import { act } from "react-dom/test-utils";
+import { encodeCode128, modulesToImage } from "./barcode-fixtures";
 import DeletionRequestTab from "./DeletionRequestTab";
 import DhgTab from "./DhgTab";
 
@@ -21,6 +22,7 @@ let root;
 let codeQueue;
 let stoppedTracks;
 let streamRequests;
+let originalGetContext;
 
 /** jsdom has neither a camera nor a decoder, so both are stood in for. */
 function installCameraStubs() {
@@ -75,6 +77,21 @@ function installCameraStubs() {
     configurable: true,
     get: () => 1280,
   });
+  Object.defineProperty(window.HTMLVideoElement.prototype, "videoHeight", {
+    configurable: true,
+    get: () => 720,
+  });
+}
+
+/**
+ * A canvas that hands the fallback decoder a printed barcode where a browser
+ * would hand it a camera frame. jsdom has no canvas of its own to draw on.
+ */
+function installCanvasStub(frame) {
+  window.HTMLCanvasElement.prototype.getContext = () => ({
+    drawImage: () => {},
+    getImageData: () => frame,
+  });
 }
 
 beforeEach(() => {
@@ -82,6 +99,7 @@ beforeEach(() => {
   codeQueue = [];
   stoppedTracks = 0;
   streamRequests = 0;
+  originalGetContext = window.HTMLCanvasElement.prototype.getContext;
   container = document.createElement("div");
   document.body.appendChild(container);
   root = createRoot(container);
@@ -94,6 +112,7 @@ beforeEach(() => {
 afterEach(async () => {
   await act(async () => root.unmount());
   container.remove();
+  window.HTMLCanvasElement.prototype.getContext = originalGetContext;
   delete window.BarcodeDetector;
 });
 
@@ -209,9 +228,9 @@ test("a hardware scan is ignored while the viewfinder is open", async () => {
 
   expect(field("systemItem").value).toBe("");
 
-  // …and the wedge is listening again once the camera is closed. A camera scan
-  // leaves the caret in the next field, which owns its own keystrokes, so the
-  // stray path only reopens after that field is left.
+  // …and the wedge is listening again once the camera is closed. LOCATOR is the
+  // last field, so the camera scan leaves the caret on the SAVE button; a stray
+  // barcode after that belongs in the first field still waiting for one.
   codeQueue.push("CAM-5");
   await settle();
   document.activeElement.blur();
@@ -227,7 +246,7 @@ test("a hardware scan is ignored while the viewfinder is open", async () => {
   });
 
   expect(field("locator").value).toBe("CAM-5");
-  expect(field("systemItem").value).toBe("WEDGE-1");
+  expect(field("sourceTaskId").value).toBe("WEDGE-1");
 });
 
 test("a refused camera permission is reported instead of failing silently", async () => {
@@ -245,12 +264,42 @@ test("a refused camera permission is reported instead of failing silently", asyn
   expect(overlay()).not.toBeNull();
 });
 
-test("no camera button where the browser cannot decode a barcode", async () => {
-  delete window.BarcodeDetector;
+test("every text field has a camera button, dropdowns aside", async () => {
   await renderTab();
 
-  expect(container.querySelector(".camera-scan-button")).toBeNull();
-  expect(streamRequests).toBe(0);
+  const scanned = Array.from(
+    container.querySelectorAll(".camera-scan-button"),
+  ).map((button) => button.parentElement.querySelector("input").name);
+
+  expect(scanned).toEqual([
+    "sourceTaskId",
+    "systemItem",
+    "systemSn",
+    "physicalItem",
+    "physicalSn",
+    "rfid",
+    "locator",
+  ]);
+});
+
+test("the camera reads 1D barcodes where the browser has no decoder of its own", async () => {
+  // No BarcodeDetector: desktop Chrome, Firefox, every browser on iOS. The
+  // button used to be missing here, and with it the only way in for a device
+  // whose scan engine the page cannot reach.
+  delete window.BarcodeDetector;
+  installCanvasStub(modulesToImage(encodeCode128("CAM-FALLBACK-1")));
+
+  await renderTab();
+  await act(async () => cameraButton("sourceTaskId").click());
+  // Two frames have to agree before a value is taken, so this is not one tick.
+  await act(async () => {
+    await wait(600);
+  });
+
+  expect(field("sourceTaskId").value).toBe("CAM-FALLBACK-1");
+  expect(overlay()).toBeNull();
+  expect(streamRequests).toBe(1);
+  expect(stoppedTracks).toBe(1);
 });
 
 test("deletion requests scan by camera too", async () => {

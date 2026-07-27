@@ -137,8 +137,8 @@ test("scan with nothing focused lands in the first empty field", async () => {
   await renderTab();
   document.body.focus();
   await act(async () => scanAt(document.body, "ABC12345"));
-  expect(field("systemItem").value).toBe("ABC12345");
-  expect(document.activeElement.name).toBe("systemSn");
+  expect(field("sourceTaskId").value).toBe("ABC12345");
+  expect(document.activeElement.name).toBe("systemItem");
 });
 
 test("a later scan in the same shift still lands", async () => {
@@ -150,7 +150,7 @@ test("a later scan in the same shift still lands", async () => {
   await wait(700);
   document.activeElement.blur();
   await act(async () => scanAt(document.body, "XYZ98765"));
-  expect(field("systemSn").value).toBe("XYZ98765");
+  expect(field("systemItem").value).toBe("XYZ98765");
 });
 
 test("slow typing with nothing focused is ignored", async () => {
@@ -161,18 +161,18 @@ test("slow typing with nothing focused is ignored", async () => {
     await wait(90);
   }
   await act(async () => pressCommitKey(document.body, "Enter", 13));
-  expect(field("systemItem").value).toBe("");
+  expect(field("sourceTaskId").value).toBe("");
 });
 
 async function fillTextFields() {
   await act(async () => {
+    typeInto(field("sourceTaskId"), "H");
     typeInto(field("systemItem"), "A");
     typeInto(field("systemSn"), "B");
     typeInto(field("physicalItem"), "C");
     typeInto(field("physicalSn"), "D");
     typeInto(field("rfid"), "E");
     typeInto(field("locator"), "F");
-    typeInto(field("sourceTaskId"), "H");
   });
 }
 
@@ -194,6 +194,7 @@ async function scanAtDropdown(select, text, typeAheadValue) {
 test("a scan on the problem dropdown keeps the choice and fills the next field", async () => {
   await renderTab();
   await act(async () => {
+    typeInto(field("sourceTaskId"), "T");
     typeInto(field("systemItem"), "A");
     typeInto(field("systemSn"), "B");
     typeInto(field("physicalItem"), "C");
