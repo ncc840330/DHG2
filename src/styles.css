@@ -508,9 +508,13 @@ input[type="checkbox"] {
 
 .row-select { display: flex; }
 
+/*
+ * Two columns on a PDA, more only where the screen is genuinely wider: a scanned
+ * SN or task ID is long, and a column narrower than this cut its end off.
+ */
 .row-cells {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(112px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: 10px 14px;
   min-width: 0;
 }
@@ -523,11 +527,13 @@ input[type="checkbox"] {
   letter-spacing: 0.1em;
 }
 
+/* Wrapped, never clipped: the operator compares these against the label in
+   their hand, so the last digits have to be on screen. */
 .row-cells strong {
-  overflow: hidden;
   font-size: 0.73rem;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+  white-space: normal;
 }
 
 .row-actions { display: flex; align-items: center; gap: 8px; }
@@ -823,11 +829,10 @@ input[type="checkbox"] {
 
 .import-summary strong {
   display: block;
-  overflow: hidden;
   margin-top: 4px;
   font-size: 0.74rem;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
 }
 
 .import-table { width: 100%; border-collapse: collapse; font-size: 0.6rem; }
@@ -844,13 +849,11 @@ input[type="checkbox"] {
 }
 
 .import-table td {
-  max-width: 140px;
-  overflow: hidden;
   border-bottom: 1px solid var(--line);
   padding: 7px 8px 7px 0;
   color: var(--ink);
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
 }
 
 .task-list { display: grid; gap: 1px; background: var(--line); }
@@ -889,11 +892,10 @@ input[type="checkbox"] {
 }
 
 .task-meta {
-  overflow: hidden;
   color: var(--muted);
   font-size: 0.58rem;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
 }
 
 .task-bar { display: block; height: 4px; background: var(--surface-2); }
@@ -915,12 +917,12 @@ input[type="checkbox"] {
 }
 
 .task-file-name {
-  overflow: hidden;
   flex: 1;
+  min-width: 0;
   color: var(--muted);
   font-size: 0.58rem;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
 }
 
 .locator-groups { display: grid; gap: 1px; background: var(--line); margin-top: 12px; }
@@ -941,13 +943,13 @@ input[type="checkbox"] {
 .locator-label { color: var(--muted); font-size: 0.5rem; font-weight: 600; letter-spacing: 0.14em; }
 
 .locator-name {
-  overflow: hidden;
   flex: 1;
+  min-width: 0;
   font-family: "Barlow Condensed", sans-serif;
   font-size: 1.1rem;
   letter-spacing: 0.04em;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
 }
 
 .locator-progress {
@@ -956,6 +958,7 @@ input[type="checkbox"] {
   color: var(--label);
   font-size: 0.55rem;
   letter-spacing: 0.08em;
+  white-space: nowrap;
 }
 
 .locator-group.is-complete summary { box-shadow: inset 3px 0 0 var(--success); }
@@ -973,10 +976,12 @@ input[type="checkbox"] {
 
 .task-line.is-ready { box-shadow: inset 3px 0 0 var(--success); }
 
+/* The photo pickers take their share of the row, so the data next to them gets
+   two columns rather than four cramped ones. */
 .line-cells {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(96px, 1fr));
-  gap: 10px;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 10px 14px;
   min-width: 0;
 }
 
@@ -985,11 +990,11 @@ input[type="checkbox"] {
 .line-cells span { color: var(--muted); font-size: 0.48rem; font-weight: 600; letter-spacing: 0.14em; }
 
 .line-cells strong {
-  overflow: hidden;
   font-size: 0.68rem;
   font-weight: 500;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+  white-space: normal;
 }
 
 .line-photos { display: grid; gap: 8px; min-width: 0; }
