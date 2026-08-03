@@ -6,6 +6,8 @@ export const DHG_IMAGE_STORE = "dhg-record-images";
 
 export const HW_CHECK_IMAGE_STORE = "hw-check-task-images";
 
+export const ANDI_PHOTO_STORE = "andi-photos";
+
 export const IMAGE_SLOTS = [1, 2] as const;
 
 export const MAX_IMAGE_BYTES = 6 * 1024 * 1024;
@@ -38,6 +40,10 @@ export function getDhgImageStore() {
 
 export function getHwCheckImageStore() {
   return getStore(HW_CHECK_IMAGE_STORE);
+}
+
+export function getAndiPhotoStore() {
+  return getStore(ANDI_PHOTO_STORE);
 }
 
 /**

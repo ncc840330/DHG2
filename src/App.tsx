@@ -1,16 +1,18 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import AndiImportExportTab from "./AndiImportExportTab";
 import DeletionRequestTab from "./DeletionRequestTab";
 import DhgTab from "./DhgTab";
 import HwCheckRequestTab from "./HwCheckRequestTab";
 import { DAY_OFFSETS, formatShortDate, getDate, getDateKey } from "./lib";
 import "./styles.css";
 
-type Sheet = "dhg" | "deletion" | "hwCheck";
+type Sheet = "dhg" | "deletion" | "hwCheck" | "andi";
 
 const SHEETS: { id: Sheet; label: string }[] = [
   { id: "dhg", label: "ADD DHG" },
   { id: "deletion", label: "DELETION REQUEST" },
   { id: "hwCheck", label: "HW CHECK REQUEST" },
+  { id: "andi", label: "ANDI IMPORT/EXPORT" },
 ];
 
 export default function App() {
@@ -26,6 +28,7 @@ export default function App() {
     dhg: {},
     deletion: {},
     hwCheck: {},
+    andi: {},
   });
   const [refreshToken, setRefreshToken] = useState(0);
   const [lastSync, setLastSync] = useState(() => new Date());
@@ -50,6 +53,10 @@ export default function App() {
 
   const handleHwCheckCounts = useCallback((next: Record<string, number>) => {
     setCounts((current) => ({ ...current, hwCheck: next }));
+  }, []);
+
+  const handleAndiCounts = useCallback((next: Record<string, number>) => {
+    setCounts((current) => ({ ...current, andi: next }));
   }, []);
 
   const handleSynced = useCallback((isFresh = true) => {
@@ -184,6 +191,20 @@ export default function App() {
             {...tabProps}
             isActive={activeSheet === "hwCheck"}
             onCounts={handleHwCheckCounts}
+          />
+        </div>
+
+        <div
+          className="workbook-sheet"
+          id="sheet-andi"
+          role="tabpanel"
+          aria-labelledby="tab-andi"
+          hidden={activeSheet !== "andi"}
+        >
+          <AndiImportExportTab
+            {...tabProps}
+            isActive={activeSheet === "andi"}
+            onCounts={handleAndiCounts}
           />
         </div>
       </div>

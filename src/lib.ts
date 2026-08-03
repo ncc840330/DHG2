@@ -116,6 +116,20 @@ function readFileName(header: string | null) {
   return plain ? plain[1] : null;
 }
 
+/** Hands a finished file to the browser under the name it should be saved as. */
+export function saveBlob(data: Blob, fileName: string) {
+  const url = URL.createObjectURL(data);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = fileName;
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  URL.revokeObjectURL(url);
+
+  return fileName;
+}
+
 /**
  * Asks the export endpoint for the workbook of the selected lines and hands it
  * to the browser. Returns the file name that was saved.
@@ -140,14 +154,5 @@ export async function downloadSelection(
   const fileName =
     readFileName(response.headers.get("Content-Disposition")) ?? fallbackName;
 
-  const url = URL.createObjectURL(archive);
-  const anchor = document.createElement("a");
-  anchor.href = url;
-  anchor.download = fileName;
-  document.body.appendChild(anchor);
-  anchor.click();
-  anchor.remove();
-  URL.revokeObjectURL(url);
-
-  return fileName;
+  return saveBlob(archive, fileName);
 }
