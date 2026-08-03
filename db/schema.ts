@@ -276,3 +276,32 @@ export const andiPhotos = pgTable(
   },
   (table) => [index("andi_photos_record_date_idx").on(table.recordDate)],
 );
+
+/**
+ * What has been handed out of the photo buffer, newest first. A download is not
+ * repeated by remembering the file — the bytes are still in the store, so an
+ * entry only has to remember which pictures went out together and under what
+ * name, and the same selection can be sent again.
+ *
+ * The log is the operator's receipt: it stands until the buffer is emptied, which
+ * takes the pictures and their history with it in one press.
+ */
+export const andiDownloads = pgTable(
+  "andi_downloads",
+  {
+    id: serial().primaryKey(),
+    /** The work day the pictures were filed under, not the day of the download. */
+    recordDate: date("record_date").notNull(),
+    /** `jpeg` for one file per picture, `zip` for the lot in one archive. */
+    format: text().notNull(),
+    /** What landed in the Downloads folder: the ZIP name, or the single JPEG. */
+    fileName: text("file_name").notNull(),
+    /** The pictures that went out, in the order they were sent. */
+    photoIds: text("photo_ids").notNull(),
+    photoCount: integer("photo_count").notNull(),
+    byteSize: integer("byte_size").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [index("andi_downloads_created_at_idx").on(table.createdAt)],
+);
+

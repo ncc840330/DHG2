@@ -116,6 +116,15 @@ function readFileName(header: string | null) {
   return plain ? plain[1] : null;
 }
 
+/**
+ * The name the server says a downloaded file carries. Worth asking for: a single
+ * photo is handed out under the name it was renamed to, which the caller would
+ * otherwise have to guess from a stale copy of the list.
+ */
+export function responseFileName(response: Response) {
+  return readFileName(response.headers.get("Content-Disposition"));
+}
+
 /** Hands a finished file to the browser under the name it should be saved as. */
 export function saveBlob(data: Blob, fileName: string) {
   const url = URL.createObjectURL(data);
