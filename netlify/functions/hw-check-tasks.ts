@@ -27,6 +27,13 @@ import {
 
 const MAX_FILE_NAME_LENGTH = 160;
 
+/** Who checked and who confirmed, as the seal sheet spells their names. */
+const MAX_NAME_LENGTH = 80;
+
+function name(value: unknown) {
+  return typeof value === "string" ? value.trim().slice(0, MAX_NAME_LENGTH) : "";
+}
+
 /** The code the next import of each live task type will be filed under. */
 async function nextTaskCodes(recordDate: string) {
   const rows = await db
@@ -59,6 +66,9 @@ async function createTask(body: {
   recordDate: string;
   taskType: TaskType;
   sourceFileName: string;
+  checkedBy: string;
+  confirmedBy: string;
+  signature: string;
   lines: TaskLineInput[];
 }) {
   return db.transaction(async (transaction) => {
@@ -89,6 +99,9 @@ async function createTask(body: {
         taskSequence,
         taskCode: makeTaskCode(body.taskType, body.recordDate, taskSequence),
         sourceFileName: body.sourceFileName,
+        checkedBy: body.checkedBy,
+        confirmedBy: body.confirmedBy,
+        signature: body.signature,
       })
       .returning();
 
@@ -126,7 +139,7 @@ export default async (request: Request) => {
         .where(eq(hwCheckUploadTasks.recordDate, date))
         .orderBy(asc(hwCheckUploadTasks.taskSequence));
 
-      const progress = await loadTaskProgress(rows.map((row) => row.id));
+      const progress = await loadTaskProgress(rows);
 
       return Response.json({
         tasks: newestFirst(rows).map((task) => publicTask(task, progress)),
@@ -165,6 +178,9 @@ export default async (request: Request) => {
       taskType?: unknown;
       fileName?: unknown;
       rows?: unknown;
+      checkedBy?: unknown;
+      confirmedBy?: unknown;
+      signature?: unknown;
     } | null;
     if (!body) return apiError("Expected a JSON body.", 400);
 
@@ -175,7 +191,7 @@ export default async (request: Request) => {
       return apiError("Pick a task type that is already available.", 400);
     }
 
-    const selection = readTaskLines(body.rows);
+    const selection = readTaskLines(body.taskType, body.rows);
     if ("error" in selection) return apiError(selection.error, selection.status);
 
     const sourceFileName =
@@ -188,10 +204,13 @@ export default async (request: Request) => {
       recordDate: body.recordDate,
       taskType: body.taskType,
       sourceFileName,
+      checkedBy: name(body.checkedBy),
+      confirmedBy: name(body.confirmedBy),
+      signature: name(body.signature),
       lines: selection.lines,
     });
 
-    const progress = await loadTaskProgress([task.id]);
+    const progress = await loadTaskProgress([task]);
     return Response.json({ task: publicTask(task, progress) }, { status: 201 });
   }
 

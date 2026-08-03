@@ -128,10 +128,24 @@ export async function buildWorkbookDownload(options: {
 }
 
 export function spreadsheetResponse(download: { fileName: string; data: Uint8Array }) {
+  return fileResponse(
+    download,
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  );
+}
+
+/** The finished yellow seal sheet is printed and signed, so it goes out as PDF. */
+export function pdfResponse(download: { fileName: string; data: Uint8Array }) {
+  return fileResponse(download, "application/pdf");
+}
+
+function fileResponse(
+  download: { fileName: string; data: Uint8Array },
+  contentType: string,
+) {
   return new Response(download.data, {
     headers: {
-      "Content-Type":
-        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "Content-Type": contentType,
       "Content-Length": String(download.data.length),
       "Content-Disposition": `attachment; filename="${asciiFileName(
         download.fileName,
