@@ -12,7 +12,7 @@ const SHEETS: { id: Sheet; label: string }[] = [
   { id: "dhg", label: "ADD DHG" },
   { id: "deletion", label: "DELETION REQUEST" },
   { id: "hwCheck", label: "HW CHECK REQUEST" },
-  { id: "andi", label: "ANDI IMPORT/EXPORT" },
+  { id: "andi", label: "PHOTO IMPORT/EXPORT" },
 ];
 
 export default function App() {
@@ -142,9 +142,12 @@ export default function App() {
               role="tab"
               aria-selected={activeSheet === sheet.id}
               aria-controls={`sheet-${sheet.id}`}
+              // The label is allowed to shorten in a narrow window, so the full
+              // one has to stay readable somewhere.
+              title={sheet.label}
               onClick={() => setActiveSheet(sheet.id)}
             >
-              {sheet.label}
+              <span className="tab-label">{sheet.label}</span>
               {(counts[sheet.id][selectedDate] ?? 0) > 0 && (
                 <b>{counts[sheet.id][selectedDate]}</b>
               )}

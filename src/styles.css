@@ -169,6 +169,36 @@ h1, h2, h3 { font-family: "Barlow Condensed", sans-serif; }
   white-space: nowrap;
 }
 
+.workbook-tabs .tab-label { overflow: hidden; text-overflow: ellipsis; }
+
+/* A phone swipes the strip sideways; a mouse cannot, and a hidden scrollbar left
+   the last worksheet unreachable on the desktop. From here up the tabs give way
+   to each other instead of running off the edge, so all four are always on
+   screen — the widest one shortens first because it has the most to give. */
+@media (min-width: 561px) {
+  .workbook-tabs { overflow-x: visible; }
+
+  .workbook-tabs button {
+    flex: 1 1 auto;
+    justify-content: center;
+    gap: 6px;
+    min-width: 0;
+    padding: 0 9px;
+    font-size: 0.86rem;
+    letter-spacing: 0.04em;
+  }
+}
+
+/* Wide enough for all four labels at a size worth reading. */
+@media (min-width: 720px) {
+  .workbook-tabs button {
+    gap: 8px;
+    padding: 0 14px;
+    font-size: 1.02rem;
+    letter-spacing: 0.07em;
+  }
+}
+
 .workbook-tabs button:hover { color: var(--label); }
 
 /* The active tab sits 2px lower so it covers the sheet rail, Excel style. */
@@ -184,6 +214,7 @@ h1, h2, h3 { font-family: "Barlow Condensed", sans-serif; }
 
 .workbook-tabs button b {
   display: grid;
+  flex: 0 0 auto;
   min-width: 21px;
   height: 21px;
   padding: 0 5px;
@@ -1392,6 +1423,131 @@ input[type="checkbox"] {
 
 .andi-card-actions { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 
+/* What the buffer is costing, and the one press that gives it back. It sits under
+   the heading rather than at the bottom: the number is the reason to press it. */
+.andi-buffer-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 11px 14px;
+  border-bottom: 1px solid var(--line);
+  background: rgba(16, 23, 25, 0.6);
+}
+
+.andi-buffer-total { display: grid; gap: 3px; min-width: 0; }
+.andi-buffer-total span {
+  color: var(--label);
+  font-size: 0.55rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+}
+.andi-buffer-total b {
+  color: var(--signal);
+  font-family: "Barlow Condensed", sans-serif;
+  font-size: 1.06rem;
+  letter-spacing: 0.06em;
+}
+.andi-buffer-total small { color: var(--muted); font-size: 0.55rem; letter-spacing: 0.04em; }
+
+/* Emptying is a trash can with its word next to it: the icon alone has been
+   pressed by accident once too often for something that clears every day. */
+.andi-purge {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 7px;
+  min-height: 34px;
+  padding: 0 12px;
+  border: 1px solid #74483f;
+  border-radius: 3px;
+  background: transparent;
+  color: var(--danger);
+  cursor: pointer;
+  font-size: 0.56rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  transition: background 140ms ease;
+}
+.andi-purge svg {
+  width: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-width: 1.6;
+}
+.andi-purge:hover:not(:disabled) { background: rgba(255, 136, 123, 0.14); }
+.andi-purge:disabled { border-color: var(--line); color: var(--muted); cursor: default; }
+
+/* The receipt: what left the buffer, newest first, each line repeatable. */
+.andi-history { border-top: 1px solid var(--line); }
+
+.andi-history-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 11px 14px;
+  border-bottom: 1px solid var(--line);
+  background: var(--surface-2);
+  color: var(--label);
+  font-size: 0.56rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+}
+.andi-history-head small {
+  color: var(--muted);
+  font-weight: 400;
+  letter-spacing: 0.04em;
+  text-transform: none;
+}
+
+.andi-history-list { margin: 0; padding: 0; list-style: none; }
+
+.andi-history-item {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 10px 14px;
+  border-bottom: 1px solid rgba(49, 64, 68, 0.6);
+}
+.andi-history-item:last-child { border-bottom: 0; }
+
+.andi-history-meta { display: grid; flex: 1; gap: 3px; min-width: 0; }
+.andi-history-meta b {
+  color: var(--signal);
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 0.6rem;
+  letter-spacing: 0.06em;
+}
+.andi-history-meta > span {
+  overflow: hidden;
+  color: var(--ink);
+  font-size: 0.7rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.andi-history-meta small {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 0.55rem;
+  letter-spacing: 0.04em;
+}
+
+.andi-again { display: flex; align-items: center; gap: 6px; min-height: 34px; }
+.andi-again svg {
+  width: 14px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-width: 1.7;
+}
+.andi-again:disabled { border-color: var(--line); color: var(--muted); cursor: default; }
+
 @media (max-width: 560px) {
   .andi-pickers { grid-template-columns: 1fr; }
   .andi-bulk-rename { flex-wrap: wrap; }
@@ -1401,6 +1557,8 @@ input[type="checkbox"] {
   .andi-format button { flex: 1; }
   .andi-actions { align-items: stretch; flex-direction: column-reverse; }
   .andi-grid { grid-template-columns: 1fr 1fr; gap: 8px; padding: 10px; }
+  .andi-buffer-bar { align-items: stretch; flex-direction: column; }
+  .andi-purge { justify-content: center; }
 }
 
 button:focus-visible { outline: 2px solid var(--signal); outline-offset: 3px; }

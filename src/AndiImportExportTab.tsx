@@ -2,6 +2,8 @@ import { ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from "
 import {
   ANDI_MAX_BYTES,
   ANDI_MAX_ZIP_ENTRIES,
+  AndiBuffer,
+  AndiDownload,
   AndiPhoto,
   baseName,
   cleanNameInput,
@@ -9,6 +11,7 @@ import {
   duplicateNames,
   finalName,
   formatBytes,
+  formatDownloadStamp,
   numberedName,
   StagedPhoto,
 } from "./andi-photos";
@@ -19,6 +22,7 @@ import {
   loadJson,
   readApiError,
   RecordCount,
+  responseFileName,
   saveBlob,
   TabProps,
   toCountMap,
@@ -30,6 +34,11 @@ import { useSelection } from "./SavedList";
  * a batch out of the gallery, names them, and takes them back either as plain
  * JPEGs or as one ZIP — so the tab is a single column read top to bottom: pick,
  * name, upload, then the day's gallery to select from and download.
+ *
+ * The store behind it is a buffer, not an archive: everything in it has already
+ * been handed over, so the tab ends with the download log and the one press that
+ * empties the lot. Until that press the log stands and every download in it can
+ * be repeated.
  */
 
 type DownloadFormat = "jpeg" | "zip";
@@ -50,6 +59,8 @@ export default function AndiImportExportTab({
   onSynced,
 }: TabProps) {
   const [photos, setPhotos] = useState<AndiPhoto[]>([]);
+  const [history, setHistory] = useState<AndiDownload[]>([]);
+  const [buffer, setBuffer] = useState<AndiBuffer | null>(null);
   const [staged, setStaged] = useState<StagedPhoto[]>([]);
   const [prefix, setPrefix] = useState("");
   /** Renames typed on uploaded cards, keyed by photo id until they are saved. */
@@ -60,7 +71,11 @@ export default function AndiImportExportTab({
   const [uploadProgress, setUploadProgress] = useState("");
   const [downloadProgress, setDownloadProgress] = useState("");
   const [isDownloading, setIsDownloading] = useState(false);
+  /** The history entry being sent again, so only its own button says so. */
+  const [repeatingId, setRepeatingId] = useState<number | null>(null);
   const [pendingDelete, setPendingDelete] = useState<AndiPhoto | null>(null);
+  const [isEmptyingBuffer, setIsEmptyingBuffer] = useState(false);
+  const [isPurgeOpen, setIsPurgeOpen] = useState(false);
   const [isDeletingSelection, setIsDeletingSelection] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -85,11 +100,33 @@ export default function AndiImportExportTab({
     setPhotos(data.photos ?? []);
   }, []);
 
+  /** The log covers the whole buffer, so it is not narrowed to the open day. */
+  const loadHistory = useCallback(async () => {
+    const data = await loadJson<{ history?: AndiDownload[] }>(
+      "/api/andi-downloads",
+      "The download history could not be loaded.",
+    );
+    setHistory(data.history ?? []);
+  }, []);
+
+  const loadBuffer = useCallback(async () => {
+    const data = await loadJson<{ buffer?: AndiBuffer }>(
+      "/api/andi-buffer",
+      "The buffer size could not be read.",
+    );
+    setBuffer(data.buffer ?? null);
+  }, []);
+
   const refreshData = useCallback(async () => {
     setError("");
     let isFresh = true;
     try {
-      await Promise.all([loadCounts(), loadPhotos(selectedDate)]);
+      await Promise.all([
+        loadCounts(),
+        loadPhotos(selectedDate),
+        loadHistory(),
+        loadBuffer(),
+      ]);
     } catch (loadError) {
       isFresh = false;
       setError(getErrorMessage(loadError, "An unknown loading error occurred."));
@@ -97,7 +134,8 @@ export default function AndiImportExportTab({
       setIsLoading(false);
       onSynced(isFresh);
     }
-  }, [loadCounts, loadPhotos, selectedDate, onSynced]);
+  }, [loadCounts, loadPhotos, loadHistory, loadBuffer, selectedDate, onSynced]);
+
 
   useEffect(() => {
     if (!isActive) return;
@@ -347,44 +385,102 @@ export default function AndiImportExportTab({
     }
   };
 
-  const downloadSelected = async () => {
-    if (selectedIds.length === 0 || isDownloading) return;
+  /**
+   * A finished download is written down before the tab says a word about it: the
+   * log is what makes the same handover repeatable, and an entry is only honest
+   * once the bytes have actually gone out. A log that cannot be written is not
+   * worth failing the download over — the file is already saved.
+   */
+  const logDownload = async (
+    ids: number[],
+    downloadFormat: DownloadFormat,
+    date: string,
+    fileName: string,
+  ) => {
+    try {
+      const response = await fetch("/api/andi-downloads", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          date,
+          format: downloadFormat,
+          fileName,
+          photoIds: ids,
+        }),
+      });
+      if (!response.ok) return;
+
+      await loadHistory();
+    } catch {
+      // Nothing to tell the operator: they have their pictures either way.
+    }
+  };
+
+  /**
+   * Hands a set of pictures over and returns what landed in the Downloads folder.
+   * Both the toolbar and a repeat from the history come through here, so a
+   * repeated download is the same handover, not a second implementation of it.
+   */
+  const sendPhotos = async (
+    ids: number[],
+    downloadFormat: DownloadFormat,
+    date: string,
+  ) => {
+    if (downloadFormat === "zip") {
+      return downloadSelection(
+        "/api/andi-photos/export",
+        ids,
+        `Andi_${date}.zip`,
+      );
+    }
+
+    const names: string[] = [];
+    // Plain JPEGs go out one by one under the name each picture carries;
+    // there is no archive to unpack at the other end.
+    for (const id of ids) {
+      setDownloadProgress(`${names.length + 1}/${ids.length}`);
+
+      const response = await fetch(`/api/andi-photo?id=${id}&download=1`, {
+        cache: "no-store",
+      });
+      if (!response.ok) {
+        throw new Error(
+          await readApiError(response, "The photo could not be downloaded."),
+        );
+      }
+
+      // The server names the file, and after a rename it is the only one that
+      // knows: a repeat from the history has no card to read the name off.
+      const fileName =
+        responseFileName(response) ??
+        photos.find((item) => item.id === id)?.fileName ??
+        `andi-${id}.jpg`;
+      saveBlob(await response.blob(), fileName);
+      names.push(fileName);
+    }
+
+    return names.length === 1 ? names[0] : `${names.length} JPEG files`;
+  };
+
+  const runDownload = async (
+    ids: number[],
+    downloadFormat: DownloadFormat,
+    date: string,
+  ) => {
+    if (ids.length === 0 || isDownloading) return;
 
     setIsDownloading(true);
     setMessage("");
     setError("");
 
     try {
-      if (format === "zip") {
-        const fileName = await downloadSelection(
-          "/api/andi-photos/export",
-          selectedIds,
-          `Andi_${selectedDate}.zip`,
-        );
-        setMessage(`${fileName} downloaded (${photoCount(selectedIds.length)}).`);
-      } else {
-        let saved = 0;
-        // Plain JPEGs go out one by one under the name each picture carries;
-        // there is no archive to unpack at the other end.
-        for (const id of selectedIds) {
-          const photo = photos.find((item) => item.id === id);
-          setDownloadProgress(`${saved + 1}/${selectedIds.length}`);
-
-          const response = await fetch(`/api/andi-photo?id=${id}&download=1`, {
-            cache: "no-store",
-          });
-          if (!response.ok) {
-            throw new Error(
-              await readApiError(response, "The photo could not be downloaded."),
-            );
-          }
-
-          saveBlob(await response.blob(), photo?.fileName ?? `andi-${id}.jpg`);
-          saved += 1;
-        }
-
-        setMessage(`${photoCount(saved)} downloaded as JPEG.`);
-      }
+      const fileName = await sendPhotos(ids, downloadFormat, date);
+      setMessage(
+        downloadFormat === "zip"
+          ? `${fileName} downloaded (${photoCount(ids.length)}).`
+          : `${photoCount(ids.length)} downloaded as JPEG.`,
+      );
+      await logDownload(ids, downloadFormat, date, fileName);
     } catch (downloadError) {
       setError(
         getErrorMessage(downloadError, "An unknown download error occurred."),
@@ -392,6 +488,63 @@ export default function AndiImportExportTab({
     } finally {
       setDownloadProgress("");
       setIsDownloading(false);
+    }
+  };
+
+  const downloadSelected = () => runDownload(selectedIds, format, selectedDate);
+
+  /** The same handover again, of whatever the entry still has in the buffer. */
+  const repeatDownload = async (entry: AndiDownload) => {
+    if (entry.availableIds.length === 0) return;
+
+    setRepeatingId(entry.id);
+    try {
+      await runDownload(
+        entry.availableIds,
+        entry.format === "zip" ? "zip" : "jpeg",
+        entry.recordDate,
+      );
+    } finally {
+      setRepeatingId(null);
+    }
+  };
+
+  /**
+   * The buffer is emptied whole: every work day's pictures, their bytes in the
+   * store and the log of what went out. Nothing here was ever the only copy —
+   * each one was uploaded to be downloaded, and the ones that count are already
+   * in someone's folder — which is what makes one press the right size for it.
+   */
+  const emptyBuffer = async () => {
+    setIsEmptyingBuffer(true);
+    setMessage("");
+    setError("");
+
+    try {
+      const response = await fetch("/api/andi-buffer", { method: "DELETE" });
+      if (!response.ok) {
+        throw new Error(
+          await readApiError(response, "The buffer could not be emptied."),
+        );
+      }
+
+      const data = (await response.json()) as {
+        cleared?: { photoCount?: number; byteSize?: number };
+      };
+      const cleared = data.cleared ?? {};
+
+      setIsPurgeOpen(false);
+      clear();
+      setMessage(
+        `Buffer emptied: ${photoCount(cleared.photoCount ?? 0)} and the download history removed${
+          cleared.byteSize ? ` (${formatBytes(cleared.byteSize)} freed)` : ""
+        }.`,
+      );
+      await refreshData();
+    } catch (purgeError) {
+      setError(getErrorMessage(purgeError, "The buffer could not be emptied."));
+    } finally {
+      setIsEmptyingBuffer(false);
     }
   };
 
@@ -415,13 +568,50 @@ export default function AndiImportExportTab({
       <section className="saved-panel andi-panel">
         <div className="panel-heading">
           <div>
-            <p>ANDI IMPORT / EXPORT</p>
+            <p>PHOTO IMPORT / EXPORT</p>
             <h2>{selectedDate.split("-").join(".")}</h2>
           </div>
           <span>
             {photos.length} PHOTO
             {photos.length > 0 && ` · ${formatBytes(galleryBytes)}`}
           </span>
+        </div>
+
+        <div className="andi-buffer-bar">
+          <div className="andi-buffer-total">
+            <span>BUFFER · ALL DAYS</span>
+            <b>
+              {buffer
+                ? `${photoCount(buffer.photoCount)} · ${formatBytes(buffer.byteSize)}`
+                : "reading…"}
+            </b>
+            <small>
+              {buffer && buffer.downloadCount > 0
+                ? `${buffer.downloadCount} download${
+                    buffer.downloadCount === 1 ? "" : "s"
+                  } in the history — kept until the buffer is emptied`
+                : "uploads stay here until they are thrown away"}
+            </small>
+          </div>
+          <button
+            className="andi-purge"
+            type="button"
+            disabled={
+              isEmptyingBuffer ||
+              isBusy ||
+              isDownloading ||
+              !buffer ||
+              (buffer.photoCount === 0 && buffer.downloadCount === 0)
+            }
+            onClick={() => setIsPurgeOpen(true)}
+            title="Empty the buffer"
+            aria-label="Empty the buffer"
+          >
+            <svg aria-hidden="true" viewBox="0 0 24 24">
+              <path d="M5 8h14M10 8V5.5h4V8m-7 0 .9 11.5h8.2L17 8M10.6 11v5.6m2.8-5.6v5.6" />
+            </svg>
+            <span>{isEmptyingBuffer ? "EMPTYING…" : "EMPTY"}</span>
+          </button>
         </div>
 
         <div className="andi-import">
@@ -760,6 +950,60 @@ export default function AndiImportExportTab({
             })}
           </div>
         )}
+
+        {history.length > 0 && (
+          <div className="andi-history">
+            <div className="andi-history-head">
+              <span>DOWNLOAD HISTORY · {history.length}</span>
+              <small>newest first · kept until the buffer is emptied</small>
+            </div>
+
+            <ul className="andi-history-list">
+              {history.map((entry) => {
+                const missing = entry.photoCount - entry.availableIds.length;
+                const isGone = entry.availableIds.length === 0;
+
+                return (
+                  <li className="andi-history-item" key={entry.id}>
+                    <div className="andi-history-meta">
+                      <b>{formatDownloadStamp(entry.createdAt)}</b>
+                      <span>{entry.fileName}</span>
+                      <small>
+                        {entry.recordDate.split("-").join(".")} ·{" "}
+                        {entry.format.toUpperCase()} ·{" "}
+                        {photoCount(entry.photoCount)} ·{" "}
+                        {formatBytes(entry.byteSize)}
+                        {missing > 0 && (
+                          <em className="andi-dirty">
+                            {isGone
+                              ? "no longer in the buffer"
+                              : `${missing} of them thrown away since`}
+                          </em>
+                        )}
+                      </small>
+                    </div>
+                    <button
+                      className="modify-button andi-again"
+                      type="button"
+                      disabled={isGone || isDownloading}
+                      onClick={() => void repeatDownload(entry)}
+                      title={
+                        isGone
+                          ? "These photos are no longer in the buffer"
+                          : `Send ${photoCount(entry.availableIds.length)} again`
+                      }
+                    >
+                      <svg aria-hidden="true" viewBox="0 0 24 24">
+                        <path d="M12 4v10m0 0 4-4m-4 4-4-4M5 19h14" />
+                      </svg>
+                      {repeatingId === entry.id ? "SENDING…" : "AGAIN"}
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        )}
       </section>
 
       {pendingDelete && (
@@ -770,6 +1014,20 @@ export default function AndiImportExportTab({
           isBusy={isDeleting}
           onConfirm={() => void deletePhoto(pendingDelete)}
           onCancel={() => setPendingDelete(null)}
+        />
+      )}
+
+      {isPurgeOpen && (
+        <ConfirmDialog
+          title="Empty the whole photo buffer?"
+          message={`${photoCount(buffer?.photoCount ?? 0)} from every work day${
+            buffer?.byteSize ? ` (${formatBytes(buffer.byteSize)})` : ""
+          } and the download history are removed for good. Download anything you still need first.`}
+          confirmLabel="EMPTY THE BUFFER"
+          busyLabel="EMPTYING…"
+          isBusy={isEmptyingBuffer}
+          onConfirm={() => void emptyBuffer()}
+          onCancel={() => setIsPurgeOpen(false)}
         />
       )}
     </>

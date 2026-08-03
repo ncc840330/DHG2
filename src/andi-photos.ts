@@ -32,6 +32,32 @@ export type AndiPhoto = {
   createdAt: string;
 };
 
+/**
+ * One line of the download history. `availableIds` is what is left in the buffer
+ * of the pictures that went out, so a repeat can be offered, offered short, or
+ * refused outright.
+ */
+export type AndiDownload = {
+  id: number;
+  recordDate: string;
+  format: string;
+  fileName: string;
+  photoIds: number[];
+  availableIds: number[];
+  photoCount: number;
+  byteSize: number;
+  createdAt: string;
+};
+
+/** What the whole buffer holds, every work day counted together. */
+export type AndiBuffer = {
+  photoCount: number;
+  byteSize: number;
+  oldestDate: string | null;
+  newestDate: string | null;
+  downloadCount: number;
+};
+
 /** A compressed pick, waiting for its name and the upload. */
 export type StagedPhoto = {
   key: string;
@@ -45,6 +71,27 @@ export type StagedPhoto = {
 export function formatBytes(bytes: number) {
   if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   return `${Math.max(1, Math.round(bytes / 1024))} KB`;
+}
+
+/**
+ * When a download happened, as the history lists it: the clock time on its own
+ * for today's, the day in front of it for anything older — the operator is
+ * looking for "the one I made after lunch", not for a timestamp.
+ */
+export function formatDownloadStamp(isoTime: string, now = new Date()) {
+  const stamp = new Date(isoTime);
+  if (Number.isNaN(stamp.getTime())) return "";
+
+  const time = stamp.toLocaleTimeString("en-GB", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+  const isToday = stamp.toDateString() === now.toDateString();
+  if (isToday) return time;
+
+  const day = String(stamp.getDate()).padStart(2, "0");
+  const month = String(stamp.getMonth() + 1).padStart(2, "0");
+  return `${month}.${day} ${time}`;
 }
 
 /** The editable part of a file name: everything before the extension. */
