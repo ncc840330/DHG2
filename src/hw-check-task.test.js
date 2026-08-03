@@ -1,7 +1,7 @@
 /**
- * The task side of HW check requests: an imported spreadsheet has to become task
- * rows the operator can photograph, and a photographed row has to reach the
- * server as two slots. Both used to be typed in by hand, so both are new ground.
+ * The task side of HW check requests: an imported spreadsheet — or a hand-typed
+ * row — has to become task rows the operator can work, a photographed row has to
+ * reach the server as two slots, and a checked seal as a pass or a fail.
  */
 import React from "react";
 import { createRoot } from "react-dom/client";
@@ -11,11 +11,13 @@ import {
   downloadTemplate,
   expandByQty,
   groupByLocator,
+  parseSealGrid,
   parseTaskFile,
   TEMPLATE_HEADERS,
 } from "./excel";
 import HwCheckRequestTab from "./HwCheckRequestTab";
 import HwCheckTaskPhotos from "./HwCheckTaskPhotos";
+import HwCheckTaskSeals from "./HwCheckTaskSeals";
 
 let container;
 let root;
@@ -92,6 +94,55 @@ async function attachFile(input, file) {
     input.dispatchEvent(new Event("change", { bubbles: true }));
   });
 }
+
+/** React listens for the native setter, so a plain assignment is not seen. */
+async function setValue(element, value) {
+  const prototype =
+    element.tagName === "SELECT"
+      ? window.HTMLSelectElement.prototype
+      : window.HTMLInputElement.prototype;
+  const setter = Object.getOwnPropertyDescriptor(prototype, "value").set;
+
+  await act(async () => {
+    setter.call(element, value);
+    element.dispatchEvent(new Event(element.tagName === "SELECT" ? "change" : "input", {
+      bubbles: true,
+    }));
+  });
+}
+
+/** The warehouse's own sheet: a two-storey header with OK and NO underneath. */
+const SEAL_GRID = [
+  [
+    "No.",
+    "From Subinv",
+    "Locator",
+    "Item",
+    "Bar Code",
+    "Whether The Original Seal Is Intact？",
+    "",
+    "Checked BY",
+    "Confirmed BY",
+    "Signature",
+    "Remark",
+  ],
+  ["", "", "", "", "", "OK", "NO ", "", "", "", ""],
+  [
+    "1",
+    "FGI",
+    "A-1",
+    "ITEM-1",
+    "4210000123456789",
+    "",
+    "",
+    "tundebalogh",
+    "brigitabarak",
+    "",
+    "",
+  ],
+  ["2", "FGI", "A-1", "ITEM-2", "4210000123456790", "", "X", "", "", "", "Sérült"],
+  ["3", "", "", "", "", "", "", "", "", "", ""],
+];
 
 test("a template-shaped file becomes task rows with the warehouse filled in", async () => {
   const result = await parseTaskFile(
@@ -257,24 +308,18 @@ test("SEND TASK waits for a task type and a file, then posts the rows", async ()
   await act(async () => findButton("CREATE TASK").click());
   const select = pick('select[name="taskType"]');
   expect(select).not.toBeNull();
-  // Only photo upload can be picked; the other two announce themselves instead.
+  // Photo upload and the yellow seal check can both be picked; SN-Bom announces
+  // itself instead.
   const options = Array.from(select.options).filter((option) => option.value);
   expect(options.map((option) => [option.value, option.disabled])).toEqual([
     ["photo-upload", false],
-    ["yellow-seal", true],
+    ["yellow-seal", false],
     ["sn-bom-mismatch", true],
   ]);
 
   expect(findButton("SEND TASK").disabled).toBe(true);
 
-  await act(async () => {
-    const setter = Object.getOwnPropertyDescriptor(
-      window.HTMLSelectElement.prototype,
-      "value",
-    ).set;
-    setter.call(select, "photo-upload");
-    select.dispatchEvent(new Event("change", { bubbles: true }));
-  });
+  await setValue(select, "photo-upload");
 
   // A type on its own is not a task: the file still has to come in.
   expect(findButton("SEND TASK").disabled).toBe(true);
@@ -377,4 +422,222 @@ test("a photographed row is saved slot by slot and reads as ready", async () => 
   // One request per row, not one per photo.
   expect(calls.filter((call) => call.method === "POST")).toHaveLength(1);
   expect(pick(".success-message").textContent).toContain("1 sor mentve");
+});
+
+test("the seal sheet's two-storey header is read, and its signers copied", () => {
+  const result = parseSealGrid(SEAL_GRID);
+
+  expect(result.rows.map((row) => [row.item, row.barcode, row.sealResult])).toEqual([
+    ["ITEM-1", "4210000123456789", ""],
+    ["ITEM-2", "4210000123456790", "fail"],
+  ]);
+  // H3, I3 and J3 speak for the whole task, so they are read once from the top.
+  expect(result.header).toEqual({
+    checkedBy: "tundebalogh",
+    confirmedBy: "brigitabarak",
+    signature: "",
+  });
+  // A numbered but otherwise empty template row is not a box to check.
+  expect(result.skippedRows).toBe(1);
+});
+
+test("a mark in OK is a pass, and both marked at once is refused", () => {
+  const passed = parseSealGrid([
+    ...SEAL_GRID.slice(0, 2),
+    ["1", "FGI", "A-1", "ITEM-1", "421000012345", "X", "", "", "", "", ""],
+  ]);
+  expect(passed.rows[0].sealResult).toBe("pass");
+
+  const both = parseSealGrid([
+    ...SEAL_GRID.slice(0, 2),
+    ["1", "FGI", "A-1", "ITEM-1", "421000012345", "X", "X", "", "", "", ""],
+  ]);
+  expect(both.rows).toBeUndefined();
+  expect(both.error).toContain("3");
+});
+
+test("a seal row without an SN is named by its spreadsheet row number", () => {
+  const result = parseSealGrid([
+    ...SEAL_GRID.slice(0, 3),
+    ["2", "FGI", "A-1", "ITEM-2", "", "", "", "", "", "", ""],
+  ]);
+
+  expect(result.rows).toBeUndefined();
+  expect(result.error).toContain("4");
+  expect(result.error).toContain("SN");
+});
+
+test("Bar Code and SN are one column, whichever way the file spells it", () => {
+  // The warehouse's template heads the serial number column Bar Code; a sheet
+  // that heads it SN says the same thing and is read into the same field.
+  const asSn = parseSealGrid([
+    ["No.", "From Subinv", "Locator", "Item", "Serial Number", "Remark"],
+    ["1", "FGI", "A-1", "ITEM-1", "4210000123456789", ""],
+  ]);
+
+  expect(asSn.rows).toEqual([
+    {
+      subinvCode: "FGI",
+      locator: "A-1",
+      item: "ITEM-1",
+      barcode: "4210000123456789",
+      sealResult: "",
+      remark: "",
+    },
+  ]);
+});
+
+test("a one-row seal task can be typed in instead of imported", async () => {
+  await act(async () => {
+    root.render(React.createElement(HwCheckRequestTab, TAB_PROPS));
+  });
+
+  await act(async () => findButton("UPLOAD TASK").click());
+  await act(async () => findButton("CREATE TASK").click());
+  await setValue(pick('select[name="taskType"]'), "yellow-seal");
+
+  // The manual fields sit above the TEMPLATE and IMPORT buttons.
+  const panel = pick(".create-task-form");
+  const manual = pick(".manual-rows");
+  const importRow = pick(".import-row");
+  const order = Array.from(panel.children);
+  expect(order.indexOf(manual)).toBeLessThan(order.indexOf(importRow));
+
+  // Nothing has been typed yet, so there is nothing to send.
+  expect(findButton("SEND TASK").disabled).toBe(true);
+
+  // The signers are the printed sheet's business, so the panel does not ask.
+  expect(pick('input[name="checkedBy"]')).toBe(null);
+  expect(pick('input[name="confirmedBy"]')).toBe(null);
+  expect(pick('input[name="signature"]')).toBe(null);
+
+  await setValue(manual.querySelector('input[name="subinvCode"]'), "FGI");
+  await setValue(manual.querySelector('input[name="locator"]'), "A-12-3-4");
+  await setValue(manual.querySelector('input[name="item"]'), "ITEM-1");
+
+  // A row is not added while a required cell is empty, and it says which.
+  await act(async () => findButton("ADD ROW").click());
+  expect(pick(".error-message").textContent).toContain("SN");
+  expect(findButton("SEND TASK").disabled).toBe(true);
+
+  // One field, named SN, stored in the sheet's Bar Code column.
+  const snInput = manual.querySelector('input[name="barcode"]');
+  expect(snInput.closest("label").querySelector("span").textContent).toBe("SN *");
+  expect(manual.querySelector('input[name="sn"]')).toBe(null);
+  await setValue(snInput, "4210000123456789");
+  await act(async () => findButton("ADD ROW").click());
+
+  const sendTask = findButton("SEND TASK");
+  expect(sendTask.disabled).toBe(false);
+  await act(async () => sendTask.click());
+
+  const posted = calls.find((call) => call.method === "POST");
+  const payload = JSON.parse(posted.body);
+  expect(payload.taskType).toBe("yellow-seal");
+  // A hand-typed task has no signers: the paper is signed after printing.
+  expect(payload.checkedBy).toBe("");
+  expect(payload.confirmedBy).toBe("");
+  expect(payload.rows).toEqual([
+    {
+      subinvCode: "FGI",
+      locator: "A-12-3-4",
+      item: "ITEM-1",
+      barcode: "4210000123456789",
+    },
+  ]);
+});
+
+test("a seal row is answered from a dropdown, and only a finished task prints", async () => {
+  const line = {
+    id: 41,
+    rowIndex: 1,
+    item: "ITEM-1",
+    sn: "",
+    qty: "1",
+    unitIndex: 1,
+    unitCount: 1,
+    warehouseCode: "FXN-GYOR",
+    subinvCode: "FGI",
+    locator: "A-12-3-4",
+    barcode: "4210000123456789",
+    sealResult: "",
+    remark: "",
+    images: [],
+  };
+  const task = (answered) => ({
+    id: 9,
+    recordDate: "2026-07-27",
+    taskCode: "Yellow_seal_20260727-001",
+    taskType: "yellow-seal",
+    sourceFileName: "seal.xlsx",
+    checkedBy: "tundebalogh",
+    confirmedBy: "brigitabarak",
+    signature: "",
+    lineCount: 1,
+    completedLines: answered ? 1 : 0,
+    photoCount: 0,
+    passCount: 0,
+    failCount: answered ? 1 : 0,
+    isComplete: answered,
+    lines: [
+      answered ? { ...line, sealResult: "fail", remark: "Sérült a pecsét" } : line,
+    ],
+  });
+
+  global.fetch = jest.fn(async (url, options) => {
+    calls.push({ url, method: (options && options.method) || "GET", body: options && options.body });
+    if (options && options.method === "POST") {
+      return { ok: true, json: async () => ({ task: task(true) }) };
+    }
+    return { ok: true, json: async () => ({ task: task(false) }) };
+  });
+
+  await act(async () => {
+    root.render(
+      React.createElement(HwCheckTaskSeals, {
+        taskId: 9,
+        onClose: () => {},
+        onChanged: () => {},
+      }),
+    );
+  });
+
+  expect(pick(".locator-name").textContent).toBe("A-12-3-4");
+  expect(pick(".seal-signers").textContent).toContain("tundebalogh");
+  // The serial number is shown once, under the name the sheet's Bar Code column
+  // now goes by. There is no second SN cell to disagree with it.
+  const cells = Array.from(container.querySelectorAll(".line-cells > div")).map(
+    (cell) => cell.textContent,
+  );
+  expect(cells).toEqual(["FROM SUBINVFGI", "ITEMITEM-1", "SN4210000123456789"]);
+  expect(pick(".line-status").textContent).toContain("NOT CHECKED");
+  // Nothing to print while a box is unanswered, and nothing to save either.
+  expect(findButton("DOWNLOAD PDF").disabled).toBe(true);
+  expect(findButton("SAVE CHECKS").disabled).toBe(true);
+
+  const dropdown = pick('select[name="sealResult-41"]');
+  expect(Array.from(dropdown.options).map((option) => option.value)).toEqual([
+    "",
+    "pass",
+    "fail",
+  ]);
+
+  await setValue(dropdown, "fail");
+  await setValue(pick('input[name="remark-41"]'), "Sérült a pecsét");
+
+  expect(pick(".task-line").className).toContain("is-failed");
+  expect(findButton("SAVE CHECKS").disabled).toBe(false);
+  // The answer is not on the server yet, so the PDF still waits.
+  expect(findButton("DOWNLOAD PDF").disabled).toBe(true);
+
+  await act(async () => findButton("SAVE CHECKS").click());
+
+  const saved = calls.find((call) => call.method === "POST");
+  expect(saved.url).toBe("/api/hw-check-task-seals");
+  expect(JSON.parse(saved.body)).toEqual({
+    taskId: 9,
+    lines: [{ id: 41, sealResult: "fail", remark: "Sérült a pecsét" }],
+  });
+  expect(pick(".success-message").textContent).toContain("1 sor mentve");
+  expect(findButton("DOWNLOAD PDF").disabled).toBe(false);
 });

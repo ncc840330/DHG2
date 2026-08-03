@@ -130,7 +130,11 @@ export async function downloadSelection(
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ ids }),
   });
-  if (!response.ok) throw new Error("A letöltés sikertelen.");
+  if (!response.ok) {
+    // The reason matters here: a seal sheet is refused as a PDF while any of its
+    // rows is unanswered, and "a letöltés sikertelen" would not say which task.
+    throw new Error(await readApiError(response, "A letöltés sikertelen."));
+  }
 
   const archive = await response.blob();
   const fileName =

@@ -97,7 +97,7 @@ export default async (request: Request) => {
       .select()
       .from(hwCheckUploadTasks)
       .where(eq(hwCheckUploadTasks.id, line.taskId));
-    const progress = await loadTaskProgress([line.taskId]);
+    const progress = await loadTaskProgress(task ? [task] : []);
 
     return Response.json({
       line: { ...line, images: images.map(publicImageMeta) },

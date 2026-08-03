@@ -1,15 +1,13 @@
-import { ChangeEvent, useCallback, useEffect, useRef, useState } from "react";
+import { ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import ConfirmDialog from "./ConfirmDialog";
-import {
-  downloadTemplate,
-  parseTaskFile,
-  TEMPLATE_HEADERS,
-  WAREHOUSE_CODE,
-} from "./excel";
-import type { ImportLine, TaskRow } from "./excel";
+import { downloadTaskTemplate, expandRows, parseImportFile } from "./excel";
+import HwCheckManualRows from "./HwCheckManualRows";
 import HwCheckTaskPhotos from "./HwCheckTaskPhotos";
+import HwCheckTaskSeals from "./HwCheckTaskSeals";
 import { TASK_TYPE_OPTIONS, taskTypeLabel } from "./hw-check";
 import type { HwCheckTask } from "./hw-check";
+import { taskForm } from "./task-forms";
+import type { RowValues } from "./task-forms";
 import {
   getErrorMessage,
   loadJson,
@@ -20,21 +18,16 @@ import {
 } from "./lib";
 
 /**
- * A HW check task is imported, not typed: TASKS is the day's work with how far
- * each task has got, UPLOAD TASK is where a spreadsheet becomes the next task.
+ * A HW check task is imported or typed in: TASKS is the day's work with how far
+ * each task has got, UPLOAD TASK is where a spreadsheet — or a hand-typed row —
+ * becomes the next task. What the rows have to say is the task type's business,
+ * so both the manual fields and the preview table are built from its form spec.
  */
 type HwView = "tasks" | "upload";
 
-type ImportedFile = {
-  name: string;
-  /** The rows as the file listed them, which is what the server is sent. */
-  rows: TaskRow[];
-  /** Those rows split per qty, which is what the operator will photograph. */
-  lines: ImportLine[];
-  skippedRows: number;
-};
+const PREVIEW_ROWS = 20;
 
-const PREVIEW_ROWS = 5;
+const MANUAL_SOURCE = "Kézi rögzítés";
 
 export default function HwCheckRequestTab({
   isActive,
@@ -51,7 +44,12 @@ export default function HwCheckRequestTab({
   const [nextTaskCodes, setNextTaskCodes] = useState<Record<string, string>>({});
   const [isCreating, setIsCreating] = useState(false);
   const [taskType, setTaskType] = useState("");
-  const [imported, setImported] = useState<ImportedFile | null>(null);
+  const [rows, setRows] = useState<RowValues[]>([]);
+  // Only the export needs these — nobody fills them in here. They come from the
+  // imported sheet's H3/I3/J3 if it has them, and the PDF prints them per row.
+  const [header, setHeader] = useState<RowValues>({});
+  const [fileName, setFileName] = useState("");
+  const [manualCount, setManualCount] = useState(0);
   const [isParsing, setIsParsing] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [pendingDelete, setPendingDelete] = useState<HwCheckTask | null>(null);
@@ -60,6 +58,9 @@ export default function HwCheckRequestTab({
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const statusRef = useRef<HTMLParagraphElement>(null);
+
+  const spec = taskForm(taskType);
+  const lines = useMemo(() => expandRows(taskType, rows), [taskType, rows]);
 
   const loadCounts = useCallback(async () => {
     const data = await loadJson<{ counts: RecordCount[] }>(
@@ -118,11 +119,18 @@ export default function HwCheckRequestTab({
     return () => window.clearInterval(interval);
   }, [isActive, refreshData]);
 
+  const clearRows = useCallback(() => {
+    setRows([]);
+    setHeader({});
+    setFileName("");
+    setManualCount(0);
+  }, []);
+
   const resetCreateForm = useCallback(() => {
     setIsCreating(false);
     setTaskType("");
-    setImported(null);
-  }, []);
+    clearRows();
+  }, [clearRows]);
 
   useEffect(() => {
     setOpenTaskId(null);
@@ -147,33 +155,47 @@ export default function HwCheckRequestTab({
     setError("");
 
     try {
-      const result = await parseTaskFile(file);
+      const result = await parseImportFile(taskType, file);
       if ("error" in result) {
-        setImported(null);
         setError(result.error);
         return;
       }
 
-      setImported({
-        name: file.name,
-        rows: result.rows,
-        lines: result.lines,
-        skippedRows: result.skippedRows,
-      });
+      // An import speaks for the whole task, so it replaces what was typed in.
+      setRows(result.rows);
+      setFileName(file.name);
+      setManualCount(0);
+      setHeader(result.header);
       setMessage(
         `${file.name}: ${result.rows.length} sor beolvasva${
           result.lines.length !== result.rows.length
-            ? `, a qty miatt ${result.lines.length} fotósor`
+            ? `, a qty miatt ${result.lines.length} sor`
             : ""
         }. Ellenőrizd, majd SEND TASK.`,
       );
     } catch (parseError) {
-      setImported(null);
       setError(getErrorMessage(parseError, "A fájl beolvasása sikertelen."));
     } finally {
       setIsParsing(false);
     }
   };
+
+  const addManualRow = (row: RowValues) => {
+    setRows((current) => [...current, row]);
+    setManualCount((current) => current + 1);
+    setMessage("Sor hozzáadva. Adj még hozzá, vagy nyomd meg a SEND TASK gombot.");
+    setError("");
+  };
+
+  const removeRow = (index: number) => {
+    setRows((current) => current.filter((_, position) => position !== index));
+    setManualCount((current) => Math.max(0, current - 1));
+  };
+
+  const sourceName =
+    fileName && manualCount > 0
+      ? `${fileName} + ${manualCount} kézi sor`
+      : fileName || MANUAL_SOURCE;
 
   const sendTask = async () => {
     if (isSending) return;
@@ -183,9 +205,9 @@ export default function HwCheckRequestTab({
       setError("Válaszd ki a task típusát.");
       return;
     }
-    if (!imported) {
+    if (rows.length === 0) {
       setMessage("");
-      setError("Előbb töltsd fel az excel fájlt az IMPORT EXCEL gombbal.");
+      setError("Adj hozzá egy kézi sort, vagy importáld az excel fájlt.");
       return;
     }
 
@@ -200,8 +222,11 @@ export default function HwCheckRequestTab({
         body: JSON.stringify({
           recordDate: selectedDate,
           taskType,
-          fileName: imported.name,
-          rows: imported.rows,
+          fileName: sourceName,
+          rows,
+          checkedBy: header.checkedBy ?? "",
+          confirmedBy: header.confirmedBy ?? "",
+          signature: header.signature ?? "",
         }),
       });
 
@@ -214,7 +239,7 @@ export default function HwCheckRequestTab({
 
       resetCreateForm();
       setMessage(
-        `${data.task.taskCode} létrehozva, ${data.task.lineCount} sorral. Nyisd meg a TASKS alatt a képek feltöltéséhez.`,
+        `${data.task.taskCode} létrehozva, ${data.task.lineCount} sorral. Nyisd meg a TASKS alatt.`,
       );
       setView("tasks");
       await Promise.all([loadCounts(), loadTasks(selectedDate)]);
@@ -241,7 +266,7 @@ export default function HwCheckRequestTab({
 
       setPendingDelete(null);
       if (openTaskId === task.id) setOpenTaskId(null);
-      setMessage(`${task.taskCode} törölve, a képeivel együtt.`);
+      setMessage(`${task.taskCode} törölve.`);
       await Promise.all([loadCounts(), loadTasks(selectedDate)]);
       onSynced();
     } catch (deleteError) {
@@ -258,6 +283,8 @@ export default function HwCheckRequestTab({
   };
 
   const nextCode = nextTaskCodes[taskType];
+  const openTask = tasks.find((task) => task.id === openTaskId) ?? null;
+  const locatorCount = new Set(rows.map((row) => row.locator ?? "")).size;
 
   return (
     <>
@@ -305,8 +332,9 @@ export default function HwCheckRequestTab({
           {!isCreating ? (
             <div className="create-task-intro">
               <p>
-                A task egy feltöltött fájl. Nyomd meg a CREATE TASK gombot, válaszd
-                ki a típusát, majd importáld hozzá az excelt.
+                A task egy feltöltött fájl vagy néhány kézzel felvitt sor. Nyomd meg
+                a CREATE TASK gombot, válaszd ki a típusát, majd írd be a sorokat
+                vagy importáld az excelt.
               </p>
               <button
                 className="create-task-button"
@@ -333,7 +361,7 @@ export default function HwCheckRequestTab({
                   value={taskType}
                   onChange={(event) => {
                     setTaskType(event.target.value);
-                    setImported(null);
+                    clearRows();
                     setMessage("");
                     setError("");
                   }}
@@ -355,13 +383,22 @@ export default function HwCheckRequestTab({
                 </select>
               </label>
 
-              {taskType === "photo-upload" && (
+              {spec && (
                 <>
+                  <HwCheckManualRows
+                    spec={spec}
+                    onAdd={addManualRow}
+                    onError={(text) => {
+                      setMessage("");
+                      setError(text);
+                    }}
+                  />
+
                   <div className="import-row">
                     <button
                       className="template-button"
                       type="button"
-                      onClick={downloadTemplate}
+                      onClick={() => downloadTaskTemplate(taskType)}
                     >
                       <svg aria-hidden="true" viewBox="0 0 24 24">
                         <path d="M12 4v10m0 0 4-4m-4 4-4-4M5 19h14" />
@@ -379,72 +416,85 @@ export default function HwCheckRequestTab({
                   </div>
 
                   <p className="import-hint">
-                    Oszlopok: {TEMPLATE_HEADERS.join(" · ")}. A Warehouse Code
-                    üresen hagyva {WAREHOUSE_CODE} lesz, és 1-nél nagyobb Qty
-                    esetén minden darab külön sort kap, külön képekkel. Nem tudod
-                    a formátumot? A TEMPLATE gombbal letöltöd.
+                    Oszlopok: {spec.fields.map((field) => field.label).join(" · ")}.{" "}
+                    {spec.hint} Nem tudod a formátumot? A TEMPLATE gombbal letöltöd.
                   </p>
 
-                  {imported && (
+                  {rows.length > 0 && (
                     <div className="import-preview">
                       <div className="import-summary">
                         <div>
-                          <span>FILE</span>
-                          <strong>{imported.name}</strong>
+                          <span>SOURCE</span>
+                          <strong>{sourceName}</strong>
                         </div>
                         <div>
                           <span>ROWS</span>
-                          <strong>{imported.rows.length}</strong>
-                        </div>
-                        <div>
-                          <span>PHOTO LINES</span>
-                          <strong>{imported.lines.length}</strong>
+                          <strong>{rows.length}</strong>
                         </div>
                         <div>
                           <span>LOCATORS</span>
-                          <strong>
-                            {
-                              new Set(imported.rows.map((row) => row.locator))
-                                .size
-                            }
-                          </strong>
+                          <strong>{locatorCount}</strong>
                         </div>
-                        <div>
-                          <span>PHOTOS NEEDED</span>
-                          <strong>{imported.lines.length * 2}</strong>
-                        </div>
+                        {taskType === "photo-upload" ? (
+                          <>
+                            <div>
+                              <span>PHOTO LINES</span>
+                              <strong>{lines.length}</strong>
+                            </div>
+                            <div>
+                              <span>PHOTOS NEEDED</span>
+                              <strong>{lines.length * 2}</strong>
+                            </div>
+                          </>
+                        ) : (
+                          <div>
+                            <span>SEAL CHECKS</span>
+                            <strong>{lines.length}</strong>
+                          </div>
+                        )}
+                        {/* Only worth a tile if the sheet named someone: it is
+                            the one place the export-only signers are visible. */}
+                        {header.checkedBy && (
+                          <div>
+                            <span>CHECKED BY</span>
+                            <strong>{header.checkedBy}</strong>
+                          </div>
+                        )}
                       </div>
 
                       <table className="import-table">
                         <thead>
                           <tr>
-                            {TEMPLATE_HEADERS.map((header) => (
-                              <th key={header}>{header}</th>
+                            {spec.fields.map((field) => (
+                              <th key={field.key}>{field.label}</th>
                             ))}
-                            <th>Piece</th>
+                            <th aria-label="Remove row" />
                           </tr>
                         </thead>
                         <tbody>
-                          {imported.lines.slice(0, PREVIEW_ROWS).map((line, index) => (
+                          {rows.slice(0, PREVIEW_ROWS).map((row, index) => (
                             <tr key={index}>
-                              <td>{line.item}</td>
-                              <td>{line.sn}</td>
-                              <td>{line.qty}</td>
-                              <td>{line.warehouseCode}</td>
-                              <td>{line.subinvCode}</td>
-                              <td>{line.locator}</td>
+                              {spec.fields.map((field) => (
+                                <td key={field.key}>{row[field.key] || "—"}</td>
+                              ))}
                               <td>
-                                {line.unitCount > 1
-                                  ? `${line.unitIndex}/${line.unitCount}`
-                                  : "—"}
+                                <button
+                                  className="row-delete"
+                                  type="button"
+                                  onClick={() => removeRow(index)}
+                                  title="Remove row"
+                                  aria-label={`Remove row ${index + 1}`}
+                                >
+                                  ✕
+                                </button>
                               </td>
                             </tr>
                           ))}
                         </tbody>
                       </table>
-                      {imported.lines.length > PREVIEW_ROWS && (
+                      {rows.length > PREVIEW_ROWS && (
                         <p className="import-hint">
-                          …és további {imported.lines.length - PREVIEW_ROWS} sor.
+                          …és további {rows.length - PREVIEW_ROWS} sor.
                         </p>
                       )}
                     </div>
@@ -468,7 +518,7 @@ export default function HwCheckRequestTab({
                 <button
                   className="save-button"
                   type="button"
-                  disabled={isSending || !taskType || !imported}
+                  disabled={isSending || !taskType || rows.length === 0}
                   onClick={() => void sendTask()}
                 >
                   {isSending ? "SENDING…" : "SEND TASK"}
@@ -480,6 +530,15 @@ export default function HwCheckRequestTab({
             </div>
           )}
         </section>
+      ) : openTaskId && openTask?.taskType === "yellow-seal" ? (
+        <HwCheckTaskSeals
+          taskId={openTaskId}
+          onClose={showTasks}
+          onChanged={() => {
+            void loadCounts().catch(() => undefined);
+            void loadTasks(selectedDate).catch(() => undefined);
+          }}
+        />
       ) : openTaskId ? (
         <HwCheckTaskPhotos
           taskId={openTaskId}
@@ -512,8 +571,8 @@ export default function HwCheckRequestTab({
               </svg>
               <h3>No HW check tasks</h3>
               <p>
-                Switch to UPLOAD TASK, press CREATE TASK and import the photo
-                upload file for this work date.
+                Switch to UPLOAD TASK, press CREATE TASK and either type the rows
+                in or import the file for this work date.
               </p>
             </div>
           ) : (
@@ -554,7 +613,9 @@ export default function HwCheckRequestTab({
                     </span>
                     <span className="task-counts">
                       {task.completedLines}/{task.lineCount} ROWS READY ·{" "}
-                      {task.photoCount} PHOTOS
+                      {task.taskType === "yellow-seal"
+                        ? `${task.passCount} PASS · ${task.failCount} FAIL`
+                        : `${task.photoCount} PHOTOS`}
                     </span>
                   </button>
 
@@ -588,7 +649,11 @@ export default function HwCheckRequestTab({
       {pendingDelete && (
         <ConfirmDialog
           title="Are you sure you want to delete?"
-          message={`${pendingDelete.taskCode} is removed for good, with all ${pendingDelete.photoCount} uploaded photos.`}
+          message={`${pendingDelete.taskCode} is removed for good, with all ${
+            pendingDelete.taskType === "yellow-seal"
+              ? `${pendingDelete.lineCount} checked rows`
+              : `${pendingDelete.photoCount} uploaded photos`
+          }.`}
           busyLabel="DELETING…"
           isBusy={isDeleting}
           onConfirm={() => void deleteTask()}

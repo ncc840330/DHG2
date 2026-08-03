@@ -155,6 +155,12 @@ export const hwCheckUploadTasks = pgTable(
     taskSequence: integer("task_sequence").notNull(),
     taskCode: text("task_code").notNull(),
     sourceFileName: text("source_file_name").notNull(),
+    // The yellow seal sheet names who checks and who confirms once, at the top
+    // of the file. Both are kept on the task because every printed row repeats
+    // them, and the signature column is left for a pen.
+    checkedBy: text("checked_by").default("").notNull(),
+    confirmedBy: text("confirmed_by").default("").notNull(),
+    signature: text().default("").notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
   },
@@ -170,9 +176,9 @@ export const hwCheckUploadTasks = pgTable(
 );
 
 /**
- * One photographable piece of a task: a spreadsheet row of qty 3 becomes three
- * lines, each numbered with the piece it stands for so the operator knows which
- * of the three they are shooting.
+ * One workable piece of a task: for photo upload a spreadsheet row of qty 3
+ * becomes three lines, each numbered with the piece it stands for, and for the
+ * yellow seal check every row is one box whose seal gets a pass or a fail.
  */
 export const hwCheckTaskLines = pgTable(
   "hw_check_task_lines",
@@ -190,6 +196,12 @@ export const hwCheckTaskLines = pgTable(
     warehouseCode: text("warehouse_code").notNull(),
     subinvCode: text("subinv_code").notNull(),
     locator: text().notNull(),
+    /** Yellow seal work reads the label off the box, so the code travels along. */
+    barcode: text().default("").notNull(),
+    /** `pass`, `fail` or empty while the seal has not been looked at yet. */
+    sealResult: text("seal_result").default("").notNull(),
+    /** Free text from whoever checked the seal. Never required. */
+    remark: text().default("").notNull(),
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   },
   (table) => [

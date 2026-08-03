@@ -32,6 +32,7 @@
     "build": "react-scripts build",
     "test": "react-scripts test --env=jsdom",
     "test:xlsx": "node --test scripts/xlsx-repair.test.mjs",
+    "test:pdf": "node --test scripts/seal-sheet.test.mjs",
     "fix:xlsx": "node scripts/fix-xlsx.mjs",
     "eject": "react-scripts eject"
   },
