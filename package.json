@@ -33,6 +33,7 @@
     "test": "react-scripts test --env=jsdom",
     "test:xlsx": "node --test scripts/xlsx-repair.test.mjs",
     "test:pdf": "node --test scripts/seal-sheet.test.mjs",
+    "test:andi": "node --test scripts/andi-photos.test.mjs",
     "fix:xlsx": "node scripts/fix-xlsx.mjs",
     "eject": "react-scripts eject"
   },

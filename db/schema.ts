@@ -253,3 +253,26 @@ export const deletionRequestImages = pgTable(
     ),
   ],
 );
+
+/**
+ * The Andi import/export gallery: pictures that belong to a work day and to
+ * nothing else. There is no task, no line and no slot — a photo is imported to
+ * be handed back out again, one JPEG at a time or the day's lot in a ZIP — so
+ * the only things kept are the day it was filed under and the name it is to be
+ * downloaded as.
+ */
+export const andiPhotos = pgTable(
+  "andi_photos",
+  {
+    id: serial().primaryKey(),
+    recordDate: date("record_date").notNull(),
+    /** The download name, extension included. Renamed as often as they like. */
+    fileName: text("file_name").notNull(),
+    blobKey: text("blob_key").notNull(),
+    contentType: text("content_type").notNull(),
+    byteSize: integer("byte_size").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (table) => [index("andi_photos_record_date_idx").on(table.recordDate)],
+);

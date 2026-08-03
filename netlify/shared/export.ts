@@ -139,6 +139,28 @@ export function pdfResponse(download: { fileName: string; data: Uint8Array }) {
   return fileResponse(download, "application/pdf");
 }
 
+/**
+ * The gallery download is written as it is read, so its length is not known when
+ * the headers go out — the archive is handed over as a stream instead.
+ */
+export function zipStreamResponse(
+  fileName: string,
+  body: ReadableStream<Uint8Array>,
+) {
+  return new Response(body, {
+    headers: {
+      "Content-Type": "application/zip",
+      "Content-Disposition": attachment(fileName),
+    },
+  });
+}
+
+function attachment(fileName: string) {
+  return `attachment; filename="${asciiFileName(
+    fileName,
+  )}"; filename*=UTF-8''${encodeURIComponent(fileName)}`;
+}
+
 function fileResponse(
   download: { fileName: string; data: Uint8Array },
   contentType: string,
@@ -147,9 +169,7 @@ function fileResponse(
     headers: {
       "Content-Type": contentType,
       "Content-Length": String(download.data.length),
-      "Content-Disposition": `attachment; filename="${asciiFileName(
-        download.fileName,
-      )}"; filename*=UTF-8''${encodeURIComponent(download.fileName)}`,
+      "Content-Disposition": attachment(download.fileName),
     },
   });
 }
